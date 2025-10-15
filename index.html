@@ -1,273 +1,70 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Pakisa Floor Check — Daily</title>
-
-  <!-- Tailwind CDN -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Floor Checks</title>
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-
   <!-- Supabase JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.26.0/dist/supabase.min.js"></script>
-
-  <style>
-    body { background: #f3f5f7; min-height:100vh; }
-    .brand-navy { color: #0a2b52; }
-    .brand-navy-bg { background: #0a2b52; }
-    .brand-blue { background: #409dbc; }
-    .brand-gold { background: #cebd80; }
-  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
 </head>
-<body class="font-sans antialiased">
-
-  <div class="max-w-7xl mx-auto p-4">
-    <header class="flex items-center gap-4 mb-6">
-      <img id="logo" src="LOGO_URL" alt="Pakisa Logo" class="w-36 h-auto rounded-sm shadow-sm"/>
-      <div>
-        <h1 class="text-2xl font-bold brand-navy">Pakisa Express Logistics</h1>
-        <div class="text-sm text-gray-600">
-          Daily Floor Check — <span class="font-semibold">Designed by Mpho Mahlaba — <span class="italic">The King</span> 👑</span>
-        </div>
-      </div>
-      <div class="ml-auto text-right text-xs text-gray-500">
-        <div id="envNote">Offline Mode</div>
-      </div>
-    </header>
-
-    <main class="bg-white rounded-lg shadow p-5">
-
-      <!-- Controls -->
-      <div class="grid md:grid-cols-3 gap-4 mb-4">
-        <div>
-          <label class="block text-sm font-medium">Client / Company</label>
-          <select id="company" class="mt-1 block w-full border rounded p-2">
-            <option>FedEx Express</option>
-            <option>Seabourne Logistics</option>
-            <option>Brima Logistics</option>
-            <option>First Freight Couriers</option>
-            <option>AJM Couriers</option>
-            <option>Other</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium">Reason</label>
-          <select id="reason" class="mt-1 block w-full border rounded p-2">
-            <option>Planned for next day</option>
-            <option>Incorrect address</option>
-            <option>No invoice on package</option>
-            <option>Damaged in transit</option>
-            <option>Rejected by customer</option>
-            <option>Misroute</option>
-            <option>No contact person</option>
-            <option>Nobody home</option>
-            <option>Missed booking</option>
-            <option>Other</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium">Scanned by (station/user)</label>
-          <input id="scanned_by" class="mt-1 block w-full border rounded p-2" placeholder="e.g. Floor A - Lebo"/>
-        </div>
-      </div>
-
-      <!-- Scan Input -->
-      <div class="flex gap-4 items-center mb-4">
-        <div class="flex-grow">
-          <label class="block text-sm font-medium">Scan Waybill</label>
-          <input id="waybillInput" autocomplete="off" autofocus
-                 class="mt-1 block w-full border rounded p-3 text-lg font-mono" placeholder="Scan or type waybill here" />
-        </div>
-        <div class="w-48">
-          <label class="block text-sm font-medium invisible">Button</label>
-          <button id="manualAdd" class="w-full brand-navy-bg text-white rounded p-3">Add (manual)</button>
-        </div>
-      </div>
-
-      <!-- Today + CSV Export -->
-      <div class="flex justify-between items-center mb-4">
-        <div>
-          <span class="text-gray-600">Today: </span><span id="todayLabel" class="font-medium"></span>
-        </div>
-        <div class="flex gap-2">
-          <button id="exportCsv" class="px-3 py-2 border rounded">Export CSV</button>
-          <button id="clearUI" class="px-3 py-2 border rounded">Clear Today (UI only)</button>
-        </div>
-      </div>
-
-      <!-- Summary -->
-      <div class="mb-4">
-        <div class="flex gap-4">
-          <div class="p-3 brand-gold rounded w-48 text-center">
-            <div class="text-sm">Total Scanned Today</div>
-            <div id="totalCount" class="text-2xl font-bold">0</div>
-          </div>
-          <div class="p-3 brand-blue rounded text-white flex-grow">
-            <div class="text-sm">Top Reason</div>
-            <div id="topReason" class="text-lg font-semibold">—</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Live Table -->
-      <div>
-        <table class="min-w-full divide-y divide-gray-200" id="resultsTable">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-3 py-2 text-left text-xs">Time</th>
-              <th class="px-3 py-2 text-left text-xs">Company</th>
-              <th class="px-3 py-2 text-left text-xs">Waybill</th>
-              <th class="px-3 py-2 text-left text-xs">Reason</th>
-              <th class="px-3 py-2 text-left text-xs">Scanned by</th>
-              <th class="px-3 py-2 text-left text-xs">Remarks</th>
-            </tr>
-          </thead>
-          <tbody id="tableBody" class="bg-white divide-y divide-gray-200"></tbody>
-        </table>
-      </div>
-    </main>
+<body class="bg-gray-100 text-gray-800">
+  <div class="container mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-4">Daily Floor Checks</h1>
+    <table class="min-w-full bg-white rounded shadow overflow-hidden">
+      <thead class="bg-gray-200">
+        <tr>
+          <th class="py-2 px-4 text-left">ID</th>
+          <th class="py-2 px-4 text-left">Employee</th>
+          <th class="py-2 px-4 text-left">Location</th>
+          <th class="py-2 px-4 text-left">Scan Date</th>
+          <th class="py-2 px-4 text-left">Status</th>
+        </tr>
+      </thead>
+      <tbody id="floor-checks-body"></tbody>
+    </table>
   </div>
 
-  <!-- Optional beep -->
-  <audio id="beep" src=""></audio>
-
   <script>
-    // ---------------- CONFIG ----------------
-    const SUPABASE_URL = 'SUPABASE_URL'; // replace
-    const SUPABASE_ANON_KEY = 'SUPABASE_ANON_KEY'; // replace
-    const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // --- Supabase Init ---
+    const supabaseUrl = 'https://orhqnjxigboyvnwaopxu.supabase.co';
+    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yaHFuanhpZ2JveXZud2FvcHh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0OTI3MTksImV4cCI6MjA3NjA2ODcxOX0.KAk9QL0T7VwzXdbH1-Rei0P9x0XHeEI4jcDuPHxK28M';
 
-    // UI elements
-    const todayLabel = document.getElementById('todayLabel');
-    const waybillInput = document.getElementById('waybillInput');
-    const companyEl = document.getElementById('company');
-    const reasonEl = document.getElementById('reason');
-    const scannedByEl = document.getElementById('scanned_by');
-    const tableBody = document.getElementById('tableBody');
-    const totalCountEl = document.getElementById('totalCount');
-    const topReasonEl = document.getElementById('topReason');
-    const beep = document.getElementById('beep');
+    const supabase = Supabase.createClient(supabaseUrl, supabaseAnonKey);
 
-    const today = new Date().toISOString().slice(0,10);
-    todayLabel.textContent = today;
+    // --- Fetch & Display Data ---
+    async function fetchFloorChecks() {
+      const { data, error } = await supabase
+        .from('floor_checks') // <-- your table name
+        .select('*')
+        .order('scan_date', { ascending: false });
 
-    // ---------------- Helpers ----------------
-    function escapeHtml(s){ return s? s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') : ''; }
-    function flashSuccess(el){ el.style.background = '#e6ffed'; setTimeout(()=> el.style.background='',150); }
+      if (error) {
+        console.error('Error fetching floor checks:', error);
+        alert('Error fetching data. Check console.');
+        return;
+      }
 
-    async function addScan(waybill){
-      if(!waybill||waybill.trim()==='') return false;
-      const payload = { scan_date: today, company: companyEl.value, reason: reasonEl.value, waybill_number: waybill.trim(), scanned_by: scannedByEl.value||null };
-      const { data, error } = await supabase.from('floor_checks').insert(payload).select();
-      if(error){ console.error(error); return false; }
-      waybillInput.value=''; waybillInput.focus();
-      try{ if(beep.src) beep.play(); } catch(e){}
-      return true;
-    }
+      const tbody = document.getElementById('floor-checks-body');
+      tbody.innerHTML = ''; // clear existing rows
 
-    async function loadToday(){
-      const { data } = await supabase.from('floor_checks').select('*').eq('scan_date',today).order('created_at',{ascending:true});
-      renderRows(data||[]);
-      updateSummary(data||[]);
-    }
+      data.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.classList.add('border-b');
 
-    function renderRows(rows){
-      tableBody.innerHTML='';
-      rows.forEach(r=>{
-        const tr=document.createElement('tr');
-        tr.innerHTML=`
-          <td class="px-3 py-2 text-sm">${new Date(r.time||r.created_at).toLocaleTimeString()}</td>
-          <td class="px-3 py-2 text-sm">${escapeHtml(r.company)}</td>
-          <td class="px-3 py-2 text-sm font-mono">${escapeHtml(r.waybill_number)}</td>
-          <td class="px-3 py-2 text-sm">${escapeHtml(r.reason)}</td>
-          <td class="px-3 py-2 text-sm">${escapeHtml(r.scanned_by||'')}</td>
-          <td class="px-3 py-2 text-sm">${escapeHtml(r.remarks||'')}</td>
+        tr.innerHTML = `
+          <td class="py-2 px-4">${row.id}</td>
+          <td class="py-2 px-4">${row.employee_name || '-'}</td>
+          <td class="py-2 px-4">${row.location || '-'}</td>
+          <td class="py-2 px-4">${row.scan_date ? new Date(row.scan_date).toLocaleString() : '-'}</td>
+          <td class="py-2 px-4">${row.status || '-'}</td>
         `;
-        tableBody.appendChild(tr);
+        tbody.appendChild(tr);
       });
     }
 
-    function updateSummary(rows){
-      totalCountEl.textContent = rows.length||0;
-      const counts={};
-      rows.forEach(r=>{ counts[r.reason]=(counts[r.reason]||0)+1; });
-      const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
-      topReasonEl.textContent = top ? `${top[0]} (${top[1]})` : '—';
-    }
-
-    function subscribeRealtime(){
-      supabase.channel('public:floor_checks')
-        .on('postgres_changes',{event:'INSERT',schema:'public',table:'floor_checks'},payload=>{
-          const row=payload.new;
-          if(row.scan_date===today){
-            const tr=document.createElement('tr');
-            tr.innerHTML=`
-              <td class="px-3 py-2 text-sm">${new Date(row.time||row.created_at).toLocaleTimeString()}</td>
-              <td class="px-3 py-2 text-sm">${escapeHtml(row.company)}</td>
-              <td class="px-3 py-2 text-sm font-mono">${escapeHtml(row.waybill_number)}</td>
-              <td class="px-3 py-2 text-sm">${escapeHtml(row.reason)}</td>
-              <td class="px-3 py-2 text-sm">${escapeHtml(row.scanned_by||'')}</td>
-              <td class="px-3 py-2 text-sm">${escapeHtml(row.remarks||'')}</td>
-            `;
-            tableBody.appendChild(tr);
-            totalCountEl.textContent = (parseInt(totalCountEl.textContent||'0')+1);
-            flashSuccess(tr);
-            try{ if(beep.src) beep.play(); } catch(e){}
-          }
-        })
-        .subscribe();
-    }
-
-    // ---------------- Auto-scan logic ----------------
-    let scanTimeout=null;
-    const SCAN_DELAY_MS=300;
-    const MIN_WAYBILL_LENGTH=6;
-
-    waybillInput.addEventListener('keydown',async e=>{
-      if(e.key==='Enter'){ e.preventDefault(); const v=waybillInput.value.trim(); if(v.length>=MIN_WAYBILL_LENGTH) await addScan(v);}
-    });
-
-    waybillInput.addEventListener('input',e=>{
-      clearTimeout(scanTimeout);
-      const v=e.target.value.trim();
-      if(v.length>=MIN_WAYBILL_LENGTH){
-        scanTimeout=setTimeout(async()=>{await addScan(v);},SCAN_DELAY_MS);
-      }
-    });
-
-    document.getElementById('manualAdd').addEventListener('click',async()=>{const v=waybillInput.value.trim(); if(v) await addScan(v);});
-    document.getElementById('exportCsv').addEventListener('click',async()=>{
-      const { data } = await supabase.from('floor_checks').select('*').eq('scan_date',today).order('created_at',{ascending:true});
-      downloadCSV(data||[],`floorchecks-${today}.csv`);
-    });
-
-    function downloadCSV(rows,filename){
-      if(!rows||rows.length===0){ alert('No rows to export.'); return; }
-      const keys=['time','company','waybill_number','reason','scanned_by','remarks'];
-      const csv=[keys.join(','),...rows.map(r=>keys.map(k=>`"${(r[k]||'').toString().replace(/"/g,'""')}"`).join(','))].join('\n');
-      const blob=new Blob([csv],{type:'text/csv'});
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a'); a.href=url; a.download=filename; a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    document.getElementById('clearUI').addEventListener('click',()=>{
-      tableBody.innerHTML=''; totalCountEl.textContent='0'; topReasonEl.textContent='—';
-    });
-
-    (async function init(){
-      const savedName=localStorage.getItem('pakisa_scanner_name')||'';
-      if(!savedName){ const n=prompt('Enter your station or name (saved on this device):','Floor A - '); if(n){ scannedByEl.value=n; localStorage.setItem('pakisa_scanner_name',n); } }
-      else scannedByEl.value=savedName;
-      scannedByEl.addEventListener('change',()=>localStorage.setItem('pakisa_scanner_name',scannedByEl.value));
-
-      await loadToday();
-      subscribeRealtime();
-      waybillInput.focus();
-    })();
+    fetchFloorChecks();
   </script>
-
 </body>
 </html>
