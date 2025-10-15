@@ -6,197 +6,162 @@
   <title>Daily Floor Checks</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 </head>
-<body class="bg-gray-100 text-gray-800 p-6">
+<body class="bg-gray-100 text-gray-800">
+  <div class="container mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-4">Daily Floor Checks</h1>
 
-  <h1 class="text-3xl font-bold mb-4">Daily Floor Checks</h1>
+    <!-- Customer & Reason -->
+    <div class="mb-4 flex flex-wrap gap-4 items-center">
+      <div>
+        <label class="block font-semibold">Customer</label>
+        <select id="customer-select" class="border rounded p-2">
+          <option value="Fedex Express">Fedex Express</option>
+          <option value="Seabourne Logistics">Seabourne Logistics</option>
+          <option value="Brima Logistics">Brima Logistics</option>
+          <option value="AJM Couriers">AJM Couriers</option>
+          <option value="ACT">ACT</option>
+        </select>
+      </div>
 
-  <!-- Controls -->
-  <div class="flex gap-2 mb-4">
-    <select id="customerSelect" class="p-2 border rounded w-1/4">
-      <option value="">Select customer</option>
-      <option>Fedex Express</option>
-      <option>Seabourne Logistics</option>
-      <option>Brima Logistics</option>
-      <option>AJM Couriers</option>
-      <option>Act</option>
-    </select>
+      <div>
+        <label class="block font-semibold">Reason</label>
+        <select id="reason-select" class="border rounded p-2">
+          <option value="Planned for next day">Planned for next day</option>
+          <option value="Incorrect address">Incorrect address</option>
+          <option value="No invoice on package">No invoice on package</option>
+          <option value="Damaged in transit">Damaged in transit</option>
+          <option value="Rejected by customer">Rejected by customer</option>
+          <option value="Misroute">Misroute</option>
+          <option value="No contact person">No contact person</option>
+          <option value="Nobody home">Nobody home</option>
+          <option value="Missed booking">Missed booking</option>
+        </select>
+      </div>
 
-    <select id="reasonSelect" class="p-2 border rounded w-1/4">
-      <option value="">Select reason</option>
-      <option>Planned for next day</option>
-      <option>Incorrect address</option>
-      <option>No invoice on package</option>
-      <option>Damaged in transit</option>
-      <option>Rejected by customer</option>
-      <option>Misroute</option>
-      <option>No contact person</option>
-      <option>Nobody home</option>
-      <option>Missed booking</option>
-    </select>
+      <div class="flex-1">
+        <label class="block font-semibold">Scan Waybill</label>
+        <input type="text" id="scan-input" class="border rounded p-2 w-full" placeholder="Scan or type waybill number">
+      </div>
 
-    <input type="text" id="waybillInput" placeholder="Scan or type waybill → Enter" class="p-2 border rounded w-1/2" autofocus>
+      <div class="flex gap-2 mt-4 md:mt-0">
+        <button id="export-csv" class="bg-blue-500 text-white px-4 py-2 rounded">Export CSV</button>
+        <button id="export-pdf" class="bg-green-500 text-white px-4 py-2 rounded">Export PDF</button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <table class="min-w-full bg-white rounded shadow overflow-hidden">
+      <thead class="bg-gray-200">
+        <tr>
+          <th class="py-2 px-4 text-left">Time</th>
+          <th class="py-2 px-4 text-left">Customer</th>
+          <th class="py-2 px-4 text-left">Reason</th>
+          <th class="py-2 px-4 text-left">Waybill</th>
+          <th class="py-2 px-4 text-left">Status</th>
+        </tr>
+      </thead>
+      <tbody id="floor-checks-body"></tbody>
+    </table>
+
+    <p class="text-sm mt-4 text-gray-500">Designed by Mpho Mahlaba</p>
   </div>
-
-  <!-- Filters for report -->
-  <div class="flex gap-2 mb-4">
-    <select id="filterCustomer" class="p-2 border rounded w-1/4">
-      <option value="">Filter by customer</option>
-      <option>Fedex Express</option>
-      <option>Seabourne Logistics</option>
-      <option>Brima Logistics</option>
-      <option>AJM Couriers</option>
-      <option>Act</option>
-    </select>
-
-    <select id="filterReason" class="p-2 border rounded w-1/4">
-      <option value="">Filter by reason</option>
-      <option>Planned for next day</option>
-      <option>Incorrect address</option>
-      <option>No invoice on package</option>
-      <option>Damaged in transit</option>
-      <option>Rejected by customer</option>
-      <option>Misroute</option>
-      <option>No contact person</option>
-      <option>Nobody home</option>
-      <option>Missed booking</option>
-    </select>
-
-    <button id="exportCsv" class="p-2 bg-yellow-500 rounded">Export CSV</button>
-    <button id="exportPdf" class="p-2 bg-blue-500 text-white rounded">Export PDF</button>
-  </div>
-
-  <!-- Table -->
-  <table class="min-w-full bg-white rounded shadow overflow-hidden">
-    <thead class="bg-gray-200">
-      <tr>
-        <th class="py-2 px-4">Customer</th>
-        <th class="py-2 px-4">Waybill</th>
-        <th class="py-2 px-4">Reason</th>
-        <th class="py-2 px-4">Date & Time</th>
-      </tr>
-    </thead>
-    <tbody id="logBody"></tbody>
-  </table>
-
-  <!-- Totals -->
-  <div class="mt-4" id="totals"></div>
-
-  <!-- Audio feedback -->
-  <audio id="successAudio">
-    <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg">
-  </audio>
-  <audio id="errorAudio">
-    <source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" type="audio/ogg">
-  </audio>
 
   <script>
-    let logs = [];
+    const floorChecks = [];
+    const scanInput = document.getElementById('scan-input');
+    const customerSelect = document.getElementById('customer-select');
+    const reasonSelect = document.getElementById('reason-select');
+    const tbody = document.getElementById('floor-checks-body');
 
-    const waybillInput = document.getElementById('waybillInput');
-    const reasonSelect = document.getElementById('reasonSelect');
-    const customerSelect = document.getElementById('customerSelect');
-    const logBody = document.getElementById('logBody');
-    const totalsDiv = document.getElementById('totals');
-    const filterCustomer = document.getElementById('filterCustomer');
-    const filterReason = document.getElementById('filterReason');
-    const successAudio = document.getElementById('successAudio');
-    const errorAudio = document.getElementById('errorAudio');
+    // Success/error beep
+    const beepSuccess = new Audio('https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg');
+    const beepError = new Audio('https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg');
 
-    // --- Helper functions ---
-    function renderLogs() {
-      const customerFilter = filterCustomer.value;
-      const reasonFilter = filterReason.value;
-
-      logBody.innerHTML = '';
-      logs.forEach(entry => {
-        if((!customerFilter || entry.customer === customerFilter) &&
-           (!reasonFilter || entry.reason === reasonFilter)) {
-
-          const tr = document.createElement('tr');
-          tr.classList.add('border-b');
-          tr.innerHTML = `
-            <td class="py-2 px-4">${entry.customer}</td>
-            <td class="py-2 px-4">${entry.waybill}</td>
-            <td class="py-2 px-4">${entry.reason}</td>
-            <td class="py-2 px-4">${entry.datetime}</td>
-          `;
-          tr.style.backgroundColor = entry.success ? '#d4edda' : '#f8d7da';
-          logBody.appendChild(tr);
-        }
-      });
-
-      // Totals
-      const totalByReason = {};
-      logs.forEach(l => {
-        if(!totalByReason[l.reason]) totalByReason[l.reason] = 0;
-        totalByReason[l.reason]++;
-      });
-      totalsDiv.innerHTML = '<h2 class="font-bold">Totals:</h2>' +
-        Object.entries(totalByReason).map(([reason, count]) => `<div>${reason}: ${count}</div>`).join('');
+    function addRow({time, customer, reason, waybill, status}) {
+      const tr = document.createElement('tr');
+      tr.classList.add('border-b');
+      tr.innerHTML = `
+        <td class="py-2 px-4">${time}</td>
+        <td class="py-2 px-4">${customer}</td>
+        <td class="py-2 px-4">${reason}</td>
+        <td class="py-2 px-4">${waybill}</td>
+        <td class="py-2 px-4">${status}</td>
+      `;
+      tr.style.backgroundColor = status === 'Success' ? '#d1fae5' : '#fee2e2';
+      tbody.prepend(tr);
     }
 
-    function exportCSV() {
-      const csv = ['Customer,Waybill,Reason,Date & Time']
-        .concat(logs.map(l => `${l.customer},${l.waybill},${l.reason},${l.datetime}`))
-        .join('\n');
-      const blob = new Blob([csv], {type: 'text/csv'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `floor_checks_${new Date().toISOString().split('T')[0]}.csv`;
-      a.click();
+    function handleScan(waybill) {
+      if (!waybill.trim()) return beepError.play();
+      const now = new Date().toLocaleTimeString();
+      const customer = customerSelect.value;
+      const reason = reasonSelect.value;
+      const status = 'Success';
+
+      floorChecks.push({time: now, customer, reason, waybill, status});
+      addRow({time: now, customer, reason, waybill, status});
+      beepSuccess.play();
+      scanInput.value = '';
     }
 
-    function exportPDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      const body = logs.map(l => [l.customer, l.waybill, l.reason, l.datetime]);
-      doc.autoTable({ head:[['Customer','Waybill','Reason','Date & Time']], body });
-      doc.save(`floor_checks_${new Date().toISOString().split('T')[0]}.pdf`);
-    }
-
-    // --- Event Listeners ---
-    waybillInput.addEventListener('keydown', e => {
-      if(e.key === 'Enter'){
-        const waybill = waybillInput.value.trim();
-        const reason = reasonSelect.value;
-        const customer = customerSelect.value;
-        if(!waybill || !reason || !customer){
-          errorAudio.play();
-          alert('Select customer, reason and enter waybill');
-          return;
-        }
-
-        const entry = {
-          customer,
-          waybill,
-          reason,
-          datetime: new Date().toLocaleString(),
-          success: true
-        };
-        logs.unshift(entry);
-        successAudio.play();
-        renderLogs();
-        waybillInput.value = '';
-        waybillInput.focus();
+    scanInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        handleScan(scanInput.value);
       }
     });
 
-    filterCustomer.addEventListener('change', renderLogs);
-    filterReason.addEventListener('change', renderLogs);
-    document.getElementById('exportCsv').addEventListener('click', exportCSV);
-    document.getElementById('exportPdf').addEventListener('click', exportPDF);
-
     // Auto-reset at midnight
-    setInterval(() => {
-      const now = new Date();
-      if(now.getHours() === 0 && now.getMinutes() === 0){
-        logs = [];
-        renderLogs();
+    function resetIfNewDay() {
+      const today = new Date().toDateString();
+      if (!localStorage.getItem('lastDate') || localStorage.getItem('lastDate') !== today) {
+        floorChecks.length = 0;
+        tbody.innerHTML = '';
+        localStorage.setItem('lastDate', today);
       }
-    }, 60000);
+    }
+    setInterval(resetIfNewDay, 60000);
+    resetIfNewDay();
 
+    // Export CSV
+    document.getElementById('export-csv').addEventListener('click', () => {
+      if (!floorChecks.length) return alert('No scans yet');
+      const headers = ['Time', 'Customer', 'Reason', 'Waybill', 'Status'];
+      const csv = [
+        headers.join(','),
+        ...floorChecks.map(r => [r.time,r.customer,r.reason,r.waybill,r.status].join(','))
+      ].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `floor_checks_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Export PDF
+    document.getElementById('export-pdf').addEventListener('click', () => {
+      if (!floorChecks.length) return alert('No scans yet');
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text("Daily Floor Checks", 14, 20);
+      doc.setFontSize(10);
+
+      floorChecks.forEach((r, i) => {
+        const y = 30 + i * 8;
+        doc.text(`${r.time} | ${r.customer} | ${r.reason} | ${r.waybill} | ${r.status}`, 14, y);
+      });
+
+      doc.setFontSize(8);
+      doc.text("Designed by Mpho Mahlaba", 14, 290);
+      doc.save(`floor_checks_${new Date().toISOString().slice(0,10)}.pdf`);
+    });
+
+    // Focus ready for next scan
+    scanInput.focus();
+    setInterval(() => scanInput.focus(), 500);
   </script>
 </body>
 </html>
