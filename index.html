@@ -8,14 +8,17 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body class="bg-gray-100 text-gray-800">
-  <div class="container mx-auto p-6">
-    <h1 class="text-3xl font-bold mb-4">Daily Floor Checks</h1>
+  <div class="container mx-auto p-4 md:p-6">
+    <!-- Top credit -->
+    <p class="text-sm text-gray-500 mb-2 text-center md:text-left">Designed by Mpho Mahlaba</p>
+
+    <h1 class="text-2xl md:text-3xl font-bold mb-4 text-center md:text-left">Daily Floor Checks</h1>
 
     <!-- Customer & Reason -->
-    <div class="mb-4 flex flex-wrap gap-4 items-center">
-      <div>
-        <label class="block font-semibold">Customer</label>
-        <select id="customer-select" class="border rounded p-2">
+    <div class="mb-4 flex flex-col md:flex-row md:flex-wrap gap-4 items-start md:items-center">
+      <div class="flex-1">
+        <label class="block font-semibold mb-1">Customer</label>
+        <select id="customer-select" class="border rounded p-2 w-full">
           <option value="Fedex Express">Fedex Express</option>
           <option value="Seabourne Logistics">Seabourne Logistics</option>
           <option value="Brima Logistics">Brima Logistics</option>
@@ -24,9 +27,9 @@
         </select>
       </div>
 
-      <div>
-        <label class="block font-semibold">Reason</label>
-        <select id="reason-select" class="border rounded p-2">
+      <div class="flex-1">
+        <label class="block font-semibold mb-1">Reason</label>
+        <select id="reason-select" class="border rounded p-2 w-full">
           <option value="Planned for next day">Planned for next day</option>
           <option value="Incorrect address">Incorrect address</option>
           <option value="No invoice on package">No invoice on package</option>
@@ -40,31 +43,34 @@
       </div>
 
       <div class="flex-1">
-        <label class="block font-semibold">Scan Waybill</label>
+        <label class="block font-semibold mb-1">Scan Waybill</label>
         <input type="text" id="scan-input" class="border rounded p-2 w-full" placeholder="Scan or type waybill number">
       </div>
 
-      <div class="flex gap-2 mt-4 md:mt-0">
+      <div class="flex gap-2 mt-2 md:mt-0 flex-wrap">
         <button id="export-csv" class="bg-blue-500 text-white px-4 py-2 rounded">Export CSV</button>
         <button id="export-pdf" class="bg-green-500 text-white px-4 py-2 rounded">Export PDF</button>
       </div>
     </div>
 
     <!-- Table -->
-    <table class="min-w-full bg-white rounded shadow overflow-hidden">
-      <thead class="bg-gray-200">
-        <tr>
-          <th class="py-2 px-4 text-left">Time</th>
-          <th class="py-2 px-4 text-left">Customer</th>
-          <th class="py-2 px-4 text-left">Reason</th>
-          <th class="py-2 px-4 text-left">Waybill</th>
-          <th class="py-2 px-4 text-left">Status</th>
-        </tr>
-      </thead>
-      <tbody id="floor-checks-body"></tbody>
-    </table>
+    <div class="overflow-x-auto">
+      <table class="min-w-full bg-white rounded shadow overflow-hidden">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="py-2 px-4 text-left text-xs md:text-sm">Time</th>
+            <th class="py-2 px-4 text-left text-xs md:text-sm">Customer</th>
+            <th class="py-2 px-4 text-left text-xs md:text-sm">Reason</th>
+            <th class="py-2 px-4 text-left text-xs md:text-sm">Waybill</th>
+            <th class="py-2 px-4 text-left text-xs md:text-sm">Status</th>
+          </tr>
+        </thead>
+        <tbody id="floor-checks-body"></tbody>
+      </table>
+    </div>
 
-    <p class="text-sm mt-4 text-gray-500">Designed by Mpho Mahlaba</p>
+    <!-- Bottom credit -->
+    <p class="text-sm mt-4 text-gray-500 text-center md:text-left">Designed by Mpho Mahlaba</p>
   </div>
 
   <script>
@@ -106,9 +112,7 @@
     }
 
     scanInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        handleScan(scanInput.value);
-      }
+      if (e.key === 'Enter') handleScan(scanInput.value);
     });
 
     // Auto-reset at midnight
