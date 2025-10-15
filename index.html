@@ -12,6 +12,10 @@
 <body class="bg-gray-100 text-gray-800">
   <div class="container mx-auto p-6">
     <h1 class="text-3xl font-bold mb-4">Daily Floor Checks</h1>
+
+    <!-- Hidden input to capture scanner -->
+    <input id="scanner-input" type="text" autofocus class="opacity-0 absolute" />
+
     <table class="min-w-full bg-white rounded shadow overflow-hidden">
       <thead class="bg-gray-200">
         <tr>
@@ -26,17 +30,26 @@
     </table>
   </div>
 
+  <!-- Audio feedback -->
+  <audio id="success-sound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+  <audio id="error-sound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+
   <script>
-    // --- Supabase Init ---
     const supabaseUrl = 'https://orhqnjxigboyvnwaopxu.supabase.co';
     const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yaHFuanhpZ2JveXZud2FvcHh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0OTI3MTksImV4cCI6MjA3NjA2ODcxOX0.KAk9QL0T7VwzXdbH1-Rei0P9x0XHeEI4jcDuPHxK28M';
-
     const supabase = Supabase.createClient(supabaseUrl, supabaseAnonKey);
 
-    // --- Fetch & Display Data ---
+    const scannerInput = document.getElementById('scanner-input');
+    const successSound = document.getElementById('success-sound');
+    const errorSound = document.getElementById('error-sound');
+    const tbody = document.getElementById('floor-checks-body');
+
+    let floorChecksData = [];
+
+    // --- Fetch & display floor checks ---
     async function fetchFloorChecks() {
       const { data, error } = await supabase
-        .from('floor_checks') // <-- your table name
+        .from('floor_checks')
         .select('*')
         .order('scan_date', { ascending: false });
 
@@ -46,13 +59,16 @@
         return;
       }
 
-      const tbody = document.getElementById('floor-checks-body');
-      tbody.innerHTML = ''; // clear existing rows
+      floorChecksData = data; // save for reference
+      renderTable(data);
+    }
 
+    function renderTable(data) {
+      tbody.innerHTML = '';
       data.forEach(row => {
         const tr = document.createElement('tr');
+        tr.dataset.id = row.id;
         tr.classList.add('border-b');
-
         tr.innerHTML = `
           <td class="py-2 px-4">${row.id}</td>
           <td class="py-2 px-4">${row.employee_name || '-'}</td>
@@ -63,6 +79,43 @@
         tbody.appendChild(tr);
       });
     }
+
+    // --- Highlight row and play sound ---
+    function highlightRow(id, success=true) {
+      const row = document.querySelector(`#floor-checks-body tr[data-id='${id}']`);
+      if (!row) return false; // row not found
+      row.classList.remove('bg-green-200','bg-red-200');
+      row.classList.add(success ? 'bg-green-200' : 'bg-red-200');
+      (success ? successSound : errorSound).play();
+      return true;
+    }
+
+    // --- Handle barcode scanner input ---
+    scannerInput.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        const scannedId = e.target.value.trim();
+        e.target.value = ''; // clear for next scan
+
+        // Find row in data
+        const rowExists = floorChecksData.some(r => r.id.toString() === scannedId);
+
+        if (rowExists) {
+          highlightRow(scannedId, true);
+
+          // Optional: update Supabase scan status
+          await supabase
+            .from('floor_checks')
+            .update({ status: 'Scanned', scan_date: new Date().toISOString() })
+            .eq('id', scannedId);
+        } else {
+          highlightRow(scannedId, false);
+        }
+      }
+    });
+
+    // Keep focus on hidden input
+    window.addEventListener('click', () => scannerInput.focus());
+    window.addEventListener('load', () => scannerInput.focus());
 
     fetchFloorChecks();
   </script>
