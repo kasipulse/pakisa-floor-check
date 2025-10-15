@@ -1,88 +1,115 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Floor Scan</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
-<script src="https://cdn.tailwindcss.com"></script>
-<style>
-  tr.success { background-color: #d1fae5; } /* green */
-  tr.error { background-color: #fee2e2; }   /* red */
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Floor Checks</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
 </head>
-<body class="bg-gray-100 p-6">
-  <h1 class="text-3xl font-bold mb-4">Floor Scan</h1>
-  <input type="text" id="scanner-input" autofocus class="border p-2 w-full mb-4" placeholder="Scan here..." />
-  <table class="min-w-full bg-white rounded shadow overflow-hidden">
-    <thead class="bg-gray-200">
-      <tr>
-        <th class="py-2 px-4">Scan</th>
-        <th class="py-2 px-4">Employee</th>
-        <th class="py-2 px-4">Location</th>
-        <th class="py-2 px-4">Scan Date</th>
-        <th class="py-2 px-4">Status</th>
-      </tr>
-    </thead>
-    <tbody id="scan-body"></tbody>
-  </table>
+<body class="bg-gray-100 text-gray-800">
+  <div class="container mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-4">Daily Floor Checks</h1>
 
-  <!-- Success / Error beep -->
-  <audio id="success-sound" src="https://www.soundjay.com/button/beep-07.wav"></audio>
-  <audio id="error-sound" src="https://www.soundjay.com/button/beep-10.wav"></audio>
+    <!-- Hidden input for barcode scanner -->
+    <input id="scanner-input" type="text" autofocus class="opacity-0 absolute" />
 
-<script>
-const supabaseUrl = 'https://orhqnjxigboyvnwaopxu.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yaHFuanhpZ2JveXZud2FvcHh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0OTI3MTksImV4cCI6MjA3NjA2ODcxOX0.KAk9QL0T7VwzXdbH1-Rei0P9x0XHeEI4jcDuPHxK28M';
-const supabase = Supabase.createClient(supabaseUrl, supabaseAnonKey);
+    <table class="min-w-full bg-white rounded shadow overflow-hidden">
+      <thead class="bg-gray-200">
+        <tr>
+          <th class="py-2 px-4 text-left">ID</th>
+          <th class="py-2 px-4 text-left">Employee</th>
+          <th class="py-2 px-4 text-left">Location</th>
+          <th class="py-2 px-4 text-left">Scan Date</th>
+          <th class="py-2 px-4 text-left">Status</th>
+        </tr>
+      </thead>
+      <tbody id="floor-checks-body"></tbody>
+    </table>
+  </div>
 
-const input = document.getElementById('scanner-input');
-const tbody = document.getElementById('scan-body');
-const successSound = document.getElementById('success-sound');
-const errorSound = document.getElementById('error-sound');
+  <audio id="beep-sound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
 
-// Keep track of scanner input
-let scanBuffer = '';
+  <script>
+    const supabaseUrl = 'https://orhqnjxigboyvnwaopxu.supabase.co';
+    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yaHFuanhpZ2JveXZud2FvcHh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0OTI3MTksImV4cCI6MjA3NjA2ODcxOX0.KAk9QL0T7VwzXdbH1-Rei0P9x0XHeEI4jcDuPHxK28M';
+    const supabase = Supabase.createClient(supabaseUrl, supabaseAnonKey);
 
-input.addEventListener('keydown', async (e) => {
-  if (e.key === 'Enter') {
-    const scanCode = scanBuffer.trim();
-    scanBuffer = '';
-    input.value = '';
+    const scannerInput = document.getElementById('scanner-input');
+    const beep = document.getElementById('beep-sound');
 
-    if (!scanCode) return;
+    async function fetchFloorChecks() {
+      const { data, error } = await supabase
+        .from('floor_checks')
+        .select('*')
+        .order('scan_date', { ascending: false });
 
-    // Attempt to save scan
-    const { data, error } = await supabase
-      .from('floor_checks') // replace with your table
-      .insert([{ scan_code: scanCode, scan_date: new Date().toISOString(), status: 'scanned' }])
-      .select();
+      if (error) {
+        console.error('Error fetching floor checks:', error);
+        alert('Error fetching data. Check console.');
+        return;
+      }
 
-    const tr = document.createElement('tr');
-    if (error || !data) {
-      tr.classList.add('error');
-      tr.innerHTML = `<td colspan="5">${scanCode} - Error: ${error ? error.message : 'Unknown'}</td>`;
-      errorSound.play();
-    } else {
-      tr.classList.add('success');
-      tr.innerHTML = `
-        <td>${scanCode}</td>
-        <td>${data[0].employee_name || '-'}</td>
-        <td>${data[0].location || '-'}</td>
-        <td>${new Date(data[0].scan_date).toLocaleString()}</td>
-        <td>${data[0].status}</td>
-      `;
-      successSound.play();
+      const tbody = document.getElementById('floor-checks-body');
+      tbody.innerHTML = '';
+
+      data.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.dataset.id = row.id; // store ID for highlighting
+        tr.classList.add('border-b');
+
+        tr.innerHTML = `
+          <td class="py-2 px-4">${row.id}</td>
+          <td class="py-2 px-4">${row.employee_name || '-'}</td>
+          <td class="py-2 px-4">${row.location || '-'}</td>
+          <td class="py-2 px-4">${row.scan_date ? new Date(row.scan_date).toLocaleString() : '-'}</td>
+          <td class="py-2 px-4">${row.status || '-'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
     }
-    tbody.prepend(tr);
-  } else {
-    // Accumulate characters from scanner
-    scanBuffer += e.key;
-  }
-});
 
-// Keep focus on input
-input.addEventListener('blur', () => input.focus());
-</script>
+    // --- Highlight row & beep ---
+    function highlightRow(id) {
+      const rows = document.querySelectorAll('#floor-checks-body tr');
+      rows.forEach(r => r.classList.remove('bg-green-200'));
+      const row = document.querySelector(`#floor-checks-body tr[data-id='${id}']`);
+      if (row) {
+        row.classList.add('bg-green-200');
+        beep.play();
+      }
+    }
+
+    // --- Handle scanner input ---
+    scannerInput.addEventListener('keypress', async (e) => {
+      if (e.key === 'Enter') {
+        const scannedId = e.target.value.trim();
+        if (!scannedId) return;
+
+        // Highlight scanned row
+        highlightRow(scannedId);
+
+        // Update Supabase status (optional)
+        const { error } = await supabase
+          .from('floor_checks')
+          .update({ status: 'Scanned', scan_date: new Date().toISOString() })
+          .eq('id', scannedId);
+
+        if (error) console.error('Error updating scan:', error);
+
+        // Clear input for next scan
+        e.target.value = '';
+      }
+    });
+
+    // Keep focus on hidden input
+    window.addEventListener('click', () => scannerInput.focus());
+    window.addEventListener('load', () => scannerInput.focus());
+
+    // Initial fetch
+    fetchFloorChecks();
+  </script>
 </body>
 </html>
