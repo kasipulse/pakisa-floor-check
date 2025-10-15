@@ -4,18 +4,38 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Daily Floor Checks</title>
-  <!-- Tailwind CSS CDN -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
 </head>
 <body class="bg-gray-100 text-gray-800">
   <div class="container mx-auto p-6">
+    <!-- Logo & Credit -->
+    <div class="flex justify-between items-center mb-6">
+      <img src="https://via.placeholder.com/150x50?text=Your+Logo" alt="Company Logo">
+      <span class="text-sm text-gray-500">Credit: The King</span>
+    </div>
+
     <h1 class="text-3xl font-bold mb-4">Daily Floor Checks</h1>
 
-    <!-- Hidden input to capture scanner -->
-    <input id="scanner-input" type="text" autofocus class="opacity-0 absolute" />
+    <!-- Customer & Reason Selection -->
+    <div class="flex gap-4 mb-4">
+      <select id="employeeSelect" class="p-2 border rounded w-1/2">
+        <option value="">Select Employee</option>
+      </select>
+      <select id="reasonSelect" class="p-2 border rounded w-1/2">
+        <option value="">Select Reason</option>
+        <option value="Safety Check">Safety Check</option>
+        <option value="Inventory">Inventory</option>
+        <option value="Inspection">Inspection</option>
+      </select>
+    </div>
 
+    <!-- Scan Input (hidden) -->
+    <input type="text" id="scanInput" class="border p-2 w-full mb-4" placeholder="Scan barcode here" autofocus>
+
+    <!-- Table -->
     <table class="min-w-full bg-white rounded shadow overflow-hidden">
       <thead class="bg-gray-200">
         <tr>
@@ -23,101 +43,158 @@
           <th class="py-2 px-4 text-left">Employee</th>
           <th class="py-2 px-4 text-left">Location</th>
           <th class="py-2 px-4 text-left">Scan Date</th>
+          <th class="py-2 px-4 text-left">Reason</th>
           <th class="py-2 px-4 text-left">Status</th>
         </tr>
       </thead>
       <tbody id="floor-checks-body"></tbody>
     </table>
+
+    <!-- Export Buttons -->
+    <div class="mt-4 flex gap-2">
+      <button id="exportCSV" class="bg-blue-500 text-white p-2 rounded">Export CSV</button>
+      <button id="exportPDF" class="bg-green-500 text-white p-2 rounded">Export PDF</button>
+    </div>
   </div>
 
-  <!-- Audio feedback -->
-  <audio id="success-sound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
-  <audio id="error-sound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+  <!-- Audio Feedback -->
+  <audio id="successAudio" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+  <audio id="errorAudio" src="https://actions.google.com/sounds/v1/cartoon/metal_thud_and_wobble.ogg"></audio>
 
   <script>
+    // --- Supabase Init ---
     const supabaseUrl = 'https://orhqnjxigboyvnwaopxu.supabase.co';
-    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yaHFuanhpZ2JveXZud2FvcHh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0OTI3MTksImV4cCI6MjA3NjA2ODcxOX0.KAk9QL0T7VwzXdbH1-Rei0P9x0XHeEI4jcDuPHxK28M';
+    const supabaseAnonKey = 'YOUR_ANON_KEY_HERE';
     const supabase = Supabase.createClient(supabaseUrl, supabaseAnonKey);
 
-    const scannerInput = document.getElementById('scanner-input');
-    const successSound = document.getElementById('success-sound');
-    const errorSound = document.getElementById('error-sound');
+    const employeeSelect = document.getElementById('employeeSelect');
+    const reasonSelect = document.getElementById('reasonSelect');
+    const scanInput = document.getElementById('scanInput');
     const tbody = document.getElementById('floor-checks-body');
+    const successAudio = document.getElementById('successAudio');
+    const errorAudio = document.getElementById('errorAudio');
 
-    let floorChecksData = [];
+    let scanBuffer = '';
+    let scanTimeout;
 
-    // --- Fetch & display floor checks ---
-    async function fetchFloorChecks() {
-      const { data, error } = await supabase
-        .from('floor_checks')
-        .select('*')
-        .order('scan_date', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching floor checks:', error);
-        alert('Error fetching data. Check console.');
-        return;
-      }
-
-      floorChecksData = data; // save for reference
-      renderTable(data);
-    }
-
-    function renderTable(data) {
-      tbody.innerHTML = '';
-      data.forEach(row => {
-        const tr = document.createElement('tr');
-        tr.dataset.id = row.id;
-        tr.classList.add('border-b');
-        tr.innerHTML = `
-          <td class="py-2 px-4">${row.id}</td>
-          <td class="py-2 px-4">${row.employee_name || '-'}</td>
-          <td class="py-2 px-4">${row.location || '-'}</td>
-          <td class="py-2 px-4">${row.scan_date ? new Date(row.scan_date).toLocaleString() : '-'}</td>
-          <td class="py-2 px-4">${row.status || '-'}</td>
-        `;
-        tbody.appendChild(tr);
+    // --- Load Employees ---
+    async function loadEmployees() {
+      const { data, error } = await supabase.from('employees').select('*');
+      if (error) return console.error(error);
+      data.forEach(emp => {
+        const opt = document.createElement('option');
+        opt.value = emp.id;
+        opt.textContent = emp.name;
+        employeeSelect.appendChild(opt);
       });
     }
 
-    // --- Highlight row and play sound ---
-    function highlightRow(id, success=true) {
-      const row = document.querySelector(`#floor-checks-body tr[data-id='${id}']`);
-      if (!row) return false; // row not found
-      row.classList.remove('bg-green-200','bg-red-200');
-      row.classList.add(success ? 'bg-green-200' : 'bg-red-200');
-      (success ? successSound : errorSound).play();
-      return true;
+    loadEmployees();
+
+    // --- Fetch Floor Checks ---
+    async function fetchFloorChecks() {
+      const { data, error } = await supabase.from('floor_checks').select('*').order('scan_date', { ascending: false });
+      if (error) return console.error(error);
+
+      tbody.innerHTML = '';
+      data.forEach(row => appendRow(row));
     }
 
-    // --- Handle barcode scanner input ---
-    scannerInput.addEventListener('keydown', async (e) => {
-      if (e.key === 'Enter') {
-        const scannedId = e.target.value.trim();
-        e.target.value = ''; // clear for next scan
+    function appendRow(row, success = null) {
+      const tr = document.createElement('tr');
+      tr.classList.add('border-b');
+      if(success === true) tr.classList.add('bg-green-200');
+      if(success === false) tr.classList.add('bg-red-200');
 
-        // Find row in data
-        const rowExists = floorChecksData.some(r => r.id.toString() === scannedId);
+      tr.innerHTML = `
+        <td class="py-2 px-4">${row.id}</td>
+        <td class="py-2 px-4">${row.employee_name || '-'}</td>
+        <td class="py-2 px-4">${row.location || '-'}</td>
+        <td class="py-2 px-4">${row.scan_date ? new Date(row.scan_date).toLocaleString() : '-'}</td>
+        <td class="py-2 px-4">${row.reason || '-'}</td>
+        <td class="py-2 px-4">${row.status || '-'}</td>
+      `;
+      tbody.prepend(tr);
+    }
 
-        if (rowExists) {
-          highlightRow(scannedId, true);
+    fetchFloorChecks();
 
-          // Optional: update Supabase scan status
-          await supabase
-            .from('floor_checks')
-            .update({ status: 'Scanned', scan_date: new Date().toISOString() })
-            .eq('id', scannedId);
-        } else {
-          highlightRow(scannedId, false);
-        }
+    // --- Scan Handling ---
+    scanInput.addEventListener('keydown', e => {
+      if(scanTimeout) clearTimeout(scanTimeout);
+      if(e.key === 'Enter') {
+        processScan(scanBuffer.trim());
+        scanBuffer = '';
+      } else {
+        scanBuffer += e.key;
+        // Reset buffer if no scan in 50ms
+        scanTimeout = setTimeout(() => { scanBuffer = ''; }, 50);
       }
     });
 
-    // Keep focus on hidden input
-    window.addEventListener('click', () => scannerInput.focus());
-    window.addEventListener('load', () => scannerInput.focus());
+    async function processScan(barcode) {
+      if(!barcode) return;
+      const employeeId = employeeSelect.value;
+      const reason = reasonSelect.value;
 
-    fetchFloorChecks();
+      if(!employeeId || !reason){
+        alert('Select employee and reason before scanning');
+        errorAudio.play();
+        return;
+      }
+
+      // --- Insert into Supabase ---
+      const { data, error } = await supabase.from('floor_checks').insert([{
+        employee_id: employeeId,
+        reason,
+        barcode,
+        status: 'Success',
+        scan_date: new Date().toISOString()
+      }]).select().single();
+
+      if(error){
+        console.error(error);
+        errorAudio.play();
+        appendRow({id: '-', employee_name: employeeSelect.options[employeeSelect.selectedIndex].text, location: '-', scan_date: new Date(), reason, status:'Error'}, false);
+      } else {
+        successAudio.play();
+        appendRow({
+          id: data.id,
+          employee_name: employeeSelect.options[employeeSelect.selectedIndex].text,
+          location: '-',
+          scan_date: data.scan_date,
+          reason: data.reason,
+          status: data.status
+        }, true);
+      }
+
+      scanInput.value = '';
+      scanInput.focus();
+    }
+
+    // --- Export CSV ---
+    document.getElementById('exportCSV').addEventListener('click', () => {
+      const rows = Array.from(tbody.querySelectorAll('tr')).map(tr => Array.from(tr.children).map(td => td.textContent).join(',')).join('\n');
+      const blob = new Blob([rows], {type: 'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'floor_checks.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // --- Export PDF ---
+    document.getElementById('exportPDF').addEventListener('click', () => {
+      import('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js').then(jsPDF => {
+        const doc = new jsPDF.jsPDF();
+        const rows = Array.from(tbody.querySelectorAll('tr')).map(tr => Array.from(tr.children).map(td => td.textContent));
+        doc.autoTable({ head: [['ID','Employee','Location','Scan Date','Reason','Status']], body: rows });
+        doc.save('floor_checks.pdf');
+      });
+    });
   </script>
+  <!-- jsPDF AutoTable Plugin -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 </body>
 </html>
