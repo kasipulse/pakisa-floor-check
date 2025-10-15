@@ -12,10 +12,6 @@
 <body class="bg-gray-100 text-gray-800">
   <div class="container mx-auto p-6">
     <h1 class="text-3xl font-bold mb-4">Daily Floor Checks</h1>
-
-    <!-- Hidden input for barcode scanner -->
-    <input id="scanner-input" type="text" autofocus class="opacity-0 absolute" />
-
     <table class="min-w-full bg-white rounded shadow overflow-hidden">
       <thead class="bg-gray-200">
         <tr>
@@ -30,19 +26,17 @@
     </table>
   </div>
 
-  <audio id="beep-sound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
-
   <script>
+    // --- Supabase Init ---
     const supabaseUrl = 'https://orhqnjxigboyvnwaopxu.supabase.co';
     const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yaHFuanhpZ2JveXZud2FvcHh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0OTI3MTksImV4cCI6MjA3NjA2ODcxOX0.KAk9QL0T7VwzXdbH1-Rei0P9x0XHeEI4jcDuPHxK28M';
+
     const supabase = Supabase.createClient(supabaseUrl, supabaseAnonKey);
 
-    const scannerInput = document.getElementById('scanner-input');
-    const beep = document.getElementById('beep-sound');
-
+    // --- Fetch & Display Data ---
     async function fetchFloorChecks() {
       const { data, error } = await supabase
-        .from('floor_checks')
+        .from('floor_checks') // <-- your table name
         .select('*')
         .order('scan_date', { ascending: false });
 
@@ -53,11 +47,10 @@
       }
 
       const tbody = document.getElementById('floor-checks-body');
-      tbody.innerHTML = '';
+      tbody.innerHTML = ''; // clear existing rows
 
       data.forEach(row => {
         const tr = document.createElement('tr');
-        tr.dataset.id = row.id; // store ID for highlighting
         tr.classList.add('border-b');
 
         tr.innerHTML = `
@@ -71,44 +64,6 @@
       });
     }
 
-    // --- Highlight row & beep ---
-    function highlightRow(id) {
-      const rows = document.querySelectorAll('#floor-checks-body tr');
-      rows.forEach(r => r.classList.remove('bg-green-200'));
-      const row = document.querySelector(`#floor-checks-body tr[data-id='${id}']`);
-      if (row) {
-        row.classList.add('bg-green-200');
-        beep.play();
-      }
-    }
-
-    // --- Handle scanner input ---
-    scannerInput.addEventListener('keypress', async (e) => {
-      if (e.key === 'Enter') {
-        const scannedId = e.target.value.trim();
-        if (!scannedId) return;
-
-        // Highlight scanned row
-        highlightRow(scannedId);
-
-        // Update Supabase status (optional)
-        const { error } = await supabase
-          .from('floor_checks')
-          .update({ status: 'Scanned', scan_date: new Date().toISOString() })
-          .eq('id', scannedId);
-
-        if (error) console.error('Error updating scan:', error);
-
-        // Clear input for next scan
-        e.target.value = '';
-      }
-    });
-
-    // Keep focus on hidden input
-    window.addEventListener('click', () => scannerInput.focus());
-    window.addEventListener('load', () => scannerInput.focus());
-
-    // Initial fetch
     fetchFloorChecks();
   </script>
 </body>
