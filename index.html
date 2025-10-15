@@ -4,197 +4,199 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Daily Floor Checks</title>
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Supabase JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 </head>
-<body class="bg-gray-100 text-gray-800">
-  <div class="container mx-auto p-6">
-    <!-- Logo & Credit -->
-    <div class="flex justify-between items-center mb-6">
-      <img src="https://via.placeholder.com/150x50?text=Your+Logo" alt="Company Logo">
-      <span class="text-sm text-gray-500">Credit: The King</span>
-    </div>
+<body class="bg-gray-100 text-gray-800 p-6">
 
-    <h1 class="text-3xl font-bold mb-4">Daily Floor Checks</h1>
+  <h1 class="text-3xl font-bold mb-4">Daily Floor Checks</h1>
 
-    <!-- Customer & Reason Selection -->
-    <div class="flex gap-4 mb-4">
-      <select id="employeeSelect" class="p-2 border rounded w-1/2">
-        <option value="">Select Employee</option>
-      </select>
-      <select id="reasonSelect" class="p-2 border rounded w-1/2">
-        <option value="">Select Reason</option>
-        <option value="Safety Check">Safety Check</option>
-        <option value="Inventory">Inventory</option>
-        <option value="Inspection">Inspection</option>
-      </select>
-    </div>
+  <!-- Controls -->
+  <div class="flex gap-2 mb-4">
+    <select id="customerSelect" class="p-2 border rounded w-1/4">
+      <option value="">Select customer</option>
+      <option>Fedex Express</option>
+      <option>Seabourne Logistics</option>
+      <option>Brima Logistics</option>
+      <option>AJM Couriers</option>
+      <option>Act</option>
+    </select>
 
-    <!-- Scan Input (hidden) -->
-    <input type="text" id="scanInput" class="border p-2 w-full mb-4" placeholder="Scan barcode here" autofocus>
+    <select id="reasonSelect" class="p-2 border rounded w-1/4">
+      <option value="">Select reason</option>
+      <option>Planned for next day</option>
+      <option>Incorrect address</option>
+      <option>No invoice on package</option>
+      <option>Damaged in transit</option>
+      <option>Rejected by customer</option>
+      <option>Misroute</option>
+      <option>No contact person</option>
+      <option>Nobody home</option>
+      <option>Missed booking</option>
+    </select>
 
-    <!-- Table -->
-    <table class="min-w-full bg-white rounded shadow overflow-hidden">
-      <thead class="bg-gray-200">
-        <tr>
-          <th class="py-2 px-4 text-left">ID</th>
-          <th class="py-2 px-4 text-left">Employee</th>
-          <th class="py-2 px-4 text-left">Location</th>
-          <th class="py-2 px-4 text-left">Scan Date</th>
-          <th class="py-2 px-4 text-left">Reason</th>
-          <th class="py-2 px-4 text-left">Status</th>
-        </tr>
-      </thead>
-      <tbody id="floor-checks-body"></tbody>
-    </table>
-
-    <!-- Export Buttons -->
-    <div class="mt-4 flex gap-2">
-      <button id="exportCSV" class="bg-blue-500 text-white p-2 rounded">Export CSV</button>
-      <button id="exportPDF" class="bg-green-500 text-white p-2 rounded">Export PDF</button>
-    </div>
+    <input type="text" id="waybillInput" placeholder="Scan or type waybill → Enter" class="p-2 border rounded w-1/2" autofocus>
   </div>
 
-  <!-- Audio Feedback -->
-  <audio id="successAudio" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
-  <audio id="errorAudio" src="https://actions.google.com/sounds/v1/cartoon/metal_thud_and_wobble.ogg"></audio>
+  <!-- Filters for report -->
+  <div class="flex gap-2 mb-4">
+    <select id="filterCustomer" class="p-2 border rounded w-1/4">
+      <option value="">Filter by customer</option>
+      <option>Fedex Express</option>
+      <option>Seabourne Logistics</option>
+      <option>Brima Logistics</option>
+      <option>AJM Couriers</option>
+      <option>Act</option>
+    </select>
+
+    <select id="filterReason" class="p-2 border rounded w-1/4">
+      <option value="">Filter by reason</option>
+      <option>Planned for next day</option>
+      <option>Incorrect address</option>
+      <option>No invoice on package</option>
+      <option>Damaged in transit</option>
+      <option>Rejected by customer</option>
+      <option>Misroute</option>
+      <option>No contact person</option>
+      <option>Nobody home</option>
+      <option>Missed booking</option>
+    </select>
+
+    <button id="exportCsv" class="p-2 bg-yellow-500 rounded">Export CSV</button>
+    <button id="exportPdf" class="p-2 bg-blue-500 text-white rounded">Export PDF</button>
+  </div>
+
+  <!-- Table -->
+  <table class="min-w-full bg-white rounded shadow overflow-hidden">
+    <thead class="bg-gray-200">
+      <tr>
+        <th class="py-2 px-4">Customer</th>
+        <th class="py-2 px-4">Waybill</th>
+        <th class="py-2 px-4">Reason</th>
+        <th class="py-2 px-4">Date & Time</th>
+      </tr>
+    </thead>
+    <tbody id="logBody"></tbody>
+  </table>
+
+  <!-- Totals -->
+  <div class="mt-4" id="totals"></div>
+
+  <!-- Audio feedback -->
+  <audio id="successAudio">
+    <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg">
+  </audio>
+  <audio id="errorAudio">
+    <source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" type="audio/ogg">
+  </audio>
 
   <script>
-    // --- Supabase Init ---
-    const supabaseUrl = 'https://orhqnjxigboyvnwaopxu.supabase.co';
-    const supabaseAnonKey = 'YOUR_ANON_KEY_HERE';
-    const supabase = Supabase.createClient(supabaseUrl, supabaseAnonKey);
+    let logs = [];
 
-    const employeeSelect = document.getElementById('employeeSelect');
+    const waybillInput = document.getElementById('waybillInput');
     const reasonSelect = document.getElementById('reasonSelect');
-    const scanInput = document.getElementById('scanInput');
-    const tbody = document.getElementById('floor-checks-body');
+    const customerSelect = document.getElementById('customerSelect');
+    const logBody = document.getElementById('logBody');
+    const totalsDiv = document.getElementById('totals');
+    const filterCustomer = document.getElementById('filterCustomer');
+    const filterReason = document.getElementById('filterReason');
     const successAudio = document.getElementById('successAudio');
     const errorAudio = document.getElementById('errorAudio');
 
-    let scanBuffer = '';
-    let scanTimeout;
+    // --- Helper functions ---
+    function renderLogs() {
+      const customerFilter = filterCustomer.value;
+      const reasonFilter = filterReason.value;
 
-    // --- Load Employees ---
-    async function loadEmployees() {
-      const { data, error } = await supabase.from('employees').select('*');
-      if (error) return console.error(error);
-      data.forEach(emp => {
-        const opt = document.createElement('option');
-        opt.value = emp.id;
-        opt.textContent = emp.name;
-        employeeSelect.appendChild(opt);
+      logBody.innerHTML = '';
+      logs.forEach(entry => {
+        if((!customerFilter || entry.customer === customerFilter) &&
+           (!reasonFilter || entry.reason === reasonFilter)) {
+
+          const tr = document.createElement('tr');
+          tr.classList.add('border-b');
+          tr.innerHTML = `
+            <td class="py-2 px-4">${entry.customer}</td>
+            <td class="py-2 px-4">${entry.waybill}</td>
+            <td class="py-2 px-4">${entry.reason}</td>
+            <td class="py-2 px-4">${entry.datetime}</td>
+          `;
+          tr.style.backgroundColor = entry.success ? '#d4edda' : '#f8d7da';
+          logBody.appendChild(tr);
+        }
       });
+
+      // Totals
+      const totalByReason = {};
+      logs.forEach(l => {
+        if(!totalByReason[l.reason]) totalByReason[l.reason] = 0;
+        totalByReason[l.reason]++;
+      });
+      totalsDiv.innerHTML = '<h2 class="font-bold">Totals:</h2>' +
+        Object.entries(totalByReason).map(([reason, count]) => `<div>${reason}: ${count}</div>`).join('');
     }
 
-    loadEmployees();
-
-    // --- Fetch Floor Checks ---
-    async function fetchFloorChecks() {
-      const { data, error } = await supabase.from('floor_checks').select('*').order('scan_date', { ascending: false });
-      if (error) return console.error(error);
-
-      tbody.innerHTML = '';
-      data.forEach(row => appendRow(row));
-    }
-
-    function appendRow(row, success = null) {
-      const tr = document.createElement('tr');
-      tr.classList.add('border-b');
-      if(success === true) tr.classList.add('bg-green-200');
-      if(success === false) tr.classList.add('bg-red-200');
-
-      tr.innerHTML = `
-        <td class="py-2 px-4">${row.id}</td>
-        <td class="py-2 px-4">${row.employee_name || '-'}</td>
-        <td class="py-2 px-4">${row.location || '-'}</td>
-        <td class="py-2 px-4">${row.scan_date ? new Date(row.scan_date).toLocaleString() : '-'}</td>
-        <td class="py-2 px-4">${row.reason || '-'}</td>
-        <td class="py-2 px-4">${row.status || '-'}</td>
-      `;
-      tbody.prepend(tr);
-    }
-
-    fetchFloorChecks();
-
-    // --- Scan Handling ---
-    scanInput.addEventListener('keydown', e => {
-      if(scanTimeout) clearTimeout(scanTimeout);
-      if(e.key === 'Enter') {
-        processScan(scanBuffer.trim());
-        scanBuffer = '';
-      } else {
-        scanBuffer += e.key;
-        // Reset buffer if no scan in 50ms
-        scanTimeout = setTimeout(() => { scanBuffer = ''; }, 50);
-      }
-    });
-
-    async function processScan(barcode) {
-      if(!barcode) return;
-      const employeeId = employeeSelect.value;
-      const reason = reasonSelect.value;
-
-      if(!employeeId || !reason){
-        alert('Select employee and reason before scanning');
-        errorAudio.play();
-        return;
-      }
-
-      // --- Insert into Supabase ---
-      const { data, error } = await supabase.from('floor_checks').insert([{
-        employee_id: employeeId,
-        reason,
-        barcode,
-        status: 'Success',
-        scan_date: new Date().toISOString()
-      }]).select().single();
-
-      if(error){
-        console.error(error);
-        errorAudio.play();
-        appendRow({id: '-', employee_name: employeeSelect.options[employeeSelect.selectedIndex].text, location: '-', scan_date: new Date(), reason, status:'Error'}, false);
-      } else {
-        successAudio.play();
-        appendRow({
-          id: data.id,
-          employee_name: employeeSelect.options[employeeSelect.selectedIndex].text,
-          location: '-',
-          scan_date: data.scan_date,
-          reason: data.reason,
-          status: data.status
-        }, true);
-      }
-
-      scanInput.value = '';
-      scanInput.focus();
-    }
-
-    // --- Export CSV ---
-    document.getElementById('exportCSV').addEventListener('click', () => {
-      const rows = Array.from(tbody.querySelectorAll('tr')).map(tr => Array.from(tr.children).map(td => td.textContent).join(',')).join('\n');
-      const blob = new Blob([rows], {type: 'text/csv'});
-      const url = URL.createObjectURL(blob);
+    function exportCSV() {
+      const csv = ['Customer,Waybill,Reason,Date & Time']
+        .concat(logs.map(l => `${l.customer},${l.waybill},${l.reason},${l.datetime}`))
+        .join('\n');
+      const blob = new Blob([csv], {type: 'text/csv'});
       const a = document.createElement('a');
-      a.href = url;
-      a.download = 'floor_checks.csv';
+      a.href = URL.createObjectURL(blob);
+      a.download = `floor_checks_${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
-      URL.revokeObjectURL(url);
+    }
+
+    function exportPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const body = logs.map(l => [l.customer, l.waybill, l.reason, l.datetime]);
+      doc.autoTable({ head:[['Customer','Waybill','Reason','Date & Time']], body });
+      doc.save(`floor_checks_${new Date().toISOString().split('T')[0]}.pdf`);
+    }
+
+    // --- Event Listeners ---
+    waybillInput.addEventListener('keydown', e => {
+      if(e.key === 'Enter'){
+        const waybill = waybillInput.value.trim();
+        const reason = reasonSelect.value;
+        const customer = customerSelect.value;
+        if(!waybill || !reason || !customer){
+          errorAudio.play();
+          alert('Select customer, reason and enter waybill');
+          return;
+        }
+
+        const entry = {
+          customer,
+          waybill,
+          reason,
+          datetime: new Date().toLocaleString(),
+          success: true
+        };
+        logs.unshift(entry);
+        successAudio.play();
+        renderLogs();
+        waybillInput.value = '';
+        waybillInput.focus();
+      }
     });
 
-    // --- Export PDF ---
-    document.getElementById('exportPDF').addEventListener('click', () => {
-      import('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js').then(jsPDF => {
-        const doc = new jsPDF.jsPDF();
-        const rows = Array.from(tbody.querySelectorAll('tr')).map(tr => Array.from(tr.children).map(td => td.textContent));
-        doc.autoTable({ head: [['ID','Employee','Location','Scan Date','Reason','Status']], body: rows });
-        doc.save('floor_checks.pdf');
-      });
-    });
+    filterCustomer.addEventListener('change', renderLogs);
+    filterReason.addEventListener('change', renderLogs);
+    document.getElementById('exportCsv').addEventListener('click', exportCSV);
+    document.getElementById('exportPdf').addEventListener('click', exportPDF);
+
+    // Auto-reset at midnight
+    setInterval(() => {
+      const now = new Date();
+      if(now.getHours() === 0 && now.getMinutes() === 0){
+        logs = [];
+        renderLogs();
+      }
+    }, 60000);
+
   </script>
-  <!-- jsPDF AutoTable Plugin -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 </body>
 </html>
