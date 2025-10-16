@@ -50,18 +50,20 @@
       </div>
     </div>
 
-    <!-- Table -->
-    <table class="min-w-full bg-white rounded shadow overflow-hidden">
-      <thead class="bg-gray-200">
-        <tr>
-          <th class="py-2 px-4 text-left">Time</th>
-          <th class="py-2 px-4 text-left">Customer</th>
-          <th class="py-2 px-4 text-left">Reason</th>
-          <th class="py-2 px-4 text-left">Waybill</th>
-        </tr>
-      </thead>
-      <tbody id="floor-checks-body"></tbody>
-    </table>
+    <!-- Table Container -->
+    <div id="table-container" class="transition-all duration-300">
+      <table class="min-w-full bg-white rounded shadow overflow-hidden">
+        <thead class="bg-[#DEB657] text-white">
+          <tr>
+            <th class="py-2 px-4 text-left">Time</th>
+            <th class="py-2 px-4 text-left">Customer</th>
+            <th class="py-2 px-4 text-left">Reason</th>
+            <th class="py-2 px-4 text-left">Waybill</th>
+          </tr>
+        </thead>
+        <tbody id="floor-checks-body"></tbody>
+      </table>
+    </div>
 
     <p class="text-sm mt-4 text-gray-500">Designed by Mpho Mahlaba</p>
   </div>
@@ -72,6 +74,7 @@
     const customerSelect = document.getElementById('customer-select');
     const reasonSelect = document.getElementById('reason-select');
     const tbody = document.getElementById('floor-checks-body');
+    const tableContainer = document.getElementById('table-container');
 
     const beepSuccess = new Audio('https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg');
     const beepError = new Audio('https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg');
@@ -88,6 +91,11 @@
       tbody.prepend(tr);
     }
 
+    function flashGreen() {
+      tableContainer.style.backgroundColor = '#d1fae5';
+      setTimeout(() => tableContainer.style.backgroundColor = '', 300);
+    }
+
     function handleScan(waybill) {
       if (!waybill.trim()) {
         beepError.play();
@@ -99,6 +107,7 @@
       floorChecks.push({time: now, customer, reason, waybill});
       addRow({time: now, customer, reason, waybill});
       beepSuccess.play();
+      flashGreen();
       scanInput.value = '';
     }
 
@@ -135,7 +144,7 @@
       URL.revokeObjectURL(url);
     });
 
-    // Export PDF (without logo)
+    // Export PDF (branded)
     document.getElementById('export-pdf').addEventListener('click', () => {
       if (!floorChecks.length) return alert('No scans yet');
       const { jsPDF } = window.jspdf;
@@ -143,45 +152,80 @@
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
 
-      let yOffset = 30;
+      const headerColor = '#072760';
+      const headerHeight = 20;
+      const tableHeaderColor = '#DEB657';
       const lineHeight = 8;
 
-      // Header
+      let yOffset = headerHeight + 10;
+
+      // Draw header bar
+      doc.setFillColor(headerColor);
+      doc.rect(0, 0, pageWidth, headerHeight, 'F');
+      doc.setTextColor('#ffffff');
       doc.setFontSize(14);
-      doc.text('DAILY FLOOR CHECK REPORT', pageWidth / 2, 20, { align: 'center' });
-      const date = new Date().toLocaleString();
+      doc.text('DAILY FLOOR CHECK REPORT', pageWidth / 2, 14, { align: 'center' });
       doc.setFontSize(10);
-      doc.text(`Date: ${date}`, pageWidth - 10, 20, { align: 'right' });
+      doc.text(`Date: ${new Date().toLocaleString()}`, pageWidth - 10, 14, { align: 'right' });
+
+      // Table header
+      doc.setFillColor(tableHeaderColor);
+      doc.setTextColor('#ffffff');
+      doc.setFontSize(10);
+      doc.rect(10, yOffset - 6, pageWidth - 20, 8, 'F');
+      doc.text('Time | Customer | Reason | Waybill', 12, yOffset);
+      yOffset += lineHeight;
 
       // Table content
       floorChecks.forEach((r, i) => {
         if (yOffset > pageHeight - 20) {
-          // Footer before page break
+          // Footer
           doc.setFontSize(8);
-          doc.text('Designed by Mpho Mahlaba', 10, pageHeight - 10);
-          doc.text('https://pakisa-floor-check.onrender.com', pageWidth - 10, pageHeight - 10, { align: 'right' });
+          doc.setTextColor('#072760');
+          doc.text('Application built by Mpho Mahlaba', 10, pageHeight - 10);
+          doc.text('Copyright 2025 | https://pakisa-floor-check.onrender.com', pageWidth - 10, pageHeight - 10, { align: 'right' });
           doc.addPage();
-          yOffset = 30;
+
+          // Repeat header
+          doc.setFillColor(headerColor);
+          doc.setTextColor('#ffffff');
+          doc.rect(0, 0, pageWidth, headerHeight, 'F');
           doc.setFontSize(14);
-          doc.text('DAILY FLOOR CHECK REPORT', pageWidth / 2, 20, { align: 'center' });
+          doc.text('DAILY FLOOR CHECK REPORT', pageWidth / 2, 14, { align: 'center' });
           doc.setFontSize(10);
-          doc.text(`Date: ${date}`, pageWidth - 10, 20, { align: 'right' });
-          yOffset += 10;
+          doc.text(`Date: ${new Date().toLocaleString()}`, pageWidth - 10, 14, { align: 'right' });
+
+          yOffset = headerHeight + 10;
+          // Table header
+          doc.setFillColor(tableHeaderColor);
+          doc.setTextColor('#ffffff');
+          doc.setFontSize(10);
+          doc.rect(10, yOffset - 6, pageWidth - 20, 8, 'F');
+          doc.text('Time | Customer | Reason | Waybill', 12, yOffset);
+          yOffset += lineHeight;
         }
-        doc.setFontSize(10);
-        doc.text(`${r.time} | ${r.customer} | ${r.reason} | ${r.waybill}`, 14, yOffset);
+
+        // Alternate row color
+        if (i % 2 === 0) {
+          doc.setFillColor('#e0f2ff'); // light blue
+          doc.rect(10, yOffset - 6, pageWidth - 20, lineHeight, 'F');
+        }
+
+        doc.setTextColor('#000000');
+        doc.text(`${r.time} | ${r.customer} | ${r.reason} | ${r.waybill}`, 12, yOffset);
         yOffset += lineHeight;
       });
 
       // Footer on last page
       doc.setFontSize(8);
-      doc.text('Designed by Mpho Mahlaba', 10, pageHeight - 10);
-      doc.text('https://pakisa-floor-check.onrender.com', pageWidth - 10, pageHeight - 10, { align: 'right' });
+      doc.setTextColor('#072760');
+      doc.text('Application built by Mpho Mahlaba', 10, pageHeight - 10);
+      doc.text('Copyright 2025 | https://pakisa-floor-check.onrender.com', pageWidth - 10, pageHeight - 10, { align: 'right' });
 
       doc.save(`floor_checks_${new Date().toISOString().slice(0,10)}.pdf`);
     });
 
-    // Smart focus handling
+    // Smart focus
     function keepFocus() {
       const active = document.activeElement;
       const ignored = ['SELECT', 'BUTTON'];
