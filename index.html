@@ -135,61 +135,53 @@
       URL.revokeObjectURL(url);
     });
 
-    // Export PDF with logo, system URL, and credit
-    document.getElementById('export-pdf').addEventListener('click', async () => {
+    // Export PDF (without logo)
+    document.getElementById('export-pdf').addEventListener('click', () => {
       if (!floorChecks.length) return alert('No scans yet');
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
 
-      // Load logo
-      const logo = new Image();
-      logo.src = 'https://pakisa-floor-check.onrender.com/logo.png'; // Replace with actual logo URL
-      await new Promise(resolve => { logo.onload = resolve; });
-
-      // Pagination
-      let yOffset = 40;
+      let yOffset = 30;
       const lineHeight = 8;
 
-      function addHeader() {
-        doc.addImage(logo, 10, 10, 30, 30);
-        doc.setFontSize(10);
-        doc.text('Pakisa Express Logistics', 10, 45);
-        doc.text('10 Burry Koean Street, Jet Park, Boksburg, 1469', 10, 50);
-        doc.text('Tel: 011 397 1151 | Email: ops1@pakisalogistics.co.za', 10, 55);
-        doc.text('Website: www.pakisalogistics.co.za', 10, 60);
-        doc.setFontSize(14);
-        doc.text('DAILY FLOOR CHECK REPORT', pageWidth/2, 30, { align: 'center' });
-        doc.setFontSize(10);
-        const date = new Date().toLocaleString();
-        doc.text(`Date: ${date}`, pageWidth - 10, 30, { align: 'right' });
-        yOffset = 70;
-      }
+      // Header
+      doc.setFontSize(14);
+      doc.text('DAILY FLOOR CHECK REPORT', pageWidth / 2, 20, { align: 'center' });
+      const date = new Date().toLocaleString();
+      doc.setFontSize(10);
+      doc.text(`Date: ${date}`, pageWidth - 10, 20, { align: 'right' });
 
-      function addFooter() {
-        doc.setFontSize(8);
-        doc.text('Designed by Mpho Mahlaba', 10, pageHeight - 10);
-        doc.text('https://pakisa-floor-check.onrender.com', pageWidth - 10, pageHeight - 10, { align: 'right' });
-      }
-
-      addHeader();
-
+      // Table content
       floorChecks.forEach((r, i) => {
         if (yOffset > pageHeight - 20) {
-          addFooter();
+          // Footer before page break
+          doc.setFontSize(8);
+          doc.text('Designed by Mpho Mahlaba', 10, pageHeight - 10);
+          doc.text('https://pakisa-floor-check.onrender.com', pageWidth - 10, pageHeight - 10, { align: 'right' });
           doc.addPage();
-          addHeader();
+          yOffset = 30;
+          doc.setFontSize(14);
+          doc.text('DAILY FLOOR CHECK REPORT', pageWidth / 2, 20, { align: 'center' });
+          doc.setFontSize(10);
+          doc.text(`Date: ${date}`, pageWidth - 10, 20, { align: 'right' });
+          yOffset += 10;
         }
+        doc.setFontSize(10);
         doc.text(`${r.time} | ${r.customer} | ${r.reason} | ${r.waybill}`, 14, yOffset);
         yOffset += lineHeight;
       });
 
-      addFooter();
+      // Footer on last page
+      doc.setFontSize(8);
+      doc.text('Designed by Mpho Mahlaba', 10, pageHeight - 10);
+      doc.text('https://pakisa-floor-check.onrender.com', pageWidth - 10, pageHeight - 10, { align: 'right' });
+
       doc.save(`floor_checks_${new Date().toISOString().slice(0,10)}.pdf`);
     });
 
-    // --- Smart Focus Handling ---
+    // Smart focus handling
     function keepFocus() {
       const active = document.activeElement;
       const ignored = ['SELECT', 'BUTTON'];
