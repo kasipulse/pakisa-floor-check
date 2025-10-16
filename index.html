@@ -1,255 +1,176 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Daily Floor Checks</title>
-
-  <!-- Tailwind (CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- jsPDF (for PDF export) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body class="bg-gray-100 text-gray-800">
-  <div class="max-w-6xl mx-auto p-6">
-    <!-- Top credit -->
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold">Daily Floor Checks</h1>
-      <div class="text-sm text-gray-600">Designed by Mpho Mahlaba</div>
-    </div>
+  <div class="container mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-4">Daily Floor Checks</h1>
 
-    <!-- Controls -->
-    <div class="mb-4 flex gap-4 items-center">
+    <!-- Customer & Reason -->
+    <div class="mb-4 flex flex-wrap gap-4 items-center">
       <div>
-        <label class="block text-sm font-medium">Customer</label>
-        <select id="customerSelect" class="border rounded p-2">
-          <option value="">Select customer</option>
-          <option>Fedex Express</option>
-          <option>Seabourne Logistics</option>
-          <option>Brima Logistics</option>
-          <option>AJM Couriers</option>
-          <option>ACT</option>
+        <label class="block font-semibold">Customer</label>
+        <select id="customer-select" class="border rounded p-2">
+          <option value="Fedex Express">Fedex Express</option>
+          <option value="Seabourne Logistics">Seabourne Logistics</option>
+          <option value="Brima Logistics">Brima Logistics</option>
+          <option value="AJM Couriers">AJM Couriers</option>
+          <option value="ACT">ACT</option>
         </select>
       </div>
 
       <div>
-        <label class="block text-sm font-medium">Reason</label>
-        <select id="reasonSelect" class="border rounded p-2">
-          <option value="">Select reason</option>
-          <option>Planned for next day</option>
-          <option>Incorrect address</option>
-          <option>No invoice on package</option>
-          <option>Damaged in transit</option>
-          <option>Rejected by customer</option>
-          <option>Misroute</option>
-          <option>No contact person</option>
-          <option>Nobody home</option>
-          <option>Missed booking</option>
+        <label class="block font-semibold">Reason</label>
+        <select id="reason-select" class="border rounded p-2">
+          <option value="Planned for next day">Planned for next day</option>
+          <option value="Incorrect address">Incorrect address</option>
+          <option value="No invoice on package">No invoice on package</option>
+          <option value="Damaged in transit">Damaged in transit</option>
+          <option value="Rejected by customer">Rejected by customer</option>
+          <option value="Misroute">Misroute</option>
+          <option value="No contact person">No contact person</option>
+          <option value="Nobody home">Nobody home</option>
+          <option value="Missed booking">Missed booking</option>
         </select>
       </div>
 
       <div class="flex-1">
-        <label class="block text-sm font-medium">Scan or type waybill number → press Enter</label>
-        <input id="waybillInput" class="mt-1 block w-full border rounded p-3 font-mono" placeholder="Scan or type waybill number → press Enter" autofocus />
+        <label class="block font-semibold">Scan Waybill</label>
+        <input type="text" id="scan-input" class="border rounded p-2 w-full" placeholder="Scan or type waybill number">
       </div>
 
-      <div class="flex gap-2">
-        <button id="exportCsv" class="px-3 py-2 bg-yellow-400 rounded">Export CSV</button>
-        <button id="exportPdf" class="px-3 py-2 bg-blue-600 text-white rounded">Export PDF</button>
+      <div class="flex gap-2 mt-4 md:mt-0">
+        <button id="export-csv" class="bg-blue-500 text-white px-4 py-2 rounded">Export CSV</button>
+        <button id="export-pdf" class="bg-green-500 text-white px-4 py-2 rounded">Export PDF</button>
       </div>
-    </div>
-
-    <!-- Filters -->
-    <div class="mb-4 flex gap-4 items-center">
-      <div>
-        <label class="block text-sm font-medium">Filter by Customer</label>
-        <select id="filterCustomer" class="border rounded p-2">
-          <option value="">All</option>
-          <option>Fedex Express</option>
-          <option>Seabourne Logistics</option>
-          <option>Brima Logistics</option>
-          <option>AJM Couriers</option>
-          <option>ACT</option>
-        </select>
-      </div>
-
-      <div>
-        <label class="block text-sm font-medium">Filter by Reason</label>
-        <select id="filterReason" class="border rounded p-2">
-          <option value="">All</option>
-          <option>Planned for next day</option>
-          <option>Incorrect address</option>
-          <option>No invoice on package</option>
-          <option>Damaged in transit</option>
-          <option>Rejected by customer</option>
-          <option>Misroute</option>
-          <option>No contact person</option>
-          <option>Nobody home</option>
-          <option>Missed booking</option>
-        </select>
-      </div>
-
-      <div class="ml-auto text-sm text-gray-600">Today: <span id="todayLabel" class="font-medium"></span></div>
     </div>
 
     <!-- Table -->
-    <div class="overflow-x-auto bg-white rounded shadow">
-      <table class="min-w-full" id="resultsTable">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-3 py-2 text-left text-xs">Time</th>
-            <th class="px-3 py-2 text-left text-xs">Customer</th>
-            <th class="px-3 py-2 text-left text-xs">Reason</th>
-            <th class="px-3 py-2 text-left text-xs">Waybill</th>
-            <th class="px-3 py-2 text-left text-xs">Status</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody" class="bg-white divide-y divide-gray-200"></tbody>
-      </table>
-    </div>
+    <table class="min-w-full bg-white rounded shadow overflow-hidden">
+      <thead class="bg-gray-200">
+        <tr>
+          <th class="py-2 px-4 text-left">Time</th>
+          <th class="py-2 px-4 text-left">Customer</th>
+          <th class="py-2 px-4 text-left">Reason</th>
+          <th class="py-2 px-4 text-left">Waybill</th>
+          <th class="py-2 px-4 text-left">Status</th>
+        </tr>
+      </thead>
+      <tbody id="floor-checks-body"></tbody>
+    </table>
 
-    <!-- Totals & footer -->
-    <div class="mt-4">
-      <div id="totals" class="text-sm text-gray-700 mb-2"></div>
-      <div class="text-sm text-gray-500">Designed by Mpho Mahlaba</div>
-    </div>
+    <p class="text-sm mt-4 text-gray-500">Designed by Mpho Mahlaba</p>
   </div>
 
-  <!-- Audio -->
-  <audio id="successAudio" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
-  <audio id="errorAudio" src="https://actions.google.com/sounds/v1/cartoon/metal_thud_and_wobble.ogg"></audio>
-
   <script>
-    // --- App state ---
-    const entries = [];
-    const today = new Date().toISOString().slice(0,10);
-    document.getElementById('todayLabel').textContent = today;
+    const floorChecks = [];
+    const scanInput = document.getElementById('scan-input');
+    const customerSelect = document.getElementById('customer-select');
+    const reasonSelect = document.getElementById('reason-select');
+    const tbody = document.getElementById('floor-checks-body');
 
-    // UI refs
-    const waybillInput = document.getElementById('waybillInput');
-    const customerSelect = document.getElementById('customerSelect');
-    const reasonSelect = document.getElementById('reasonSelect');
-    const tableBody = document.getElementById('tableBody');
-    const totalsDiv = document.getElementById('totals');
-    const filterCustomer = document.getElementById('filterCustomer');
-    const filterReason = document.getElementById('filterReason');
-    const successAudio = document.getElementById('successAudio');
-    const errorAudio = document.getElementById('errorAudio');
+    // Success/error beep
+    const beepSuccess = new Audio('https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg');
+    const beepError = new Audio('https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg');
 
-    // helpers
-    function escapeCsv(s){ return `"${(s||'').toString().replace(/"/g,'""')}"`; }
-
-    function renderTable() {
-      const fc = filterCustomer.value;
-      const fr = filterReason.value;
-      tableBody.innerHTML = '';
-      const visible = entries.filter(e => (!fc || e.customer === fc) && (!fr || e.reason === fr));
-      visible.forEach(e => {
-        const tr = document.createElement('tr');
-        tr.classList.add('border-b');
-        tr.innerHTML = `
-          <td class="px-3 py-2 text-sm">${e.time}</td>
-          <td class="px-3 py-2 text-sm">${e.customer}</td>
-          <td class="px-3 py-2 text-sm">${e.reason}</td>
-          <td class="px-3 py-2 text-sm font-mono">${e.waybill}</td>
-          <td class="px-3 py-2 text-sm">${e.status}</td>
-        `;
-        tr.style.backgroundColor = e.status === 'Success' ? '#d1fae5' : '#fee2e2';
-        tableBody.appendChild(tr);
-      });
-
-      // totals per reason
-      const totals = {};
-      entries.forEach(e => totals[e.reason] = (totals[e.reason]||0)+1);
-      totalsDiv.innerHTML = '<strong>Totals per reason:</strong><br>' + Object.entries(totals).map(([k,v])=>`${k}: ${v}`).join('<br>');
+    function addRow({time, customer, reason, waybill, status}) {
+      const tr = document.createElement('tr');
+      tr.classList.add('border-b');
+      tr.innerHTML = `
+        <td class="py-2 px-4">${time}</td>
+        <td class="py-2 px-4">${customer}</td>
+        <td class="py-2 px-4">${reason}</td>
+        <td class="py-2 px-4">${waybill}</td>
+        <td class="py-2 px-4">${status}</td>
+      `;
+      tr.style.backgroundColor = status === 'Success' ? '#d1fae5' : '#fee2e2';
+      tbody.prepend(tr);
     }
 
-    // main scan handler
-    waybillInput.addEventListener('keydown', async (ev) => {
-      if (ev.key !== 'Enter') return;
-      const waybill = waybillInput.value.trim();
+    function handleScan(waybill) {
+      if (!waybill.trim()) {
+        beepError.play();
+        return;
+      }
+      const now = new Date().toLocaleTimeString();
       const customer = customerSelect.value;
       const reason = reasonSelect.value;
+      const status = 'Success';
+      floorChecks.push({time: now, customer, reason, waybill, status});
+      addRow({time: now, customer, reason, waybill, status});
+      beepSuccess.play();
+      scanInput.value = '';
+    }
 
-      if (!waybill) {
-        errorAudio.play();
-        return;
+    scanInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        handleScan(scanInput.value);
       }
-      if (!customer || !reason) {
-        alert('Select customer and reason before scanning');
-        errorAudio.play();
-        return;
-      }
-
-      // create entry
-      const entry = {
-        time: new Date().toLocaleTimeString(),
-        customer,
-        reason,
-        waybill,
-        status: 'Success'
-      };
-
-      // push and render
-      entries.unshift(entry);
-      renderTable();
-      successAudio.play();
-
-      // clear & focus ready for next scan
-      waybillInput.value = '';
-      waybillInput.focus();
     });
 
-    // filters
-    filterCustomer.addEventListener('change', renderTable);
-    filterReason.addEventListener('change', renderTable);
+    // Auto-reset at midnight
+    function resetIfNewDay() {
+      const today = new Date().toDateString();
+      if (!localStorage.getItem('lastDate') || localStorage.getItem('lastDate') !== today) {
+        floorChecks.length = 0;
+        tbody.innerHTML = '';
+        localStorage.setItem('lastDate', today);
+      }
+    }
+    setInterval(resetIfNewDay, 60000);
+    resetIfNewDay();
 
-    // CSV export
-    document.getElementById('exportCsv').addEventListener('click', () => {
-      if (!entries.length) return alert('No entries to export');
-      const headers = ['Time','Customer','Reason','Waybill','Status'];
-      const csv = [headers.join(',')].concat(entries.map(e => [e.time,e.customer,e.reason,e.waybill,e.status].map(escapeCsv).join(','))).join('\n');
+    // Export CSV
+    document.getElementById('export-csv').addEventListener('click', () => {
+      if (!floorChecks.length) return alert('No scans yet');
+      const headers = ['Time', 'Customer', 'Reason', 'Waybill', 'Status'];
+      const csv = [
+        headers.join(','),
+        ...floorChecks.map(r => [r.time,r.customer,r.reason,r.waybill,r.status].join(','))
+      ].join('\n');
       const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `floor_checks_${today}.csv`;
+      a.href = url;
+      a.download = `floor_checks_${new Date().toISOString().slice(0,10)}.csv`;
       a.click();
-      URL.revokeObjectURL(a.href);
+      URL.revokeObjectURL(url);
     });
 
-    // PDF export (simple, includes credit)
-    document.getElementById('exportPdf').addEventListener('click', () => {
-      if (!entries.length) return alert('No entries to export');
+    // Export PDF
+    document.getElementById('export-pdf').addEventListener('click', () => {
+      if (!floorChecks.length) return alert('No scans yet');
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
       doc.setFontSize(16);
-      doc.text('Daily Floor Checks', 14, 20);
+      doc.text("Daily Floor Checks", 14, 20);
       doc.setFontSize(10);
 
-      const body = entries.map(e => [e.time, e.customer, e.reason, e.waybill, e.status]);
-      doc.autoTable({ head:[['Time','Customer','Reason','Waybill','Status']], body, startY: 30 });
-      doc.setFontSize(9);
-      doc.text('Designed by Mpho Mahlaba', doc.internal.pageSize.getWidth()/2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
-      doc.save(`floor_checks_${today}.pdf`);
+      floorChecks.forEach((r, i) => {
+        const y = 30 + i * 8;
+        doc.text(`${r.time} | ${r.customer} | ${r.reason} | ${r.waybill} | ${r.status}`, 14, y);
+      });
+
+      doc.setFontSize(8);
+      doc.text("Designed by Mpho Mahlaba", 14, 290);
+      doc.save(`floor_checks_${new Date().toISOString().slice(0,10)}.pdf`);
     });
 
-    // auto-reset at midnight (or first load of new day)
-    (function initReset() {
-      const last = localStorage.getItem('floorchecks_last_date') || '';
-      const todayKey = today;
-      if (last !== todayKey) {
-        entries.length = 0;
-        localStorage.setItem('floorchecks_last_date', todayKey);
+    // --- Smart Focus Handling ---
+    function keepFocus() {
+      const active = document.activeElement;
+      const ignored = ['SELECT', 'BUTTON'];
+      if (!ignored.includes(active.tagName)) {
+        scanInput.focus();
       }
-      // keep input focused
-      waybillInput.focus();
-      setInterval(() => { waybillInput.focus(); }, 500);
-    })();
+    }
 
-    // initial render (empty)
-    renderTable();
+    setInterval(keepFocus, 800);
   </script>
 </body>
 </html>
