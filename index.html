@@ -58,7 +58,6 @@
           <th class="py-2 px-4 text-left">Customer</th>
           <th class="py-2 px-4 text-left">Reason</th>
           <th class="py-2 px-4 text-left">Waybill</th>
-          <th class="py-2 px-4 text-left">Status</th>
         </tr>
       </thead>
       <tbody id="floor-checks-body"></tbody>
@@ -74,11 +73,10 @@
     const reasonSelect = document.getElementById('reason-select');
     const tbody = document.getElementById('floor-checks-body');
 
-    // Success/error beep
     const beepSuccess = new Audio('https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg');
     const beepError = new Audio('https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg');
 
-    function addRow({time, customer, reason, waybill, status}) {
+    function addRow({time, customer, reason, waybill}) {
       const tr = document.createElement('tr');
       tr.classList.add('border-b');
       tr.innerHTML = `
@@ -86,9 +84,7 @@
         <td class="py-2 px-4">${customer}</td>
         <td class="py-2 px-4">${reason}</td>
         <td class="py-2 px-4">${waybill}</td>
-        <td class="py-2 px-4">${status}</td>
       `;
-      tr.style.backgroundColor = status === 'Success' ? '#d1fae5' : '#fee2e2';
       tbody.prepend(tr);
     }
 
@@ -100,17 +96,14 @@
       const now = new Date().toLocaleTimeString();
       const customer = customerSelect.value;
       const reason = reasonSelect.value;
-      const status = 'Success';
-      floorChecks.push({time: now, customer, reason, waybill, status});
-      addRow({time: now, customer, reason, waybill, status});
+      floorChecks.push({time: now, customer, reason, waybill});
+      addRow({time: now, customer, reason, waybill});
       beepSuccess.play();
       scanInput.value = '';
     }
 
     scanInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        handleScan(scanInput.value);
-      }
+      if (e.key === 'Enter') handleScan(scanInput.value);
     });
 
     // Auto-reset at midnight
@@ -128,10 +121,10 @@
     // Export CSV
     document.getElementById('export-csv').addEventListener('click', () => {
       if (!floorChecks.length) return alert('No scans yet');
-      const headers = ['Time', 'Customer', 'Reason', 'Waybill', 'Status'];
+      const headers = ['Time', 'Customer', 'Reason', 'Waybill'];
       const csv = [
         headers.join(','),
-        ...floorChecks.map(r => [r.time,r.customer,r.reason,r.waybill,r.status].join(','))
+        ...floorChecks.map(r => [r.time,r.customer,r.reason,r.waybill].join(','))
       ].join('\n');
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
@@ -142,22 +135,57 @@
       URL.revokeObjectURL(url);
     });
 
-    // Export PDF
-    document.getElementById('export-pdf').addEventListener('click', () => {
+    // Export PDF with logo, system URL, and credit
+    document.getElementById('export-pdf').addEventListener('click', async () => {
       if (!floorChecks.length) return alert('No scans yet');
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
-      doc.setFontSize(16);
-      doc.text("Daily Floor Checks", 14, 20);
-      doc.setFontSize(10);
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      // Load logo
+      const logo = new Image();
+      logo.src = 'https://pakisa-floor-check.onrender.com/logo.png'; // Replace with actual logo URL
+      await new Promise(resolve => { logo.onload = resolve; });
+
+      // Pagination
+      let yOffset = 40;
+      const lineHeight = 8;
+
+      function addHeader() {
+        doc.addImage(logo, 10, 10, 30, 30);
+        doc.setFontSize(10);
+        doc.text('Pakisa Express Logistics', 10, 45);
+        doc.text('10 Burry Koean Street, Jet Park, Boksburg, 1469', 10, 50);
+        doc.text('Tel: 011 397 1151 | Email: ops1@pakisalogistics.co.za', 10, 55);
+        doc.text('Website: www.pakisalogistics.co.za', 10, 60);
+        doc.setFontSize(14);
+        doc.text('DAILY FLOOR CHECK REPORT', pageWidth/2, 30, { align: 'center' });
+        doc.setFontSize(10);
+        const date = new Date().toLocaleString();
+        doc.text(`Date: ${date}`, pageWidth - 10, 30, { align: 'right' });
+        yOffset = 70;
+      }
+
+      function addFooter() {
+        doc.setFontSize(8);
+        doc.text('Designed by Mpho Mahlaba', 10, pageHeight - 10);
+        doc.text('https://pakisa-floor-check.onrender.com', pageWidth - 10, pageHeight - 10, { align: 'right' });
+      }
+
+      addHeader();
 
       floorChecks.forEach((r, i) => {
-        const y = 30 + i * 8;
-        doc.text(`${r.time} | ${r.customer} | ${r.reason} | ${r.waybill} | ${r.status}`, 14, y);
+        if (yOffset > pageHeight - 20) {
+          addFooter();
+          doc.addPage();
+          addHeader();
+        }
+        doc.text(`${r.time} | ${r.customer} | ${r.reason} | ${r.waybill}`, 14, yOffset);
+        yOffset += lineHeight;
       });
 
-      doc.setFontSize(8);
-      doc.text("Designed by Mpho Mahlaba", 14, 290);
+      addFooter();
       doc.save(`floor_checks_${new Date().toISOString().slice(0,10)}.pdf`);
     });
 
@@ -165,11 +193,8 @@
     function keepFocus() {
       const active = document.activeElement;
       const ignored = ['SELECT', 'BUTTON'];
-      if (!ignored.includes(active.tagName)) {
-        scanInput.focus();
-      }
+      if (!ignored.includes(active.tagName)) scanInput.focus();
     }
-
     setInterval(keepFocus, 800);
   </script>
 </body>
