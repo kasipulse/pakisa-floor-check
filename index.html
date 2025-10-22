@@ -63,15 +63,23 @@
       <label for="customer" class="form-label">Select Customer</label>
       <select id="customer" class="form-select">
         <option value="First Freight Couriers">First Freight Couriers</option>
+        <option value="FedEx Express">FedEx Express</option>
+        <option value="Seabourne Logistics">Seabourne Logistics</option>
+        <option value="AJM">AJM</option>
+        <option value="Brima Logistics">Brima Logistics</option>
+        <option value="The Courier Guy">The Courier Guy</option>
       </select>
     </div>
 
     <div class="mb-3">
       <label for="reason" class="form-label">Select Reason</label>
       <select id="reason" class="form-select">
-        <option value="Missing Label">Missing Label</option>
-        <option value="Wrong Route">Wrong Route</option>
-        <option value="Damaged">Damaged</option>
+        <option value="Nobody Home">Nobody Home</option>
+        <option value="Incorrect Phone Number">Incorrect Phone Number</option>
+        <option value="Bad Address">Bad Address</option>
+        <option value="Missing Paperwork">Missing Paperwork</option>
+        <option value="Misroute">Misroute</option>
+        <option value="Customer Refused Shipment">Customer Refused Shipment</option>
       </select>
     </div>
 
@@ -111,19 +119,14 @@
     const tableBody = document.getElementById("scanTableBody");
     const beepSound = document.getElementById("beep");
 
-    // Shared data key (all users share it)
     const STORAGE_KEY = "floorCheckData_" + new Date().toISOString().slice(0,10);
-
-    // Load data on page load
     let scans = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
     renderTable();
 
-    // Save & update shared data
     function saveData() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(scans));
     }
 
-    // Render table
     function renderTable() {
       tableBody.innerHTML = "";
       scans.forEach(row => {
@@ -138,7 +141,6 @@
       });
     }
 
-    // Handle scan
     waybillInput.addEventListener("keypress", e => {
       if (e.key === "Enter" && waybillInput.value.trim() !== "") {
         const waybill = waybillInput.value.trim();
@@ -154,7 +156,6 @@
       }
     });
 
-    // Clear data (resets manually)
     document.getElementById("clearData").addEventListener("click", () => {
       if (confirm("Clear all today's scans?")) {
         scans = [];
@@ -163,7 +164,6 @@
       }
     });
 
-    // Export PDF
     document.getElementById("exportPDF").addEventListener("click", () => {
       const element = document.querySelector(".container");
       const opt = {
@@ -176,7 +176,6 @@
       html2pdf().set(opt).from(element).save();
     });
 
-    // Reset daily data automatically at midnight
     const now = new Date();
     const nextMidnight = new Date(now);
     nextMidnight.setHours(24, 0, 0, 0);
