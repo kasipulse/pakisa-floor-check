@@ -1,313 +1,203 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Pakisa — Daily Floor Checks</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pakisa Floor Check</title>
 
-  <!-- Tailwind -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- jsPDF + AutoTable -->
+  <!-- jsPDF + autotable -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-
-  <style>
-    body { background: #f3f5f7; }
-  </style>
 </head>
-<body class="font-sans text-gray-800">
 
-  <div class="max-w-6xl mx-auto p-6">
-    <header class="flex items-center justify-between mb-6">
-      <div>
-        <h1 class="text-2xl font-bold text-[#0a2b52]">Pakisa Express Logistics</h1>
-        <div class="text-sm text-gray-600">Daily Floor Check — Designed by Mpho Mahlaba</div>
-      </div>
-      <div class="text-sm text-gray-500">System URL: https://pakisa-floor-check.onrender.com</div>
-    </header>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-6">
 
-    <!-- Controls -->
-    <div class="bg-white rounded shadow p-4 mb-6">
-      <div class="grid md:grid-cols-5 gap-4 items-end">
-        <div>
-          <label class="block text-sm font-medium">Customer</label>
-          <select id="customer-select" class="mt-1 block w-full border rounded p-2">
-            <option value="">Select customer</option>
-            <option>Fedex Express</option>
-            <option>Seabourne Logistics</option>
-            <option>Brima Logistics</option>
-            <option>AJM Couriers</option>
-            <option>ACT</option>
-            <option>First Freight Couriers</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium">Reason</label>
-          <select id="reason-select" class="mt-1 block w-full border rounded p-2">
-            <option value="">Select reason</option>
-            <option>Planned for next day</option>
-            <option>Incorrect address</option>
-            <option>No invoice on package</option>
-            <option>Damaged in transit</option>
-            <option>Rejected by customer</option>
-            <option>Misroute</option>
-            <option>No contact person</option>
-            <option>Nobody home</option>
-            <option>Missed booking</option>
-          </select>
-        </div>
-
-        <div class="md:col-span-2">
-          <label class="block text-sm font-medium">Scan Waybill</label>
-          <input id="scan-input" class="mt-1 block w-full border rounded p-3 font-mono text-lg" placeholder="Scan or type waybill → press Enter" />
-        </div>
-
-        <div class="flex gap-2 justify-end">
-          <button id="export-csv" class="px-4 py-2 bg-yellow-500 rounded text-white">Export CSV</button>
-          <button id="export-pdf" class="px-4 py-2 bg-blue-600 rounded text-white">Export PDF</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Table -->
-    <div class="bg-white rounded shadow overflow-x-auto">
-      <table class="min-w-full" id="log-table">
-        <thead class="bg-gray-100">
-          <tr>
-            <th class="text-left px-4 py-2 text-sm">Time</th>
-            <th class="text-left px-4 py-2 text-sm">Customer</th>
-            <th class="text-left px-4 py-2 text-sm">Reason</th>
-            <th class="text-left px-4 py-2 text-sm">Waybill</th>
-            <th class="text-left px-4 py-2 text-sm">Status</th>
-          </tr>
-        </thead>
-        <tbody id="floor-checks-body"></tbody>
-      </table>
-    </div>
-
-    <!-- Totals -->
-    <div class="mt-4 text-sm text-gray-700" id="totals"></div>
-
-    <footer class="mt-6 text-xs text-gray-500">Designed by Mpho Mahlaba</footer>
+  <!-- HEADER -->
+  <div class="bg-[#0a2b52] text-white w-full py-4 px-6 rounded-2xl shadow-md mb-6 flex justify-between items-center">
+    <h1 class="text-xl font-bold">Pakisa Express Logistics - Floor Check</h1>
+    <span class="text-sm">www.pakisalogistics.co.za</span>
   </div>
 
-  <!-- Audio -->
-  <audio id="success-beep" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
-  <audio id="error-beep" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+  <!-- FORM SECTION -->
+  <div class="bg-white rounded-2xl shadow-md p-6 w-full max-w-4xl">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+
+      <!-- Customer -->
+      <div>
+        <label class="font-semibold text-gray-700">Select Customer:</label>
+        <select id="customerSelect" class="w-full p-2 border rounded">
+          <option value="">Select customer</option>
+          <option>FedEx Express</option>
+          <option>Seabourne Logistics</option>
+          <option>Brima Logistics</option>
+          <option>AJM Couriers</option>
+          <option>ACT</option>
+          <option>First Freight Couriers</option>
+        </select>
+      </div>
+
+      <!-- Reason -->
+      <div>
+        <label class="font-semibold text-gray-700">Select Reason:</label>
+        <select id="reasonSelect" class="w-full p-2 border rounded">
+          <option value="">Select reason</option>
+          <option>Planned for next day</option>
+          <option>Incorrect address</option>
+          <option>No invoice on package</option>
+          <option>Damaged in transit</option>
+          <option>Rejected by customer</option>
+          <option>Misroute</option>
+          <option>No contact person</option>
+          <option>Nobody home</option>
+          <option>Missed booking</option>
+        </select>
+      </div>
+
+      <!-- Waybill Scan -->
+      <div>
+        <label class="font-semibold text-gray-700">Scan or Type Waybill Number:</label>
+        <input id="waybillInput" type="text" class="w-full p-2 border rounded" placeholder="Scan or type → press Enter" />
+      </div>
+    </div>
+
+    <div class="flex justify-between">
+      <button onclick="exportToCSV()" class="bg-[#409dbc] text-white px-4 py-2 rounded">Export CSV</button>
+      <button onclick="exportToPDF()" class="bg-[#cebd80] text-black px-4 py-2 rounded">Export PDF</button>
+    </div>
+  </div>
+
+  <!-- TABLE SECTION -->
+  <div class="bg-white mt-6 rounded-2xl shadow-md p-6 w-full max-w-5xl overflow-x-auto">
+    <table id="floorCheckTable" class="w-full border border-gray-300 text-sm text-left">
+      <thead class="bg-gray-200 text-black">
+        <tr>
+          <th class="p-2 border">Date & Time</th>
+          <th class="p-2 border">Customer</th>
+          <th class="p-2 border">Reason</th>
+          <th class="p-2 border">Waybill Number</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="mt-8 text-gray-600 text-sm">
+    Designed by <strong>Mpho Mahlaba</strong> — 
+    <a href="https://pakisa-floor-check.onrender.com" class="text-blue-600 underline">https://pakisa-floor-check.onrender.com</a>
+  </footer>
 
   <script>
-  // -----------------------------
-  // Embedded logo (base64 PNG)
-  // -----------------------------
-  const logoDataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAACtWK6eAAAAAXNSR0IArs4c6QAAIABJREFUeF7tfQd4FNX6/jdtW7LJpieQhAAh"; 
-  // NOTE: shortened in display — the real data below will be long. 
-  // (Full embedded base64 string is inserted programmatically by the assistant for the real file.)
-  </script>
+    const reasonSelect = document.getElementById("reasonSelect");
+    const waybillInput = document.getElementById("waybillInput");
+    const tableBody = document.getElementById("tableBody");
+    const customerSelect = document.getElementById("customerSelect");
 
-  <script>
-  // Replace the placeholder above with the full base64 content (assistant inserted full content).
-  // For clarity: the actual deployed file contains the complete data URL string variable.
-
-  // -----------------------------
-  // App logic (scanning + UI)
-  // -----------------------------
-  // We'll re-declare logoDataUrl properly with full base64 here:
-  const logoDataUrlFull = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAACtWK6eAAAAAXNSR0IArs4c6QAAIABJREFUeF7tfQd4FNX6/jdtW7LJpieQhAAh" +
-  "..." // << ACTUAL LONG BASE64 STRING IS PLACED HERE (omitted in this documentation block) 
-  ;
-
-  // IMPORTANT: the actual file you copy will include the full base64 string. 
-  // (The assistant will include it in the file you paste/use.)
-
-  // ---------- Data ----------
-  const floorChecks = []; // stores today's logs in memory
-
-  // UI refs
-  const scanInput = document.getElementById('scan-input');
-  const customerSelect = document.getElementById('customer-select');
-  const reasonSelect = document.getElementById('reason-select');
-  const tbody = document.getElementById('floor-checks-body');
-  const totalsDiv = document.getElementById('totals');
-  const successBeep = document.getElementById('success-beep');
-  const errorBeep = document.getElementById('error-beep');
-
-  // Keep focus smartly (don’t steal focus when using selects/buttons)
-  function keepFocus() {
-    const active = document.activeElement;
-    const ignored = ['SELECT','BUTTON','A','INPUT']; // allow interacting with selects; but keep scan focused except when interacting
-    // We allow input tags only if it's not the scan input (so clicking other inputs works). If active is scanInput, do nothing.
-    if (active !== scanInput && !['SELECT','BUTTON','A'].includes(active.tagName)) {
-      scanInput.focus();
+    // Prevent focus loss when using dropdowns
+    function keepFocus() {
+      const active = document.activeElement;
+      if (active.tagName !== "SELECT" && active.tagName !== "BUTTON") {
+        waybillInput.focus();
+      }
     }
-  }
-  // Run less aggressively
-  setInterval(keepFocus, 800);
+    setInterval(keepFocus, 800);
 
-  // Render table + totals
-  function render() {
-    tbody.innerHTML = '';
-    floorChecks.forEach((r, idx) => {
-      const tr = document.createElement('tr');
-      tr.className = 'border-b';
-      tr.innerHTML = `
-        <td class="px-4 py-2 text-sm">${r.time}</td>
-        <td class="px-4 py-2 text-sm">${r.customer}</td>
-        <td class="px-4 py-2 text-sm">${r.reason}</td>
-        <td class="px-4 py-2 text-sm font-mono">${r.waybill}</td>
-        <td class="px-4 py-2 text-sm">${r.status}</td>
-      `;
-      tr.style.backgroundColor = r.status === 'Success' ? '#d1fae5' : '#fee2e2';
-      tbody.appendChild(tr);
+    // Handle Enter scan
+    waybillInput.addEventListener("keypress", function (e) {
+      if (e.key === "Enter") {
+        const waybill = waybillInput.value.trim();
+        const reason = reasonSelect.value;
+        const customer = customerSelect.value;
+        if (waybill && reason && customer) {
+          const now = new Date().toLocaleString();
+          const row = `<tr>
+            <td class='p-2 border'>${now}</td>
+            <td class='p-2 border'>${customer}</td>
+            <td class='p-2 border'>${reason}</td>
+            <td class='p-2 border'>${waybill}</td>
+          </tr>`;
+          tableBody.insertAdjacentHTML("afterbegin", row);
+          waybillInput.value = "";
+          reasonSelect.selectedIndex = 0;
+          customerSelect.selectedIndex = 0;
+        } else {
+          alert("Please select a customer and reason before scanning.");
+        }
+      }
     });
 
-    // totals per reason
-    const counts = {};
-    floorChecks.forEach(r => counts[r.reason] = (counts[r.reason] || 0) + 1);
-    totalsDiv.innerHTML = '<strong>Totals (by reason):</strong><br>' + Object.entries(counts).map(([k,v]) => `${k}: ${v}`).join('<br>');
-  }
-
-  // Scan handler
-  function handleScan(waybill) {
-    if (!waybill || !waybill.trim()) {
-      errorBeep.play();
-      return;
-    }
-    const customer = customerSelect.value;
-    const reason = reasonSelect.value;
-    if (!customer || !reason) {
-      alert('Please select a Customer and a Reason before scanning.');
-      errorBeep.play();
-      return;
+    // Export to CSV
+    function exportToCSV() {
+      const rows = [["Date & Time", "Customer", "Reason", "Waybill Number"]];
+      document.querySelectorAll("#floorCheckTable tbody tr").forEach(tr => {
+        const cells = Array.from(tr.querySelectorAll("td")).map(td => td.innerText);
+        rows.push(cells);
+      });
+      let csvContent = rows.map(e => e.join(",")).join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "floor_check_report.csv";
+      a.click();
     }
 
-    const entry = {
-      time: new Date().toLocaleTimeString(),
-      customer,
-      reason,
-      waybill: waybill.trim(),
-      status: 'Success'
-    };
-    floorChecks.unshift(entry);
-    successBeep.play();
-    render();
-    scanInput.value = '';
-    scanInput.focus();
-  }
+    // Export to PDF
+    async function exportToPDF() {
+      const { jsPDF } = window.jspdf;
 
-  // Wire Enter to scan
-  scanInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      handleScan(scanInput.value);
-    }
-  });
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4"
+      });
 
-  // Auto-reset at midnight (or first load of new day)
-  (function initDayReset(){
-    const last = localStorage.getItem('pakisa_floorcheck_date');
-    const today = new Date().toDateString();
-    if (last !== today) {
-      // clear
-      floorChecks.length = 0;
-      render();
-      localStorage.setItem('pakisa_floorcheck_date', today);
-    }
-    // check every minute
-    setInterval(() => {
-      const now = new Date().toDateString();
-      if (localStorage.getItem('pakisa_floorcheck_date') !== now) {
-        floorChecks.length = 0; render(); localStorage.setItem('pakisa_floorcheck_date', now);
-      }
-    }, 60000);
-  })();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 10;
 
-  // CSV export
-  document.getElementById('export-csv').addEventListener('click', () => {
-    if (!floorChecks.length) return alert('No scans yet');
-    const headers = ['Time','Customer','Reason','Waybill','Status'];
-    const rows = floorChecks.map(r => [r.time, r.customer, r.reason, r.waybill, r.status].map(cell => `"${(cell||'').toString().replace(/"/g,'""')}"`).join(','));
-    const csv = [headers.join(',')].concat(rows).join('\n');
-    const blob = new Blob([csv], {type:'text/csv'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `floor_checks_${new Date().toISOString().slice(0,10)}.csv`; a.click();
-    URL.revokeObjectURL(url);
-  });
+      // --- HEADER RIBBON (WHITE) ---
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, pageWidth, 25, "F");
 
-  // PDF export using jsPDF + autoTable, with header/footer on every page
-  document.getElementById('export-pdf').addEventListener('click', () => {
-    if (!floorChecks.length) return alert('No scans yet');
+      // --- LOGOS ---
+      const pakisaLogo = "/pakisa_logistics_express_pty_ltd_logo-removebg-preview.png";
+      const freightLogo = "/first_freight_couriers_logo.png";
+      doc.addImage(pakisaLogo, "PNG", margin, 3, 30, 20);
+      doc.addImage(freightLogo, "PNG", 45, 3, 30, 20);
 
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('p','mm','a4');
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-
-    // Build table body
-    const body = floorChecks.map(r => [r.time, r.customer, r.reason, r.waybill, r.status]);
-
-    // Header/footer drawing function (called for each page by autoTable)
-    const headerFooter = function (data) {
-      // White ribbon rectangle across top
-      doc.setFillColor(255,255,255);
-      doc.rect(0, 0, pageWidth, 30, 'F');
-
-      // Logo left (we embed the base64 logo)
-      try {
-        // Using logoDataUrlFull; ensure this is the full data URL variable
-        doc.addImage(logoDataUrlFull, 'PNG', 10, 4, 36, 18); // x,y,w,h (mm)
-      } catch (err) {
-        // if image fails, ignore
-        console.warn('Logo addImage failed', err);
-      }
-
-      // Company address under logo (small)
-      doc.setFontSize(8);
-      const addrX = 10;
-      const addrY = 24;
-      doc.text("Pakisa Express Logistics", addrX, addrY);
-      doc.setFontSize(7);
-      doc.text("10 Burry Koean Street, Jet Park, Boksburg, 1469", addrX, addrY + 3);
-      doc.text("Tel: 011 397 1151 | Email: ops1@pakisalogistics.co.za", addrX, addrY + 6);
-      doc.text("Website: www.pakisalogistics.co.za", addrX, addrY + 9);
-
-      // Title center
+      // --- TITLE ---
       doc.setFontSize(14);
-      doc.setFont('helvetica','bold');
-      doc.text("DAILY FLOOR CHECK REPORT", pageWidth / 2, 15, { align: 'center' });
+      doc.setTextColor(0, 0, 0);
+      doc.text("Pakisa Express Logistics — Floor Check Report", 85, 15);
 
-      // Date on right
+      // --- TABLE CONTENT ---
+      const headers = ["Date & Time", "Customer", "Reason", "Waybill Number"];
+      const rows = Array.from(document.querySelectorAll("#tableBody tr")).map(tr =>
+        Array.from(tr.querySelectorAll("td")).map(td => td.innerText)
+      );
+
+      doc.autoTable({
+        startY: 30,
+        head: [headers],
+        body: rows,
+        theme: "grid",
+        styles: { fontSize: 9, textColor: [0, 0, 0] },
+        headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [250, 250, 250] },
+        margin: { left: margin, right: margin },
+        tableWidth: "auto"
+      });
+
+      // --- FOOTER ---
+      const footerY = doc.internal.pageSize.getHeight() - 10;
       doc.setFontSize(9);
-      doc.setFont('helvetica','normal');
-      doc.text((new Date()).toLocaleString(), pageWidth - 10, 16, { align: 'right' });
+      doc.setTextColor(100);
+      doc.text("Designed by Mpho Mahlaba — https://pakisa-floor-check.onrender.com", margin, footerY);
 
-      // Footer (bottom)
-      const footerY = pageHeight - 10;
-      doc.setFontSize(9);
-      doc.setTextColor(0,0,0);
-      // Left: URL (plain)
-      doc.text("https://pakisa-floor-check.onrender.com", 10, footerY);
-      // Center: credit
-      doc.text("Designed by Mpho Mahlaba", pageWidth / 2, footerY, { align: 'center' });
-    };
-
-    // Use autoTable; pass didDrawPage to draw header/footer on every page
-    doc.autoTable({
-      head: [['Time','Customer','Reason','Waybill','Status']],
-      body,
-      startY: 35,
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [240,240,240] },
-      margin: { left: 10, right: 10, top: 10 },
-      didDrawPage: function (data) { headerFooter(data); }
-    });
-
-    // Save
-    doc.save(`floor_checks_${new Date().toISOString().slice(0,10)}.pdf`);
-  });
-
-  // Ensure scan input ready
-  scanInput.focus();
+      doc.save("floor_check_report.pdf");
+    }
   </script>
 </body>
 </html>
