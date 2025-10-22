@@ -6,7 +6,6 @@
   <title>Pakisa Floor Check</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <link rel="icon" href="pakisa_logistics_express_pty_ltd_logo-removebg-preview.png" />
   <style>
     body {
       font-family: "Segoe UI", sans-serif;
@@ -145,26 +144,28 @@
   </footer>
 
   <script>
-    // --- SUPABASE SETUP ---
-    const SUPABASE_URL = "https://YOUR_SUPABASE_URL.supabase.co";
-    const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";
+    const SUPABASE_URL = "https://orhqnjxigboyvnwaopxu.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yaHFuanhpZ2JveXZud2FvcHh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0OTI3MTksImV4cCI6MjA3NjA2ODcxOX0.KAk9QL0T7VwzXdbH1-Rei0P9x0XHeEI4jcDuPHxK28M";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    const waybillInput = document.getElementById("waybill");
     const customerSelect = document.getElementById("customer");
     const reasonSelect = document.getElementById("reason");
-    const waybillInput = document.getElementById("waybill");
     const tbody = document.querySelector("#report tbody");
 
-    // --- DAILY RESET (auto-clear old data) ---
+    // Load beep sound
+    const beep = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
+
+    // Daily reset
     async function resetOldData() {
       const today = new Date().toISOString().split("T")[0];
       await supabase.from("floor_scans").delete().lt("created_date", today);
     }
 
-    // --- FETCH TODAY’S SCANS ---
+    // Fetch today's scans
     async function fetchScans() {
       const today = new Date().toISOString().split("T")[0];
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("floor_scans")
         .select("*")
         .eq("created_date", today)
@@ -174,7 +175,7 @@
       data.forEach(row => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${new Date(row.timestamp).toLocaleString()}</td>
+          <td>${new Date(row.timestamp).toLocaleTimeString()}</td>
           <td>${row.customer}</td>
           <td>${row.reason}</td>
           <td>${row.waybill}</td>
@@ -183,71 +184,36 @@
       });
     }
 
-    // --- HANDLE SCAN ENTRY ---
+    // Handle scan
     waybillInput.addEventListener("keypress", async e => {
       if (e.key === "Enter") {
+        const waybill = waybillInput.value.trim();
         const customer = customerSelect.value;
         const reason = reasonSelect.value;
-        const waybill = waybillInput.value.trim();
-
         if (!customer || !reason || !waybill) {
-          alert("Please select customer, reason, and enter waybill.");
+          alert("Select customer, reason and scan waybill first.");
           return;
         }
 
-        await supabase.from("floor_scans").insert([
-          { customer, reason, waybill }
-        ]);
-
+        await supabase.from("floor_scans").insert([{ customer, reason, waybill }]);
+        beep.play();
         waybillInput.value = "";
-        fetchScans();
+        await fetchScans();
       }
     });
 
-    // --- EXPORT TO PDF ---
-    document.getElementById("export").addEventListener("click", async () => {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      const logo = new Image();
-      logo.src = "pakisa_logistics_express_pty_ltd_logo-removebg-preview.png";
-
-      doc.addImage(logo, "PNG", 10, 10, 30, 20);
-      doc.setFontSize(14);
-      doc.text("Pakisa Logistics Express (Pty) Ltd - Floor Check Report", 50, 20);
-      doc.setFontSize(10);
-      doc.text(`Date: ${new Date().toLocaleDateString()}`, 50, 27);
-
-      let y = 40;
-      doc.setFontSize(9);
-      doc.setTextColor(0, 0, 0);
-      doc.text("Time", 10, y);
-      doc.text("Customer", 55, y);
-      doc.text("Reason", 110, y);
-      doc.text("Waybill", 165, y);
-
-      y += 5;
-      for (const row of tbody.rows) {
-        const cells = row.cells;
-        doc.text(cells[0].innerText, 10, y);
-        doc.text(cells[1].innerText, 55, y);
-        doc.text(cells[2].innerText, 110, y);
-        doc.text(cells[3].innerText, 165, y);
-        y += 5;
-        if (y > 270) { doc.addPage(); y = 20; }
+    // Keep input focused unless interacting with dropdowns
+    setInterval(() => {
+      const active = document.activeElement.tagName;
+      if (active !== "SELECT" && active !== "BUTTON") {
+        waybillInput.focus();
       }
+    }, 600);
 
-      doc.setFontSize(9);
-      doc.textWithLink("pakisa-floor-check.onrender.com", 10, 285, { url: "https://pakisa-floor-check.onrender.com" });
-      doc.text("Designed by Mpho Mahlaba © 2025", 130, 285);
-      doc.save(`Pakisa_FloorCheck_${new Date().toISOString().split('T')[0]}.pdf`);
-    });
-
-    // --- INITIAL LOAD ---
+    // Initialize
     (async () => {
       await resetOldData();
       await fetchScans();
-
-      // Real-time updates
       supabase.channel("floor_scan_changes")
         .on("postgres_changes", { event: "*", schema: "public", table: "floor_scans" }, fetchScans)
         .subscribe();
