@@ -4,220 +4,183 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pakisa Floor Check</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
   <style>
     body {
-      font-family: "Segoe UI", sans-serif;
-      background: #f2f4f7;
-      margin: 0;
-      padding: 0;
+      background-color: #f8f9fa;
+      font-family: 'Segoe UI', sans-serif;
     }
-    header {
-      background: #fff;
-      color: #0a2b52;
-      padding: 12px 20px;
+    .header {
+      background-color: white;
+      padding: 10px;
+      border-bottom: 3px solid #0a2b52;
       display: flex;
       align-items: center;
-      gap: 10px;
-      border-bottom: 3px solid #cebd80;
+      justify-content: space-between;
     }
-    header img {
-      height: 45px;
+    .header img {
+      height: 60px;
     }
-    main {
-      max-width: 700px;
-      margin: 30px auto;
-      background: white;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      padding: 25px;
-    }
-    h1 {
+    .header h2 {
       color: #0a2b52;
-      font-size: 22px;
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    select, input {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 15px;
-      font-size: 15px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+      margin: 0;
+      font-weight: bold;
     }
     table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: center;
+      background: white;
     }
     th {
-      background: #cebd80;
-      color: #000;
+      background: #e9ecef !important;
+      color: black !important;
+      text-transform: uppercase;
     }
-    tr:nth-child(even) {
-      background: #f9f9f9;
-    }
-    button {
-      background: #0a2b52;
-      color: white;
-      border: none;
-      padding: 10px 16px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 600;
-    }
-    button:hover {
-      background: #409dbc;
+    td {
+      vertical-align: middle !important;
     }
     footer {
       text-align: center;
+      font-size: 14px;
+      padding: 10px;
       color: #666;
-      font-size: 13px;
-      margin-top: 25px;
+      background-color: white;
+      border-top: 3px solid #0a2b52;
     }
-    footer a {
-      color: #0a2b52;
-      text-decoration: none;
-      font-weight: bold;
+    .credit {
+      font-size: 13px;
+      color: #999;
     }
   </style>
 </head>
 <body>
-  <header>
-    <img src="pakisa_logistics_express_pty_ltd_logo-removebg-preview.png" alt="Pakisa Logo">
-    <h2>Pakisa Logistics Express (Pty) Ltd</h2>
-  </header>
+  <div class="header">
+    <img src="https://i.ibb.co/5hMxz7C/first-freight-logo.png" alt="First Freight Logo">
+    <h2>Pakisa Logistics - Floor Check</h2>
+  </div>
 
-  <main>
-    <h1>Daily Floor Check</h1>
+  <div class="container mt-4">
+    <div class="mb-3">
+      <label for="customer" class="form-label">Select Customer</label>
+      <select id="customer" class="form-select">
+        <option value="First Freight Couriers">First Freight Couriers</option>
+      </select>
+    </div>
 
-    <select id="customer">
-      <option value="">Select customer</option>
-      <option>FedEx Express</option>
-      <option>Seabourne Logistics</option>
-      <option>Brima Logistics</option>
-      <option>AJM Couriers</option>
-      <option>ACT</option>
-      <option>First Freight Couriers</option>
-    </select>
+    <div class="mb-3">
+      <label for="reason" class="form-label">Select Reason</label>
+      <select id="reason" class="form-select">
+        <option value="Missing Label">Missing Label</option>
+        <option value="Wrong Route">Wrong Route</option>
+        <option value="Damaged">Damaged</option>
+      </select>
+    </div>
 
-    <select id="reason">
-      <option value="">Select reason</option>
-      <option>Planned for next day</option>
-      <option>Incorrect address</option>
-      <option>No invoice on package</option>
-      <option>Damaged in transit</option>
-      <option>Rejected by customer</option>
-      <option>Misroute</option>
-      <option>No contact person</option>
-      <option>Nobody home</option>
-      <option>Missed booking</option>
-    </select>
+    <div class="mb-3">
+      <label for="waybill" class="form-label">Scan Waybill</label>
+      <input type="text" id="waybill" class="form-control" placeholder="Scan or Enter Waybill" autofocus>
+    </div>
 
-    <input id="waybill" placeholder="Scan or type waybill number and press Enter" autofocus>
+    <div class="d-flex justify-content-between mb-3">
+      <button class="btn btn-danger" id="clearData">Clear Today's Data</button>
+      <button class="btn btn-success" id="exportPDF">Export to PDF</button>
+    </div>
 
-    <table id="report">
+    <table class="table table-bordered text-center align-middle">
       <thead>
         <tr>
-          <th>Timestamp</th>
+          <th>Waybill</th>
           <th>Customer</th>
           <th>Reason</th>
-          <th>Waybill</th>
+          <th>Time</th>
         </tr>
       </thead>
-      <tbody></tbody>
+      <tbody id="scanTableBody"></tbody>
     </table>
-
-    <button id="export">Export to PDF</button>
-  </main>
+  </div>
 
   <footer>
-    <p><a href="https://pakisa-floor-check.onrender.com" target="_blank">pakisa-floor-check.onrender.com</a></p>
-    <p>Designed by Mpho Mahlaba © 2025</p>
+    <p>Pakisa Logistics Express (Pty) Ltd</p>
+    <a href="https://pakisa-floor-check.onrender.com" target="_blank">https://pakisa-floor-check.onrender.com</a>
+    <div class="credit">Developed by Mpho Mahlaba</div>
   </footer>
 
+  <audio id="beep" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+
   <script>
-    const SUPABASE_URL = "https://orhqnjxigboyvnwaopxu.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yaHFuanhpZ2JveXZud2FvcHh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0OTI3MTksImV4cCI6MjA3NjA2ODcxOX0.KAk9QL0T7VwzXdbH1-Rei0P9x0XHeEI4jcDuPHxK28M";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
     const waybillInput = document.getElementById("waybill");
-    const customerSelect = document.getElementById("customer");
-    const reasonSelect = document.getElementById("reason");
-    const tbody = document.querySelector("#report tbody");
+    const tableBody = document.getElementById("scanTableBody");
+    const beepSound = document.getElementById("beep");
 
-    // Load beep sound
-    const beep = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
+    // Shared data key (all users share it)
+    const STORAGE_KEY = "floorCheckData_" + new Date().toISOString().slice(0,10);
 
-    // Daily reset
-    async function resetOldData() {
-      const today = new Date().toISOString().split("T")[0];
-      await supabase.from("floor_scans").delete().lt("created_date", today);
+    // Load data on page load
+    let scans = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    renderTable();
+
+    // Save & update shared data
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(scans));
     }
 
-    // Fetch today's scans
-    async function fetchScans() {
-      const today = new Date().toISOString().split("T")[0];
-      const { data } = await supabase
-        .from("floor_scans")
-        .select("*")
-        .eq("created_date", today)
-        .order("timestamp", { ascending: false });
-
-      tbody.innerHTML = "";
-      data.forEach(row => {
+    // Render table
+    function renderTable() {
+      tableBody.innerHTML = "";
+      scans.forEach(row => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${new Date(row.timestamp).toLocaleTimeString()}</td>
+          <td>${row.waybill}</td>
           <td>${row.customer}</td>
           <td>${row.reason}</td>
-          <td>${row.waybill}</td>
+          <td>${row.time}</td>
         `;
-        tbody.appendChild(tr);
+        tableBody.appendChild(tr);
       });
     }
 
     // Handle scan
-    waybillInput.addEventListener("keypress", async e => {
-      if (e.key === "Enter") {
+    waybillInput.addEventListener("keypress", e => {
+      if (e.key === "Enter" && waybillInput.value.trim() !== "") {
         const waybill = waybillInput.value.trim();
-        const customer = customerSelect.value;
-        const reason = reasonSelect.value;
-        if (!customer || !reason || !waybill) {
-          alert("Select customer, reason and scan waybill first.");
-          return;
-        }
+        const customer = document.getElementById("customer").value;
+        const reason = document.getElementById("reason").value;
+        const time = new Date().toLocaleTimeString();
 
-        await supabase.from("floor_scans").insert([{ customer, reason, waybill }]);
-        beep.play();
+        scans.push({ waybill, customer, reason, time });
+        saveData();
+        renderTable();
+        beepSound.play();
         waybillInput.value = "";
-        await fetchScans();
       }
     });
 
-    // Keep input focused unless interacting with dropdowns
-    setInterval(() => {
-      const active = document.activeElement.tagName;
-      if (active !== "SELECT" && active !== "BUTTON") {
-        waybillInput.focus();
+    // Clear data (resets manually)
+    document.getElementById("clearData").addEventListener("click", () => {
+      if (confirm("Clear all today's scans?")) {
+        scans = [];
+        saveData();
+        renderTable();
       }
-    }, 600);
+    });
 
-    // Initialize
-    (async () => {
-      await resetOldData();
-      await fetchScans();
-      supabase.channel("floor_scan_changes")
-        .on("postgres_changes", { event: "*", schema: "public", table: "floor_scans" }, fetchScans)
-        .subscribe();
-    })();
+    // Export PDF
+    document.getElementById("exportPDF").addEventListener("click", () => {
+      const element = document.querySelector(".container");
+      const opt = {
+        margin: 0.3,
+        filename: `Pakisa_Floor_Check_${new Date().toISOString().slice(0,10)}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: "in", format: "a4", orientation: "portrait" },
+      };
+      html2pdf().set(opt).from(element).save();
+    });
+
+    // Reset daily data automatically at midnight
+    const now = new Date();
+    const nextMidnight = new Date(now);
+    nextMidnight.setHours(24, 0, 0, 0);
+    setTimeout(() => localStorage.removeItem(STORAGE_KEY), nextMidnight - now);
   </script>
 </body>
 </html>
