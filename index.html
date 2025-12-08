@@ -1,356 +1,230 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Pakisa — Daily Floor Checks</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Floor Check System</title>
 
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
-
-  <!-- jsPDF + autoTable (for PDF export) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-
-  <!-- Tailwind for styling (optional / same look) -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    body { background: #f3f5f7; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
-    .container { max-width: 1100px; margin: 28px auto; padding: 16px; }
-    table th { background: #f3f4f6; color: #000; }
+    /* Table hover highlight */
+    tr:hover { background: #f3f4f6; }
   </style>
 </head>
-<body>
-  <div class="container">
-    <header class="flex items-center justify-between mb-4">
-      <div>
-        <h1 class="text-2xl font-bold text-[#0a2b52]">Pakisa Express Logistics</h1>
-        <div class="text-sm text-gray-600">Daily Floor Check — Designed by Mpho Mahlaba</div>
-      </div>
-      <div class="text-sm text-gray-500">System: https://pakisa-floor-check.onrender.com</div>
-    </header>
+<body class="bg-gray-100">
 
-    <!-- Controls -->
-    <div class="bg-white rounded shadow p-4 mb-4">
-      <div class="grid md:grid-cols-4 gap-3 items-end">
-        <div>
-          <label class="block text-sm font-medium">Customer</label>
-          <select id="customerSelect" class="mt-1 block w-full border rounded p-2">
-            <option value="">Select customer</option>
-            <option>First Freight Couriers</option>
-            <option>FedEx Express</option>
-            <option>Seabourne Logistics</option>
-            <option>AJM</option>
-            <option>Brima Logistics</option>
-            <option>The Courier Guy</option>
-          </select>
-        </div>
+<div class="max-w-4xl mx-auto p-6">
+  <h1 class="text-3xl font-bold mb-4 text-center">Daily Floor Check</h1>
 
-        <div>
-          <label class="block text-sm font-medium">Reason</label>
-          <select id="reasonSelect" class="mt-1 block w-full border rounded p-2">
-            <option value="">Select reason</option>
-            <option>Nobody Home</option>
-            <option>Incorrect Phone Number</option>
-            <option>Bad Address</option>
-            <option>Missing Paperwork</option>
-            <option>Misroute</option>
-            <option>Customer Refused Shipment</option>
-            <option>Will be dispatched on commitment date</option>
-          </select>
-        </div>
+  <!-- Customer + Reason -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
 
-        <div class="md:col-span-2">
-          <label class="block text-sm font-medium">Scan Waybill</label>
-          <input id="waybillInput" class="mt-1 block w-full border rounded p-3 font-mono text-lg" placeholder="Scan or type waybill → press Enter" autocomplete="off" />
-        </div>
-      </div>
-
-      <div class="mt-3 flex justify-end gap-2">
-        <button id="exportCsv" class="px-4 py-2 bg-yellow-400 rounded">Export CSV</button>
-        <button id="exportPdf" class="px-4 py-2 bg-blue-600 text-white rounded">Export PDF</button>
-      </div>
+    <div>
+      <label class="font-semibold">Customer</label>
+      <select id="customerSelect" class="w-full p-2 border rounded">
+        <option value="">Select Customer</option>
+        <option>Fedex Express</option>
+        <option>Seabourne Logistics</option>
+        <option>Brima Logistics</option>
+        <option>AJM</option>
+        <option>First Freight Couriers</option>
+      </select>
     </div>
 
-    <!-- Table -->
-    <div class="bg-white rounded shadow overflow-auto">
-      <table class="min-w-full" id="floorTable">
-        <thead>
-          <tr>
-            <th class="px-3 py-2 text-left text-sm">Time</th>
-            <th class="px-3 py-2 text-left text-sm">Customer</th>
-            <th class="px-3 py-2 text-left text-sm">Reason</th>
-            <th class="px-3 py-2 text-left text-sm">Waybill</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody" class="bg-white divide-y divide-gray-200"></tbody>
-      </table>
+    <div>
+      <label class="font-semibold">Reason</label>
+      <select id="reasonSelect" class="w-full p-2 border rounded">
+        <option value="">Select Reason</option>
+        <option>Nobody home</option>
+        <option>Incorrect Phone number</option>
+        <option>Bad Address</option>
+        <option>Missing paperwork</option>
+        <option>Misroute</option>
+        <option>Customer refused shipment</option>
+        <option>Will dispatch on commitment date</option>
+      </select>
     </div>
 
-    <footer class="mt-4 text-sm text-gray-600">
-      Designed by Mpho Mahlaba
-    </footer>
   </div>
 
-  <!-- audio beep -->
-  <audio id="beepSuccess" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+  <!-- Scan box -->
+  <div class="mb-4">
+    <label class="font-semibold">Scan Waybill</label>
+    <input id="scanInput"
+      class="w-full p-3 text-xl border rounded focus:ring-2 focus:ring-blue-400"
+      placeholder="Scan or type waybill & press ENTER" autofocus />
+  </div>
 
-  <script>
-    // ------------------------------
-    // CONFIG: Supabase credentials
-    // ------------------------------
-    const SUPABASE_URL = "https://vkziieycbvasvzznvsgn.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZremlpZXljYnZhc3Z6em52c2duIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODEzOTMsImV4cCI6MjA4MDc1NzM5M30.IwYi0KxWBX3eIDfmqr56ouYGbCm7M1MJzmbKddBXtQ4";
-    const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  <!-- Table -->
+  <div class="bg-white p-4 rounded shadow">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-xl font-bold">Today's Scans</h2>
+      <button id="exportPDF" class="px-4 py-2 bg-blue-600 text-white rounded">
+        Export PDF
+      </button>
+    </div>
 
-    // ------------------------------
-    // UI refs
-    // ------------------------------
-    const customerSelect = document.getElementById('customerSelect');
-    const reasonSelect = document.getElementById('reasonSelect');
-    const waybillInput = document.getElementById('waybillInput');
-    const tableBody = document.getElementById('tableBody');
-    const beepSuccess = document.getElementById('beepSuccess');
-    const exportCsvBtn = document.getElementById('exportCsv');
-    const exportPdfBtn = document.getElementById('exportPdf');
+    <table class="min-w-full">
+      <thead class="bg-gray-200">
+        <tr class="text-left text-black">
+          <th class="p-2">Waybill</th>
+          <th class="p-2">Customer</th>
+          <th class="p-2">Reason</th>
+          <th class="p-2">Time</th>
+        </tr>
+      </thead>
+      <tbody id="scanTable"></tbody>
+    </table>
+  </div>
 
-    // Keep focus smartly (don't steal focus when interacting with selects)
-    function keepFocus() {
-      const active = document.activeElement;
-      if (!['SELECT','BUTTON','A'].includes(active.tagName)) {
-        waybillInput.focus();
+  <!-- Footer Credit -->
+  <p class="text-center text-xs text-gray-500 mt-4">
+    Designed by <strong>Mpho Mahlaba</strong>
+  </p>
+</div>
+
+<!-- Sounds -->
+<audio id="successSound">
+  <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg">
+</audio>
+<audio id="errorSound">
+  <source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" type="audio/ogg">
+</audio>
+
+<script>
+/* ------------------------------
+   SUPABASE INITIALIZE
+--------------------------------*/
+const supabaseUrl = "https://vkziieycbvasvzznvsgn.supabase.co";
+const supabaseAnon = "YOUR_ANON_KEY_HERE";  // <-- replace with your anon key
+const supabaseClient = supabase.createClient(supabaseUrl, supabaseAnon);
+
+/* ------------------------------
+   ELEMENTS
+--------------------------------*/
+const scanInput = document.getElementById("scanInput");
+const customerSelect = document.getElementById("customerSelect");
+const reasonSelect = document.getElementById("reasonSelect");
+const scanTable = document.getElementById("scanTable");
+const successSound = document.getElementById("successSound");
+const errorSound = document.getElementById("errorSound");
+
+/* ------------------------------
+   DAILY RESET AT 23:59
+--------------------------------*/
+async function dailyReset() {
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+
+  let savedDay = localStorage.getItem("floorCheckDate");
+
+  if (savedDay !== today) {
+    await supabaseClient.from("floor_checks").delete().neq("id", 0);
+    localStorage.setItem("floorCheckDate", today);
+  }
+}
+dailyReset();
+
+/* ------------------------------
+   LOAD TODAY'S SCANS
+--------------------------------*/
+async function loadScans() {
+  scanTable.innerHTML = "";
+
+  const today = new Date().toISOString().split("T")[0];
+
+  const { data } = await supabaseClient
+    .from("floor_checks")
+    .select("*")
+    .gte("scan_date", today + "T00:00:00")
+    .lte("scan_date", today + "T23:59:59")
+    .order("scan_date", { ascending: true });
+
+  data.forEach(addRowToTable);
+}
+loadScans();
+
+/* ------------------------------
+   ADD ROW TO TABLE
+--------------------------------*/
+function addRowToTable(row) {
+  const tr = document.createElement("tr");
+
+  tr.innerHTML = `
+    <td class="p-2">${row.waybill}</td>
+    <td class="p-2">${row.customer}</td>
+    <td class="p-2">${row.reason}</td>
+    <td class="p-2">${new Date(row.scan_date).toLocaleTimeString()}</td>
+  `;
+
+  scanTable.appendChild(tr);
+}
+
+/* ------------------------------
+   SCAN HANDLER
+--------------------------------*/
+scanInput.addEventListener("keydown", async (e) => {
+  if (e.key !== "Enter") return;
+
+  const waybill = scanInput.value.trim();
+  const customer = customerSelect.value;
+  const reason = reasonSelect.value;
+
+  if (!customer || !reason) {
+    errorSound.play();
+    alert("Please select customer and reason first.");
+    scanInput.value = "";
+    scanInput.focus();
+    return;
+  }
+
+  if (!waybill) return;
+
+  // Last update wins → delete old record
+  await supabaseClient
+    .from("floor_checks")
+    .delete()
+    .eq("waybill", waybill);
+
+  // Insert new record
+  const { error } = await supabaseClient
+    .from("floor_checks")
+    .insert([
+      {
+        waybill,
+        customer,
+        reason,
+        scan_date: new Date().toISOString()
       }
-    }
-    setInterval(keepFocus, 700);
+    ]);
 
-    // Helper: format date/time
-    function formatTime(ts) {
-      try { return new Date(ts).toLocaleTimeString(); } catch { return ''; }
-    }
-
-    // Delete older rows (< today) — run on load to ensure fresh day
-    async function deleteOlderThanToday() {
-      const today = new Date().toISOString().slice(0,10);
-      try {
-        await supabase
-          .from('floor_checks')
-          .delete()
-          .lt('scan_date', today);
-      } catch (err) {
-        console.warn('Could not auto-delete older rows (RLS or permissions may block).', err);
-      }
-    }
-
-    // Load today's rows
-    async function loadToday() {
-      const today = new Date().toISOString().slice(0,10);
-      const { data, error } = await supabase
-        .from('floor_checks')
-        .select('*')
-        .eq('scan_date', today)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Load error', error);
-        return;
-      }
-      renderRows(data || []);
-    }
-
-    // Render to table
-    function renderRows(rows) {
-      tableBody.innerHTML = '';
-      rows.forEach(r => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="px-3 py-2 text-sm">${formatTime(r.timestamp || r.created_at || r.time)}</td>
-          <td class="px-3 py-2 text-sm">${escapeHtml(r.customer)}</td>
-          <td class="px-3 py-2 text-sm">${escapeHtml(r.reason)}</td>
-          <td class="px-3 py-2 text-sm font-mono">${escapeHtml(r.waybill)}</td>
-        `;
-        tableBody.appendChild(tr);
-      });
-    }
-
-    function escapeHtml(s){ if(!s) return ''; return s.toString().replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
-
-    // Upsert logic: if same waybill exists today => update that row, otherwise insert
-    async function upsertToday(waybill, customer, reason) {
-      const today = new Date().toISOString().slice(0,10);
-
-      // check if exists for today
-      const { data: existing, error: selErr } = await supabase
-        .from('floor_checks')
-        .select('id')
-        .eq('waybill', waybill)
-        .eq('scan_date', today)
-        .limit(1)
-        .maybeSingle();
-
-      if (selErr) {
-        console.error('Select error', selErr);
-        return false;
-      }
-
-      if (existing && existing.id) {
-        // update existing
-        const { error: upErr } = await supabase
-          .from('floor_checks')
-          .update({ customer, reason, time: new Date().toLocaleTimeString(), created_at: new Date().toISOString() })
-          .eq('id', existing.id);
-
-        if (upErr) { console.error('Update error', upErr); return false; }
-        return true;
-      } else {
-        // insert new row
-        const { error: insErr } = await supabase
-          .from('floor_checks')
-          .insert([{ waybill, customer, reason, time: new Date().toLocaleTimeString(), scan_date: today }]);
-
-        if (insErr) { console.error('Insert error', insErr); return false; }
-        return true;
-      }
-    }
-
-    // Scanner: Enter submits
-    waybillInput.addEventListener('keydown', async (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const waybill = waybillInput.value.trim();
-        const customer = customerSelect.value;
-        const reason = reasonSelect.value;
-        if (!waybill || !customer || !reason) {
-          alert('Please select Customer and Reason then scan the Waybill.');
-          return;
-        }
-
-        const ok = await upsertToday(waybill, customer, reason);
-        if (ok) {
-          try { beepSuccess.play(); } catch(e) {}
-          waybillInput.value = '';
-          waybillInput.focus();
-          // refresh will be triggered by realtime subscription, but also reload to be safe
-          await loadToday();
-        } else {
-          alert('Error saving scan (check console).');
-        }
-      }
+  if (error) {
+    console.error(error);
+    errorSound.play();
+  } else {
+    successSound.play();
+    addRowToTable({
+      waybill,
+      customer,
+      reason,
+      scan_date: new Date().toISOString()
     });
+  }
 
-    // Real-time subscribe to inserts/updates on table to keep all clients in sync
-    function subscribeRealtime() {
-      try {
-        supabase.channel('floor_checks_realtime')
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'floor_checks' }, payload => {
-            const row = payload.new;
-            const today = new Date().toISOString().slice(0,10);
-            if (row.scan_date === today) loadToday();
-          })
-          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'floor_checks' }, payload => {
-            const row = payload.new;
-            const today = new Date().toISOString().slice(0,10);
-            if (row.scan_date === today) loadToday();
-          })
-          .subscribe();
-      } catch (err) {
-        console.warn('Realtime subscription error', err);
-      }
-    }
+  // Auto ready for next scan
+  scanInput.value = "";
+  setTimeout(() => scanInput.focus(), 50);
+});
 
-    // Export CSV: today's rows
-    exportCsvBtn.addEventListener('click', async () => {
-      const today = new Date().toISOString().slice(0,10);
-      const { data } = await supabase.from('floor_checks').select('*').eq('scan_date', today).order('created_at', { ascending: true });
-      if (!data || data.length === 0) return alert('No rows to export.');
+/* ------------------------------
+   PDF EXPORT
+--------------------------------*/
+document.getElementById("exportPDF").addEventListener("click", () => {
+  window.print();
+});
+</script>
 
-      const keys = ['time','customer','reason','waybill'];
-      const csv = [keys.join(',')].concat(data.map(r => keys.map(k => `"${(r[k]||'').toString().replace(/"/g,'""')}"`).join(','))).join('\n');
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = `floor_checks_${today}.csv`; a.click(); URL.revokeObjectURL(url);
-    });
-
-    // Export PDF with header/logo/footer on every page
-    exportPdfBtn.addEventListener('click', async () => {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF('p','mm','a4');
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const today = new Date().toISOString().slice(0,10);
-
-      // load todays rows
-      const { data } = await supabase.from('floor_checks').select('*').eq('scan_date', today).order('created_at', { ascending: true });
-      if (!data || data.length === 0) return alert('No rows to export.');
-
-      // header/footer drawing function
-      const headerFooter = (doc, pageNumber, totalPages) => {
-        // white ribbon
-        doc.setFillColor(255,255,255);
-        doc.rect(0, 0, pageWidth, 32, 'F');
-
-        // add logo (logo file must be uploaded to same static folder or repo)
-        try {
-          doc.addImage('/pakisa_logistics_express_pty_ltd_logo-removebg-preview.png', 'PNG', 10, 6, 36, 18);
-        } catch(e){ /* ignored if not found */ }
-
-        // company address under logo
-        doc.setFontSize(8);
-        doc.setTextColor(0,0,0);
-        doc.text("Pakisa Express Logistics", 10, 26);
-        doc.setFontSize(7);
-        doc.text("10 Burry Koean Street, Jet Park, Boksburg, 1469", 10, 30);
-        doc.text("Tel: 011 397 1151 | ops1@pakisalogistics.co.za", 10, 34);
-
-        // title center
-        doc.setFontSize(14);
-        doc.setFont('helvetica','bold');
-        doc.text("DAILY FLOOR CHECK REPORT", pageWidth/2, 16, {align:'center'});
-
-        // date on right
-        doc.setFontSize(9);
-        doc.setFont('helvetica','normal');
-        doc.text(new Date().toLocaleString(), pageWidth - 10, 16, { align: 'right' });
-
-        // footer
-        const footerY = pageHeight - 10;
-        doc.setFontSize(9);
-        doc.setTextColor(0,0,0);
-        doc.text("https://pakisa-floor-check.onrender.com", 10, footerY);
-        doc.text("Designed by Mpho Mahlaba", pageWidth / 2, footerY, { align: 'center' });
-      };
-
-      // prepare body
-      const body = data.map(r => [ formatTime(r.timestamp || r.created_at || r.time), r.customer, r.reason, r.waybill ]);
-
-      // draw table with autoTable and header/footer on every page
-      doc.autoTable({
-        head: [['Time','Customer','Reason','Waybill']],
-        body,
-        startY: 36,
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [240,240,240], textColor: [0,0,0], fontStyle: 'bold' },
-        didDrawPage: function (dataArg) {
-          // footer/header for each page
-          headerFooter(doc, dataArg.pageNumber, doc.internal.getNumberOfPages());
-        },
-        margin: { left: 10, right: 10 }
-      });
-
-      doc.save(`floor_checks_${today}.pdf`);
-    });
-
-    // init: delete old rows, load today, subscribe
-    (async function init() {
-      await deleteOlderThanToday();
-      await loadToday();
-      subscribeRealtime();
-
-      // attempt to keep waybill input focused
-      waybillInput.focus();
-      setInterval(() => { if (document.activeElement && document.activeElement.tagName !== 'SELECT' && document.activeElement.tagName !== 'BUTTON') waybillInput.focus(); }, 800);
-    })();
-
-  </script>
 </body>
 </html>
