@@ -1,185 +1,356 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pakisa Floor Check</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pakisa — Daily Floor Checks</title>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+
+  <!-- jsPDF + autoTable (for PDF export) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- Tailwind for styling (optional / same look) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
   <style>
-    body {
-      background-color: #f8f9fa;
-      font-family: 'Segoe UI', sans-serif;
-    }
-    .header {
-      background-color: white;
-      padding: 10px;
-      border-bottom: 3px solid #0a2b52;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .header img {
-      height: 60px;
-    }
-    .header h2 {
-      color: #0a2b52;
-      margin: 0;
-      font-weight: bold;
-    }
-    table {
-      background: white;
-    }
-    th {
-      background: #e9ecef !important;
-      color: black !important;
-      text-transform: uppercase;
-    }
-    td {
-      vertical-align: middle !important;
-    }
-    footer {
-      text-align: center;
-      font-size: 14px;
-      padding: 10px;
-      color: #666;
-      background-color: white;
-      border-top: 3px solid #0a2b52;
-    }
-    .credit {
-      font-size: 13px;
-      color: #999;
-    }
+    body { background: #f3f5f7; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+    .container { max-width: 1100px; margin: 28px auto; padding: 16px; }
+    table th { background: #f3f4f6; color: #000; }
   </style>
 </head>
 <body>
-  <div class="header">
-    <img src="https://i.ibb.co/5hMxz7C/first-freight-logo.png" alt="First Freight Logo">
-    <h2>Pakisa Logistics - Floor Check</h2>
+  <div class="container">
+    <header class="flex items-center justify-between mb-4">
+      <div>
+        <h1 class="text-2xl font-bold text-[#0a2b52]">Pakisa Express Logistics</h1>
+        <div class="text-sm text-gray-600">Daily Floor Check — Designed by Mpho Mahlaba</div>
+      </div>
+      <div class="text-sm text-gray-500">System: https://pakisa-floor-check.onrender.com</div>
+    </header>
+
+    <!-- Controls -->
+    <div class="bg-white rounded shadow p-4 mb-4">
+      <div class="grid md:grid-cols-4 gap-3 items-end">
+        <div>
+          <label class="block text-sm font-medium">Customer</label>
+          <select id="customerSelect" class="mt-1 block w-full border rounded p-2">
+            <option value="">Select customer</option>
+            <option>First Freight Couriers</option>
+            <option>FedEx Express</option>
+            <option>Seabourne Logistics</option>
+            <option>AJM</option>
+            <option>Brima Logistics</option>
+            <option>The Courier Guy</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium">Reason</label>
+          <select id="reasonSelect" class="mt-1 block w-full border rounded p-2">
+            <option value="">Select reason</option>
+            <option>Nobody Home</option>
+            <option>Incorrect Phone Number</option>
+            <option>Bad Address</option>
+            <option>Missing Paperwork</option>
+            <option>Misroute</option>
+            <option>Customer Refused Shipment</option>
+            <option>Will be dispatched on commitment date</option>
+          </select>
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium">Scan Waybill</label>
+          <input id="waybillInput" class="mt-1 block w-full border rounded p-3 font-mono text-lg" placeholder="Scan or type waybill → press Enter" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="mt-3 flex justify-end gap-2">
+        <button id="exportCsv" class="px-4 py-2 bg-yellow-400 rounded">Export CSV</button>
+        <button id="exportPdf" class="px-4 py-2 bg-blue-600 text-white rounded">Export PDF</button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white rounded shadow overflow-auto">
+      <table class="min-w-full" id="floorTable">
+        <thead>
+          <tr>
+            <th class="px-3 py-2 text-left text-sm">Time</th>
+            <th class="px-3 py-2 text-left text-sm">Customer</th>
+            <th class="px-3 py-2 text-left text-sm">Reason</th>
+            <th class="px-3 py-2 text-left text-sm">Waybill</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody" class="bg-white divide-y divide-gray-200"></tbody>
+      </table>
+    </div>
+
+    <footer class="mt-4 text-sm text-gray-600">
+      Designed by Mpho Mahlaba
+    </footer>
   </div>
 
-  <div class="container mt-4">
-    <div class="mb-3">
-      <label for="customer" class="form-label">Select Customer</label>
-      <select id="customer" class="form-select">
-        <option value="First Freight Couriers">First Freight Couriers</option>
-        <option value="FedEx Express">FedEx Express</option>
-        <option value="Seabourne Logistics">Seabourne Logistics</option>
-        <option value="AJM">AJM</option>
-        <option value="Brima Logistics">Brima Logistics</option>
-        <option value="The Courier Guy">The Courier Guy</option>
-      </select>
-    </div>
-
-    <div class="mb-3">
-      <label for="reason" class="form-label">Select Reason</label>
-      <select id="reason" class="form-select">
-        <option value="Nobody Home">Nobody Home</option>
-        <option value="Incorrect Phone Number">Incorrect Phone Number</option>
-        <option value="Bad Address">Bad Address</option>
-        <option value="Missing Paperwork">Missing Paperwork</option>
-        <option value="Misroute">Misroute</option>
-        <option value="Customer Refused Shipment">Customer Refused Shipment</option>
-      </select>
-    </div>
-
-    <div class="mb-3">
-      <label for="waybill" class="form-label">Scan Waybill</label>
-      <input type="text" id="waybill" class="form-control" placeholder="Scan or Enter Waybill" autofocus>
-    </div>
-
-    <div class="d-flex justify-content-between mb-3">
-      <button class="btn btn-danger" id="clearData">Clear Today's Data</button>
-      <button class="btn btn-success" id="exportPDF">Export to PDF</button>
-    </div>
-
-    <table class="table table-bordered text-center align-middle">
-      <thead>
-        <tr>
-          <th>Waybill</th>
-          <th>Customer</th>
-          <th>Reason</th>
-          <th>Time</th>
-        </tr>
-      </thead>
-      <tbody id="scanTableBody"></tbody>
-    </table>
-  </div>
-
-  <footer>
-    <p>Pakisa Logistics Express (Pty) Ltd</p>
-    <a href="https://pakisa-floor-check.onrender.com" target="_blank">https://pakisa-floor-check.onrender.com</a>
-    <div class="credit">Developed by Mpho Mahlaba</div>
-  </footer>
-
-  <audio id="beep" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+  <!-- audio beep -->
+  <audio id="beepSuccess" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
 
   <script>
-    const waybillInput = document.getElementById("waybill");
-    const tableBody = document.getElementById("scanTableBody");
-    const beepSound = document.getElementById("beep");
+    // ------------------------------
+    // CONFIG: Supabase credentials
+    // ------------------------------
+    const SUPABASE_URL = "https://vkziieycbvasvzznvsgn.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZremlpZXljYnZhc3Z6em52c2duIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODEzOTMsImV4cCI6MjA4MDc1NzM5M30.IwYi0KxWBX3eIDfmqr56ouYGbCm7M1MJzmbKddBXtQ4";
+    const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const STORAGE_KEY = "floorCheckData_" + new Date().toISOString().slice(0,10);
-    let scans = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-    renderTable();
+    // ------------------------------
+    // UI refs
+    // ------------------------------
+    const customerSelect = document.getElementById('customerSelect');
+    const reasonSelect = document.getElementById('reasonSelect');
+    const waybillInput = document.getElementById('waybillInput');
+    const tableBody = document.getElementById('tableBody');
+    const beepSuccess = document.getElementById('beepSuccess');
+    const exportCsvBtn = document.getElementById('exportCsv');
+    const exportPdfBtn = document.getElementById('exportPdf');
 
-    function saveData() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(scans));
+    // Keep focus smartly (don't steal focus when interacting with selects)
+    function keepFocus() {
+      const active = document.activeElement;
+      if (!['SELECT','BUTTON','A'].includes(active.tagName)) {
+        waybillInput.focus();
+      }
+    }
+    setInterval(keepFocus, 700);
+
+    // Helper: format date/time
+    function formatTime(ts) {
+      try { return new Date(ts).toLocaleTimeString(); } catch { return ''; }
     }
 
-    function renderTable() {
-      tableBody.innerHTML = "";
-      scans.forEach(row => {
-        const tr = document.createElement("tr");
+    // Delete older rows (< today) — run on load to ensure fresh day
+    async function deleteOlderThanToday() {
+      const today = new Date().toISOString().slice(0,10);
+      try {
+        await supabase
+          .from('floor_checks')
+          .delete()
+          .lt('scan_date', today);
+      } catch (err) {
+        console.warn('Could not auto-delete older rows (RLS or permissions may block).', err);
+      }
+    }
+
+    // Load today's rows
+    async function loadToday() {
+      const today = new Date().toISOString().slice(0,10);
+      const { data, error } = await supabase
+        .from('floor_checks')
+        .select('*')
+        .eq('scan_date', today)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Load error', error);
+        return;
+      }
+      renderRows(data || []);
+    }
+
+    // Render to table
+    function renderRows(rows) {
+      tableBody.innerHTML = '';
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${row.waybill}</td>
-          <td>${row.customer}</td>
-          <td>${row.reason}</td>
-          <td>${row.time}</td>
+          <td class="px-3 py-2 text-sm">${formatTime(r.timestamp || r.created_at || r.time)}</td>
+          <td class="px-3 py-2 text-sm">${escapeHtml(r.customer)}</td>
+          <td class="px-3 py-2 text-sm">${escapeHtml(r.reason)}</td>
+          <td class="px-3 py-2 text-sm font-mono">${escapeHtml(r.waybill)}</td>
         `;
         tableBody.appendChild(tr);
       });
     }
 
-    waybillInput.addEventListener("keypress", e => {
-      if (e.key === "Enter" && waybillInput.value.trim() !== "") {
+    function escapeHtml(s){ if(!s) return ''; return s.toString().replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+    // Upsert logic: if same waybill exists today => update that row, otherwise insert
+    async function upsertToday(waybill, customer, reason) {
+      const today = new Date().toISOString().slice(0,10);
+
+      // check if exists for today
+      const { data: existing, error: selErr } = await supabase
+        .from('floor_checks')
+        .select('id')
+        .eq('waybill', waybill)
+        .eq('scan_date', today)
+        .limit(1)
+        .maybeSingle();
+
+      if (selErr) {
+        console.error('Select error', selErr);
+        return false;
+      }
+
+      if (existing && existing.id) {
+        // update existing
+        const { error: upErr } = await supabase
+          .from('floor_checks')
+          .update({ customer, reason, time: new Date().toLocaleTimeString(), created_at: new Date().toISOString() })
+          .eq('id', existing.id);
+
+        if (upErr) { console.error('Update error', upErr); return false; }
+        return true;
+      } else {
+        // insert new row
+        const { error: insErr } = await supabase
+          .from('floor_checks')
+          .insert([{ waybill, customer, reason, time: new Date().toLocaleTimeString(), scan_date: today }]);
+
+        if (insErr) { console.error('Insert error', insErr); return false; }
+        return true;
+      }
+    }
+
+    // Scanner: Enter submits
+    waybillInput.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
         const waybill = waybillInput.value.trim();
-        const customer = document.getElementById("customer").value;
-        const reason = document.getElementById("reason").value;
-        const time = new Date().toLocaleTimeString();
+        const customer = customerSelect.value;
+        const reason = reasonSelect.value;
+        if (!waybill || !customer || !reason) {
+          alert('Please select Customer and Reason then scan the Waybill.');
+          return;
+        }
 
-        scans.push({ waybill, customer, reason, time });
-        saveData();
-        renderTable();
-        beepSound.play();
-        waybillInput.value = "";
+        const ok = await upsertToday(waybill, customer, reason);
+        if (ok) {
+          try { beepSuccess.play(); } catch(e) {}
+          waybillInput.value = '';
+          waybillInput.focus();
+          // refresh will be triggered by realtime subscription, but also reload to be safe
+          await loadToday();
+        } else {
+          alert('Error saving scan (check console).');
+        }
       }
     });
 
-    document.getElementById("clearData").addEventListener("click", () => {
-      if (confirm("Clear all today's scans?")) {
-        scans = [];
-        saveData();
-        renderTable();
+    // Real-time subscribe to inserts/updates on table to keep all clients in sync
+    function subscribeRealtime() {
+      try {
+        supabase.channel('floor_checks_realtime')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'floor_checks' }, payload => {
+            const row = payload.new;
+            const today = new Date().toISOString().slice(0,10);
+            if (row.scan_date === today) loadToday();
+          })
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'floor_checks' }, payload => {
+            const row = payload.new;
+            const today = new Date().toISOString().slice(0,10);
+            if (row.scan_date === today) loadToday();
+          })
+          .subscribe();
+      } catch (err) {
+        console.warn('Realtime subscription error', err);
       }
+    }
+
+    // Export CSV: today's rows
+    exportCsvBtn.addEventListener('click', async () => {
+      const today = new Date().toISOString().slice(0,10);
+      const { data } = await supabase.from('floor_checks').select('*').eq('scan_date', today).order('created_at', { ascending: true });
+      if (!data || data.length === 0) return alert('No rows to export.');
+
+      const keys = ['time','customer','reason','waybill'];
+      const csv = [keys.join(',')].concat(data.map(r => keys.map(k => `"${(r[k]||'').toString().replace(/"/g,'""')}"`).join(','))).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `floor_checks_${today}.csv`; a.click(); URL.revokeObjectURL(url);
     });
 
-    document.getElementById("exportPDF").addEventListener("click", () => {
-      const element = document.querySelector(".container");
-      const opt = {
-        margin: 0.3,
-        filename: `Pakisa_Floor_Check_${new Date().toISOString().slice(0,10)}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: "in", format: "a4", orientation: "portrait" },
+    // Export PDF with header/logo/footer on every page
+    exportPdfBtn.addEventListener('click', async () => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p','mm','a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const today = new Date().toISOString().slice(0,10);
+
+      // load todays rows
+      const { data } = await supabase.from('floor_checks').select('*').eq('scan_date', today).order('created_at', { ascending: true });
+      if (!data || data.length === 0) return alert('No rows to export.');
+
+      // header/footer drawing function
+      const headerFooter = (doc, pageNumber, totalPages) => {
+        // white ribbon
+        doc.setFillColor(255,255,255);
+        doc.rect(0, 0, pageWidth, 32, 'F');
+
+        // add logo (logo file must be uploaded to same static folder or repo)
+        try {
+          doc.addImage('/pakisa_logistics_express_pty_ltd_logo-removebg-preview.png', 'PNG', 10, 6, 36, 18);
+        } catch(e){ /* ignored if not found */ }
+
+        // company address under logo
+        doc.setFontSize(8);
+        doc.setTextColor(0,0,0);
+        doc.text("Pakisa Express Logistics", 10, 26);
+        doc.setFontSize(7);
+        doc.text("10 Burry Koean Street, Jet Park, Boksburg, 1469", 10, 30);
+        doc.text("Tel: 011 397 1151 | ops1@pakisalogistics.co.za", 10, 34);
+
+        // title center
+        doc.setFontSize(14);
+        doc.setFont('helvetica','bold');
+        doc.text("DAILY FLOOR CHECK REPORT", pageWidth/2, 16, {align:'center'});
+
+        // date on right
+        doc.setFontSize(9);
+        doc.setFont('helvetica','normal');
+        doc.text(new Date().toLocaleString(), pageWidth - 10, 16, { align: 'right' });
+
+        // footer
+        const footerY = pageHeight - 10;
+        doc.setFontSize(9);
+        doc.setTextColor(0,0,0);
+        doc.text("https://pakisa-floor-check.onrender.com", 10, footerY);
+        doc.text("Designed by Mpho Mahlaba", pageWidth / 2, footerY, { align: 'center' });
       };
-      html2pdf().set(opt).from(element).save();
+
+      // prepare body
+      const body = data.map(r => [ formatTime(r.timestamp || r.created_at || r.time), r.customer, r.reason, r.waybill ]);
+
+      // draw table with autoTable and header/footer on every page
+      doc.autoTable({
+        head: [['Time','Customer','Reason','Waybill']],
+        body,
+        startY: 36,
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [240,240,240], textColor: [0,0,0], fontStyle: 'bold' },
+        didDrawPage: function (dataArg) {
+          // footer/header for each page
+          headerFooter(doc, dataArg.pageNumber, doc.internal.getNumberOfPages());
+        },
+        margin: { left: 10, right: 10 }
+      });
+
+      doc.save(`floor_checks_${today}.pdf`);
     });
 
-    const now = new Date();
-    const nextMidnight = new Date(now);
-    nextMidnight.setHours(24, 0, 0, 0);
-    setTimeout(() => localStorage.removeItem(STORAGE_KEY), nextMidnight - now);
+    // init: delete old rows, load today, subscribe
+    (async function init() {
+      await deleteOlderThanToday();
+      await loadToday();
+      subscribeRealtime();
+
+      // attempt to keep waybill input focused
+      waybillInput.focus();
+      setInterval(() => { if (document.activeElement && document.activeElement.tagName !== 'SELECT' && document.activeElement.tagName !== 'BUTTON') waybillInput.focus(); }, 800);
+    })();
+
   </script>
 </body>
 </html>
