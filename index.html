@@ -1,202 +1,134 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Pakisa Floor Scan</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Floor Check</title>
 
 <style>
-    body {
-        font-family: Arial, sans-serif;
-        background: #f4f4f4;
-        padding: 20px;
-    }
-
-    h2 {
-        margin-top: 0;
-    }
-
-    .box {
-        background: white;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 0 5px rgba(0,0,0,0.2);
-        margin-bottom: 20px;
-    }
-
-    #barcodeInput {
-        width: 100%;
-        padding: 15px;
-        font-size: 20px;
-        border: 2px solid #333;
-    }
-
-    #barcodeInput.scanned {
-        border-color: green;
-        background: #e9ffe9;
-    }
-
-    ul {
-        background: white;
-        padding: 10px;
-        border-radius: 6px;
-        list-style: none;
-    }
-
-    li {
-        padding: 6px 0;
-        border-bottom: 1px solid #ddd;
-    }
-
-    footer {
-        text-align: center;
-        margin-top: 20px;
-        font-size: 13px;
-        color: #555;
-    }
+  body { font-family: Arial; padding: 20px; }
+  select, input { width: 100%; padding: 10px; margin: 8px 0; }
+  button { padding: 12px; width: 100%; background:#072760; color:white; border:0; }
+  .list-item { padding:10px; background:#eee; margin:5px 0; border-radius:6px; }
 </style>
 
-</head>
-<body>
-
-<h2>📦 Pakisa Floor Check</h2>
-
-<div class="box">
-    <label><b>Select Date:</b></label>
-    <input type="date" id="dateFilter" style="padding:10px; font-size:16px;">
-</div>
-
-<div class="box">
-    <label><b>Scan Waybill:</b></label>
-    <input type="text" id="barcodeInput" placeholder="Scan barcode..." autofocus autocomplete="off">
-</div>
-
-<div class="box">
-    <h3>Today’s Scans</h3>
-    <ul id="scanList"></ul>
-</div>
-
-<footer>
-    Designed by <b>Mpho Mahlaba</b>
-</footer>
-
-<!-- Beep sound -->
-<audio id="beepSound">
-    <source src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3" type="audio/mpeg">
+<!-- audio beep -->
+<audio id="beep">
+  <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg">
 </audio>
 
-<!-- FIREBASE -->
+<!-- Firebase -->
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { 
-        getDatabase, ref, push, set, get, query, orderByChild, equalTo 
-    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getDatabase, ref, push, onValue, query, orderByChild, equalTo } 
+    from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // 🔥 Your Firebase Config
-    const firebaseConfig = {
-        apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
-        authDomain: "pakisa-floor.firebaseapp.com",
-        databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/",
-        projectId: "pakisa-floor",
-        storageBucket: "pakisa-floor.appspot.com",
-        messagingSenderId: "1003516506618",
-        appId: "1:1003516506618:web:777d702f93616b6e323443",
-        measurementId: "G-JBZ8DYW49B"
-    };
+  const firebaseConfig = {
+    apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+    authDomain: "pakisa-floor.firebaseapp.com",
+    projectId: "pakisa-floor",
+    storageBucket: "pakisa-floor.firebasestorage.app",
+    messagingSenderId: "1003516506618",
+    appId: "1:1003516506618:web:777d702f93616b6e323443",
+    measurementId: "G-JBZ8DYW49B",
+    databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/"
+  };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
 
-    const barcodeInput = document.getElementById("barcodeInput");
-    const scanList = document.getElementById("scanList");
-    const dateFilter = document.getElementById("dateFilter");
-    const beep = document.getElementById("beepSound");
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
 
-    // ---------------------------------------------------
-    // 🔥 GET TODAY DATE
-    // ---------------------------------------------------
-    function todayDate() {
-        return new Date().toISOString().substring(0, 10);
-    }
+  window.onload = () => {
+    loadScans(todayKey());
+    document.getElementById("scanInput").focus();
+  };
 
-    // ---------------------------------------------------
-    // 🔥 SAVE SCAN
-    // ---------------------------------------------------
-    async function saveScan(barcode) {
-        const scanRef = push(ref(db, "floor_scans"));
+  function loadScans(dateKey) {
+    const list = document.getElementById("scanList");
+    list.innerHTML = "Loading…";
 
-        const data = {
-            barcode: barcode,
-            timestamp: Date.now(),
-            date: todayDate()
-        };
+    const q = query(ref(db, "scans"), orderByChild("date"), equalTo(dateKey));
+    onValue(q, snapshot => {
+      list.innerHTML = "";
+      snapshot.forEach(child => {
+        const data = child.val();
+        const item = document.createElement("div");
+        item.className = "list-item";
+        item.innerHTML = `<b>${data.waybill}</b><br>${data.customer} — ${data.reason}`;
+        list.appendChild(item);
+      });
+      if (list.innerHTML === "") list.innerHTML = "<i>No scans for this date</i>";
+    });
+  }
 
-        await set(scanRef, data);
-    }
+  window.saveScan = () => {
+    const customer = document.getElementById("customer").value;
+    const reason = document.getElementById("reason").value;
+    const waybill = document.getElementById("scanInput").value.trim();
+    if (!customer || !reason || !waybill) return;
 
-    // ---------------------------------------------------
-    // 🔥 LOAD SCANS FOR A SPECIFIC DATE
-    // ---------------------------------------------------
-    async function loadScansByDate(date) {
-        const q = query(ref(db, "floor_scans"), orderByChild("date"), equalTo(date));
-        const snapshot = await get(q);
-
-        const results = [];
-        if (snapshot.exists()) {
-            snapshot.forEach(child => results.push(child.val()));
-        }
-
-        displayScans(results);
-    }
-
-    // ---------------------------------------------------
-    // 🔥 DISPLAY SCANS
-    // ---------------------------------------------------
-    function displayScans(list) {
-        scanList.innerHTML = "";
-        list.forEach(item => {
-            const li = document.createElement("li");
-            li.textContent = `${item.barcode} — ${new Date(item.timestamp).toLocaleTimeString()}`;
-            scanList.appendChild(li);
-        });
-    }
-
-    // ---------------------------------------------------
-    // 🔥 SCAN HANDLER
-    // ---------------------------------------------------
-    barcodeInput.addEventListener("keydown", async (e) => {
-        if (e.key === "Enter" && barcodeInput.value.trim() !== "") {
-
-            const code = barcodeInput.value.trim();
-
-            beep.play();
-
-            barcodeInput.classList.add("scanned");
-
-            await saveScan(code);
-
-            barcodeInput.value = "";
-            setTimeout(() => barcodeInput.classList.remove("scanned"), 300);
-
-            // Load today's scans again
-            loadScansByDate(todayDate());
-        }
+    push(ref(db, "scans"), {
+      customer,
+      reason,
+      waybill,
+      date: todayKey(),
+      timestamp: Date.now()
     });
 
-    // ---------------------------------------------------
-    // 🔥 DATE FILTER LISTENER
-    // ---------------------------------------------------
-    dateFilter.addEventListener("change", () => {
-        if (dateFilter.value) {
-            loadScansByDate(dateFilter.value);
-        }
-    });
+    document.getElementById("beep").play();
+    document.getElementById("scanInput").value = "";
+    document.getElementById("scanInput").focus();
+  };
 
-    // ---------------------------------------------------
-    // 🔥 ON PAGE LOAD — SHOW BLANK SCREEN
-    // ---------------------------------------------------
-    displayScans([]);
+  window.changeDate = () => {
+    const d = document.getElementById("dateFilter").value;
+    loadScans(d);
+  };
 </script>
+</head>
+
+<body>
+
+<h2>Floor Check</h2>
+
+<label>Customer</label>
+<select id="customer">
+  <option value="">Select Customer</option>
+  <option>First Freight Couriers</option>
+  <option>Fedex Express</option>
+  <option>Seabourne Logistics</option>
+  <option>AJM</option>
+  <option>Brima Logistics</option>
+</select>
+
+<label>Reason</label>
+<select id="reason">
+  <option value="">Select Reason</option>
+  <option>Nobody home</option>
+  <option>Incorrect phone number</option>
+  <option>Bad address</option>
+  <option>Missing paperwork</option>
+  <option>Misroute</option>
+  <option>Customer refused shipment</option>
+  <option>Will be delivered on commitment date</option>
+  <option>Voicemail / consignee not available</option>
+</select>
+
+<label>Scan Waybill</label>
+<input id="scanInput" placeholder="Scan waybill" onkeydown="if(event.key==='Enter') saveScan()">
+
+<h3>View by Date</h3>
+<input type="date" id="dateFilter" onchange="changeDate()">
+
+<h3>Scans</h3>
+<div id="scanList"><i>Loading…</i></div>
+
+<br><br>
+<center><b>Built by Mpho Mahlaba</b></center>
 
 </body>
 </html>
