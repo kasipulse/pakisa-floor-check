@@ -1,229 +1,201 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Daily Floor Check System</title>
+<meta charset="UTF-8" />
+<title>Pakisa Floor Scan</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f4f4f4;
+        padding: 20px;
+    }
 
-  <style>
-    /* Table hover highlight */
-    tr:hover { background: #f3f4f6; }
-  </style>
+    h2 {
+        margin-top: 0;
+    }
+
+    .box {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 0 5px rgba(0,0,0,0.2);
+        margin-bottom: 20px;
+    }
+
+    #barcodeInput {
+        width: 100%;
+        padding: 15px;
+        font-size: 20px;
+        border: 2px solid #333;
+    }
+
+    #barcodeInput.scanned {
+        border-color: green;
+        background: #e9ffe9;
+    }
+
+    ul {
+        background: white;
+        padding: 10px;
+        border-radius: 6px;
+        list-style: none;
+    }
+
+    li {
+        padding: 6px 0;
+        border-bottom: 1px solid #ddd;
+    }
+
+    footer {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 13px;
+        color: #555;
+    }
+</style>
+
 </head>
-<body class="bg-gray-100">
+<body>
 
-<div class="max-w-4xl mx-auto p-6">
-  <h1 class="text-3xl font-bold mb-4 text-center">Daily Floor Check</h1>
+<h2>📦 Pakisa Floor Check</h2>
 
-  <!-- Customer + Reason -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-
-    <div>
-      <label class="font-semibold">Customer</label>
-      <select id="customerSelect" class="w-full p-2 border rounded">
-        <option value="">Select Customer</option>
-        <option>Fedex Express</option>
-        <option>Seabourne Logistics</option>
-        <option>Brima Logistics</option>
-        <option>AJM</option>
-        <option>First Freight Couriers</option>
-      </select>
-    </div>
-
-    <div>
-      <label class="font-semibold">Reason</label>
-      <select id="reasonSelect" class="w-full p-2 border rounded">
-        <option value="">Select Reason</option>
-        <option>Nobody home</option>
-        <option>Incorrect Phone number</option>
-        <option>Bad Address</option>
-        <option>Missing paperwork</option>
-        <option>Misroute</option>
-        <option>Customer refused shipment</option>
-        <option>Will dispatch on commitment date</option>
-      </select>
-    </div>
-
-  </div>
-
-  <!-- Scan box -->
-  <div class="mb-4">
-    <label class="font-semibold">Scan Waybill</label>
-    <input id="scanInput"
-      class="w-full p-3 text-xl border rounded focus:ring-2 focus:ring-blue-400"
-      placeholder="Scan or type waybill & press ENTER" autofocus />
-  </div>
-
-  <!-- Table -->
-  <div class="bg-white p-4 rounded shadow">
-    <div class="flex justify-between items-center mb-3">
-      <h2 class="text-xl font-bold">Today's Scans</h2>
-      <button id="exportPDF" class="px-4 py-2 bg-blue-600 text-white rounded">
-        Export PDF
-      </button>
-    </div>
-
-    <table class="min-w-full">
-      <thead class="bg-gray-200">
-        <tr class="text-left text-black">
-          <th class="p-2">Waybill</th>
-          <th class="p-2">Customer</th>
-          <th class="p-2">Reason</th>
-          <th class="p-2">Time</th>
-        </tr>
-      </thead>
-      <tbody id="scanTable"></tbody>
-    </table>
-  </div>
-
-  <!-- Footer Credit -->
-  <p class="text-center text-xs text-gray-500 mt-4">
-    Designed by <strong>Mpho Mahlaba</strong>
-  </p>
+<div class="box">
+    <label><b>Select Date:</b></label>
+    <input type="date" id="dateFilter" style="padding:10px; font-size:16px;">
 </div>
 
-<!-- Sounds -->
-<audio id="successSound">
-  <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg">
+<div class="box">
+    <label><b>Scan Waybill:</b></label>
+    <input type="text" id="barcodeInput" placeholder="Scan barcode..." autofocus autocomplete="off">
+</div>
+
+<div class="box">
+    <h3>Today’s Scans</h3>
+    <ul id="scanList"></ul>
+</div>
+
+<footer>
+    Designed by <b>Mpho Mahlaba</b>
+</footer>
+
+<!-- Beep sound -->
+<audio id="beepSound">
+    <source src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3" type="audio/mpeg">
 </audio>
-<audio id="errorSound">
-  <source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" type="audio/ogg">
-</audio>
 
-<script>
-/* ------------------------------
-   SUPABASE INITIALIZE
---------------------------------*/
-const supabaseUrl = "https://vkziieycbvasvzznvsgn.supabase.co";
-const supabaseAnon = "YOUR_ANON_KEY_HERE";  // <-- replace with your anon key
-const supabaseClient = supabase.createClient(supabaseUrl, supabaseAnon);
+<!-- FIREBASE -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { 
+        getDatabase, ref, push, set, get, query, orderByChild, equalTo 
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-/* ------------------------------
-   ELEMENTS
---------------------------------*/
-const scanInput = document.getElementById("scanInput");
-const customerSelect = document.getElementById("customerSelect");
-const reasonSelect = document.getElementById("reasonSelect");
-const scanTable = document.getElementById("scanTable");
-const successSound = document.getElementById("successSound");
-const errorSound = document.getElementById("errorSound");
+    // 🔥 Your Firebase Config
+    const firebaseConfig = {
+        apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+        authDomain: "pakisa-floor.firebaseapp.com",
+        databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/",
+        projectId: "pakisa-floor",
+        storageBucket: "pakisa-floor.appspot.com",
+        messagingSenderId: "1003516506618",
+        appId: "1:1003516506618:web:777d702f93616b6e323443",
+        measurementId: "G-JBZ8DYW49B"
+    };
 
-/* ------------------------------
-   DAILY RESET AT 23:59
---------------------------------*/
-async function dailyReset() {
-  const now = new Date();
-  const today = now.toISOString().split("T")[0];
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-  let savedDay = localStorage.getItem("floorCheckDate");
+    const barcodeInput = document.getElementById("barcodeInput");
+    const scanList = document.getElementById("scanList");
+    const dateFilter = document.getElementById("dateFilter");
+    const beep = document.getElementById("beepSound");
 
-  if (savedDay !== today) {
-    await supabaseClient.from("floor_checks").delete().neq("id", 0);
-    localStorage.setItem("floorCheckDate", today);
-  }
-}
-dailyReset();
+    // ---------------------------------------------------
+    // 🔥 GET TODAY DATE
+    // ---------------------------------------------------
+    function todayDate() {
+        return new Date().toISOString().substring(0, 10);
+    }
 
-/* ------------------------------
-   LOAD TODAY'S SCANS
---------------------------------*/
-async function loadScans() {
-  scanTable.innerHTML = "";
+    // ---------------------------------------------------
+    // 🔥 SAVE SCAN
+    // ---------------------------------------------------
+    async function saveScan(barcode) {
+        const scanRef = push(ref(db, "floor_scans"));
 
-  const today = new Date().toISOString().split("T")[0];
+        const data = {
+            barcode: barcode,
+            timestamp: Date.now(),
+            date: todayDate()
+        };
 
-  const { data } = await supabaseClient
-    .from("floor_checks")
-    .select("*")
-    .gte("scan_date", today + "T00:00:00")
-    .lte("scan_date", today + "T23:59:59")
-    .order("scan_date", { ascending: true });
+        await set(scanRef, data);
+    }
 
-  data.forEach(addRowToTable);
-}
-loadScans();
+    // ---------------------------------------------------
+    // 🔥 LOAD SCANS FOR A SPECIFIC DATE
+    // ---------------------------------------------------
+    async function loadScansByDate(date) {
+        const q = query(ref(db, "floor_scans"), orderByChild("date"), equalTo(date));
+        const snapshot = await get(q);
 
-/* ------------------------------
-   ADD ROW TO TABLE
---------------------------------*/
-function addRowToTable(row) {
-  const tr = document.createElement("tr");
+        const results = [];
+        if (snapshot.exists()) {
+            snapshot.forEach(child => results.push(child.val()));
+        }
 
-  tr.innerHTML = `
-    <td class="p-2">${row.waybill}</td>
-    <td class="p-2">${row.customer}</td>
-    <td class="p-2">${row.reason}</td>
-    <td class="p-2">${new Date(row.scan_date).toLocaleTimeString()}</td>
-  `;
+        displayScans(results);
+    }
 
-  scanTable.appendChild(tr);
-}
+    // ---------------------------------------------------
+    // 🔥 DISPLAY SCANS
+    // ---------------------------------------------------
+    function displayScans(list) {
+        scanList.innerHTML = "";
+        list.forEach(item => {
+            const li = document.createElement("li");
+            li.textContent = `${item.barcode} — ${new Date(item.timestamp).toLocaleTimeString()}`;
+            scanList.appendChild(li);
+        });
+    }
 
-/* ------------------------------
-   SCAN HANDLER
---------------------------------*/
-scanInput.addEventListener("keydown", async (e) => {
-  if (e.key !== "Enter") return;
+    // ---------------------------------------------------
+    // 🔥 SCAN HANDLER
+    // ---------------------------------------------------
+    barcodeInput.addEventListener("keydown", async (e) => {
+        if (e.key === "Enter" && barcodeInput.value.trim() !== "") {
 
-  const waybill = scanInput.value.trim();
-  const customer = customerSelect.value;
-  const reason = reasonSelect.value;
+            const code = barcodeInput.value.trim();
 
-  if (!customer || !reason) {
-    errorSound.play();
-    alert("Please select customer and reason first.");
-    scanInput.value = "";
-    scanInput.focus();
-    return;
-  }
+            beep.play();
 
-  if (!waybill) return;
+            barcodeInput.classList.add("scanned");
 
-  // Last update wins → delete old record
-  await supabaseClient
-    .from("floor_checks")
-    .delete()
-    .eq("waybill", waybill);
+            await saveScan(code);
 
-  // Insert new record
-  const { error } = await supabaseClient
-    .from("floor_checks")
-    .insert([
-      {
-        waybill,
-        customer,
-        reason,
-        scan_date: new Date().toISOString()
-      }
-    ]);
+            barcodeInput.value = "";
+            setTimeout(() => barcodeInput.classList.remove("scanned"), 300);
 
-  if (error) {
-    console.error(error);
-    errorSound.play();
-  } else {
-    successSound.play();
-    addRowToTable({
-      waybill,
-      customer,
-      reason,
-      scan_date: new Date().toISOString()
+            // Load today's scans again
+            loadScansByDate(todayDate());
+        }
     });
-  }
 
-  // Auto ready for next scan
-  scanInput.value = "";
-  setTimeout(() => scanInput.focus(), 50);
-});
+    // ---------------------------------------------------
+    // 🔥 DATE FILTER LISTENER
+    // ---------------------------------------------------
+    dateFilter.addEventListener("change", () => {
+        if (dateFilter.value) {
+            loadScansByDate(dateFilter.value);
+        }
+    });
 
-/* ------------------------------
-   PDF EXPORT
---------------------------------*/
-document.getElementById("exportPDF").addEventListener("click", () => {
-  window.print();
-});
+    // ---------------------------------------------------
+    // 🔥 ON PAGE LOAD — SHOW BLANK SCREEN
+    // ---------------------------------------------------
+    displayScans([]);
 </script>
 
 </body>
