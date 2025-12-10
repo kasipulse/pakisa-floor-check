@@ -37,6 +37,8 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
+  let currentData = [];  // ⭐ Store loaded data for search filtering
+
   function todayKey() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -52,18 +54,44 @@
     list.innerHTML = "Loading…";
 
     const q = query(ref(db, "scans"), orderByChild("date"), equalTo(dateKey));
+
     onValue(q, snapshot => {
       list.innerHTML = "";
+      currentData = []; // ⭐ Reset stored list
+
       snapshot.forEach(child => {
         const data = child.val();
-        const item = document.createElement("div");
-        item.className = "list-item";
-        item.innerHTML = `<b>${data.waybill}</b><br>${data.customer} — ${data.reason}`;
-        list.appendChild(item);
+        currentData.push(data); // ⭐ Store for search
       });
-      if (list.innerHTML === "") list.innerHTML = "<i>No scans for this date</i>";
+
+      renderList(currentData);
+
+      if (currentData.length === 0) list.innerHTML = "<i>No scans for this date</i>";
     });
   }
+
+  // ⭐ NEW: Render function used for both full list + filtered list
+  function renderList(dataArray) {
+    const list = document.getElementById("scanList");
+    list.innerHTML = "";
+    dataArray.forEach(data => {
+      const item = document.createElement("div");
+      item.className = "list-item";
+      item.innerHTML = `<b>${data.waybill}</b><br>${data.customer} — ${data.reason}`;
+      list.appendChild(item);
+    });
+  }
+
+  // ⭐ NEW: Search filter
+  window.filterSearch = () => {
+    const term = document.getElementById("searchInput").value.toLowerCase();
+    const filtered = currentData.filter(d =>
+      d.waybill.toLowerCase().includes(term) ||
+      d.customer.toLowerCase().includes(term) ||
+      d.reason.toLowerCase().includes(term)
+    );
+    renderList(filtered);
+  };
 
   window.saveScan = () => {
     const customer = document.getElementById("customer").value;
@@ -93,10 +121,10 @@
 
 <body>
 
-<!-- ✅ CLOUDINARY LOGO ADDED (ONLY ADDITION) -->
+<!-- LOGO inserted safely -->
 <center>
   <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" 
-       alt="Pakisa Logo" style="max-width:180px;margin-bottom:20px;">
+       width="180">
 </center>
 
 <h2>Floor Check</h2>
@@ -129,6 +157,10 @@
 
 <h3>View by Date</h3>
 <input type="date" id="dateFilter" onchange="changeDate()">
+
+<!-- ⭐ NEW SEARCH BAR -->
+<h3>Search</h3>
+<input id="searchInput" placeholder="Search waybill / customer / reason" onkeyup="filterSearch()">
 
 <h3>Scans</h3>
 <div id="scanList"><i>Loading…</i></div>
