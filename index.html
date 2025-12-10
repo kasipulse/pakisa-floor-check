@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html> 
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -17,11 +17,26 @@
   <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg">
 </audio>
 
+<!-- STEP 3 — LOGIN BOX (added safely, no changes to your UI) -->
+<div id="loginBox" style="border:1px solid #ccc;padding:15px;margin-bottom:20px;display:none;">
+  <h3>Login Required</h3>
+  <input id="loginEmail" placeholder="Email">
+  <input id="loginPass" type="password" placeholder="Password">
+  <button onclick="doLogin()">Login</button>
+</div>
+
 <!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import { getDatabase, ref, push, onValue, query, orderByChild, equalTo } 
     from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+  /* STEP 4 — AUTH IMPORTS */
+  import { 
+    getAuth, 
+    signInWithEmailAndPassword, 
+    onAuthStateChanged 
+  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
@@ -37,7 +52,38 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  let currentData = [];  // ⭐ Store loaded data for search filtering
+  /* STEP 4 — AUTH ENABLED */
+  const auth = getAuth(app);
+  let canWrite = false;
+
+  /* STEP 5 — LOGIN HANDLER */
+  window.doLogin = () => {
+    const email = document.getElementById("loginEmail").value;
+    const pass = document.getElementById("loginPass").value;
+
+    signInWithEmailAndPassword(auth, email, pass)
+      .catch(err => alert(err.message));
+  };
+
+  /* STEP 5 — AUTH STATE */
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      const allowed = [
+        "ops1@pakisalogistics.co.za",
+        "csd1@pakisalogistics.co.za",
+        "csd@pakisalogistics.co.za",
+        "ops2@pakisalogistics.co.za"
+      ];
+
+      canWrite = allowed.includes(user.email);
+      document.getElementById("loginBox").style.display = "none";
+    } else {
+      canWrite = false;
+      document.getElementById("loginBox").style.display = "block";
+    }
+  });
+
+  let currentData = []; 
 
   function todayKey() {
     const d = new Date();
@@ -57,11 +103,11 @@
 
     onValue(q, snapshot => {
       list.innerHTML = "";
-      currentData = []; // ⭐ Reset stored list
+      currentData = [];
 
       snapshot.forEach(child => {
         const data = child.val();
-        currentData.push(data); // ⭐ Store for search
+        currentData.push(data);
       });
 
       renderList(currentData);
@@ -70,7 +116,6 @@
     });
   }
 
-  // ⭐ NEW: Render function used for both full list + filtered list
   function renderList(dataArray) {
     const list = document.getElementById("scanList");
     list.innerHTML = "";
@@ -82,7 +127,6 @@
     });
   }
 
-  // ⭐ NEW: Search filter
   window.filterSearch = () => {
     const term = document.getElementById("searchInput").value.toLowerCase();
     const filtered = currentData.filter(d =>
@@ -93,7 +137,13 @@
     renderList(filtered);
   };
 
+  /* STEP 6 — PROTECT WRITE OPERATIONS */
   window.saveScan = () => {
+    if (!canWrite) {
+      alert("You have view-only access.");
+      return;
+    }
+
     const customer = document.getElementById("customer").value;
     const reason = document.getElementById("reason").value;
     const waybill = document.getElementById("scanInput").value.trim();
@@ -121,7 +171,6 @@
 
 <body>
 
-<!-- LOGO inserted safely -->
 <center>
   <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" 
        width="180">
@@ -158,7 +207,6 @@
 <h3>View by Date</h3>
 <input type="date" id="dateFilter" onchange="changeDate()">
 
-<!-- ⭐ NEW SEARCH BAR -->
 <h3>Search</h3>
 <input id="searchInput" placeholder="Search waybill / customer / reason" onkeyup="filterSearch()">
 
