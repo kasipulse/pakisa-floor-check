@@ -1,59 +1,83 @@
 <!doctype html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Login</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Login • Floor Check</title>
+
 <style>
-  body { font-family: Arial; padding:40px; }
-  input { width:100%; padding:12px; margin:10px 0; }
-  button { width:100%; padding:12px; background:#072760; color:#fff; border:0; }
+  body {
+    font-family: Arial;
+    background: #f5f6fa;
+    margin: 0; padding: 0;
+    display:flex; justify-content:center; align-items:center;
+    height:100vh;
+  }
+
+  .card {
+    background:white;
+    width: 90%;
+    max-width: 400px;
+    padding:30px;
+    border-radius:16px;
+    box-shadow:0 4px 20px rgba(0,0,0,0.1);
+    text-align:center;
+  }
+
+  input {
+    width:100%;
+    padding:12px;
+    margin-top:10px;
+    border:1px solid #ccc;
+    border-radius:8px;
+  }
+
+  button {
+    margin-top:20px;
+    width:100%;
+    padding:12px;
+    background:#072760;
+    color:white;
+    border:0;
+    border-radius:8px;
+    font-size:16px;
+  }
+
+  img { margin-bottom:20px; }
 </style>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword } 
-  from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
-  authDomain: "pakisa-floor.firebaseapp.com",
-  projectId: "pakisa-floor",
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
-const EDIT_USERS = [
-  "ops1@pakisalogistics.co.za",
-  "csd1@pakisalogistics.co.za",
-  "csd@pakisalogistics.co.za",
-  "ops2@pakisalogistics.co.za"
-];
-
-window.doLogin = () => {
-  const email = document.getElementById("email").value;
-  const pass = document.getElementById("pass").value;
-
-  signInWithEmailAndPassword(auth, email, pass)
-    .then(() => {
-      if (EDIT_USERS.includes(email.toLowerCase())) {
-        window.location = "floor.html?mode=edit";
-      } else {
-        window.location = "floor.html?mode=read";
-      }
-    })
-    .catch(err => alert(err.message));
-};
-</script>
 </head>
 
 <body>
-<h2>Login</h2>
 
-<input id="email" type="email" placeholder="Email">
-<input id="pass" type="password" placeholder="Password">
+<div class="card">
+  <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="150">
 
-<button onclick="doLogin()">Login</button>
+  <h2>Floor Check Login</h2>
+
+  <input id="email" placeholder="Email">
+  <button onclick="login()">Login</button>
+</div>
+
+<script>
+  const allowedEditors = [
+    "ops1@pakisalogistics.co.za",
+    "csd1@pakisalogistics.co.za",
+    "csd@pakisalogistics.co.za",
+    "ops2@pakisalogistics.co.za"
+  ];
+
+  function login() {
+    const email = document.getElementById("email").value.trim().toLowerCase();
+    if (!email) return;
+
+    const mode = allowedEditors.includes(email) ? "edit" : "read";
+
+    localStorage.setItem("floorUser", email);
+    localStorage.setItem("floorMode", mode);
+
+    window.location = "floor.html";
+  }
+</script>
 
 </body>
 </html>
