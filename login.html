@@ -1,83 +1,129 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Login • Floor Check</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pakisa Floor • Login</title>
 
 <style>
-  body {
-    font-family: Arial;
-    background: #f5f6fa;
-    margin: 0; padding: 0;
-    display:flex; justify-content:center; align-items:center;
-    height:100vh;
-  }
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f5f7fa;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+    }
 
-  .card {
-    background:white;
-    width: 90%;
-    max-width: 400px;
-    padding:30px;
-    border-radius:16px;
-    box-shadow:0 4px 20px rgba(0,0,0,0.1);
-    text-align:center;
-  }
+    .login-box {
+        width: 350px;
+        background: white;
+        border-radius: 16px;
+        padding: 30px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        text-align: center;
+    }
 
-  input {
-    width:100%;
-    padding:12px;
-    margin-top:10px;
-    border:1px solid #ccc;
-    border-radius:8px;
-  }
+    .login-box img {
+        width: 120px;
+        margin-bottom: 15px;
+    }
 
-  button {
-    margin-top:20px;
-    width:100%;
-    padding:12px;
-    background:#072760;
-    color:white;
-    border:0;
-    border-radius:8px;
-    font-size:16px;
-  }
+    h2 {
+        margin-bottom: 15px;
+        font-weight: 600;
+        color: #072760;
+    }
 
-  img { margin-bottom:20px; }
+    input {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 12px;
+        border-radius: 10px;
+        border: 1px solid #ccc;
+        font-size: 15px;
+    }
+
+    button {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        background: #072760;
+        color: white;
+        border-radius: 10px;
+        font-size: 16px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    button:hover {
+        background: #0F99DA;
+    }
+
+    .error {
+        margin-top: 10px;
+        color: red;
+        font-size: 14px;
+    }
 </style>
-</head>
 
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } 
+        from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+    // 🔥 Your Firebase config (saved exactly as you provided)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+      authDomain: "pakisa-floor.firebaseapp.com",
+      projectId: "pakisa-floor",
+      storageBucket: "pakisa-floor.firebasestorage.app",
+      messagingSenderId: "1003516506618",
+      appId: "1:1003516506618:web:777d702f93616b6e323443",
+      measurementId: "G-JBZ8DYW49B",
+      databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth();
+
+    // Auto redirect if already logged in
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            window.location.href = "floor.html";
+        }
+    });
+
+    function login() {
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
+
+        signInWithEmailAndPassword(auth, email, password)
+            .then(() => window.location.href = "floor.html")
+            .catch(() => {
+                document.getElementById("error").innerHTML = 
+                    "Invalid email or password";
+            });
+    }
+
+    window.login = login;
+</script>
+
+</head>
 <body>
 
-<div class="card">
-  <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="150">
+<div class="login-box">
+    <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png">
+    <h2>Staff Login</h2>
 
-  <h2>Floor Check Login</h2>
+    <input id="email" type="email" placeholder="Email" />
+    <input id="password" type="password" placeholder="Password" />
 
-  <input id="email" placeholder="Email">
-  <button onclick="login()">Login</button>
+    <button onclick="login()">Sign In</button>
+
+    <div id="error" class="error"></div>
 </div>
-
-<script>
-  const allowedEditors = [
-    "ops1@pakisalogistics.co.za",
-    "csd1@pakisalogistics.co.za",
-    "csd@pakisalogistics.co.za",
-    "ops2@pakisalogistics.co.za"
-  ];
-
-  function login() {
-    const email = document.getElementById("email").value.trim().toLowerCase();
-    if (!email) return;
-
-    const mode = allowedEditors.includes(email) ? "edit" : "read";
-
-    localStorage.setItem("floorUser", email);
-    localStorage.setItem("floorMode", mode);
-
-    window.location = "floor.html";
-  }
-</script>
 
 </body>
 </html>
