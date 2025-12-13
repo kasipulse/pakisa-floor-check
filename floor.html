@@ -33,14 +33,42 @@
   }
 </style>
 
-<!-- audio beep -->
+<!-- 🔊 audio beep -->
 <audio id="beep" preload="auto">
   <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg">
 </audio>
 
-<!-- Firebase -->
+<!-- 🔐 AUTH GUARD (ADMINS ONLY) -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+    authDomain: "pakisa-floor.firebaseapp.com",
+    projectId: "pakisa-floor"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  const ADMINS = [
+    "ops1@pakisalogistics.co.za",
+    "ops2@pakisalogistics.co.za",
+    "csd@pakisalogistics.co.za",
+    "csd1@pakisalogistics.co.za"
+  ];
+
+  onAuthStateChanged(auth, user => {
+    if (!user || !ADMINS.includes(user.email)) {
+      window.location.href = "/index.html";
+    }
+  });
+</script>
+
+<!-- 🔥 FIREBASE DB + SCAN LOGIC (UNCHANGED) -->
+<script type="module">
+  import { initializeApp as initDB } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import {
     getDatabase,
     ref,
@@ -51,19 +79,18 @@
     equalTo
   } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-  const firebaseConfig = {
+  const firebaseConfigDB = {
     apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
     authDomain: "pakisa-floor.firebaseapp.com",
     projectId: "pakisa-floor",
     storageBucket: "pakisa-floor.firebasestorage.app",
     messagingSenderId: "1003516506618",
     appId: "1:1003516506618:web:777d702f93616b6e323443",
-    measurementId: "G-JBZ8DYW49B",
     databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/"
   };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+  const appDB = initDB(firebaseConfigDB);
+  const db = getDatabase(appDB);
 
   let currentData = [];
   let scanLock = false;
@@ -87,10 +114,7 @@
       list.innerHTML = "";
       currentData = [];
 
-      snapshot.forEach(child => {
-        currentData.push(child.val());
-      });
-
+      snapshot.forEach(child => currentData.push(child.val()));
       renderList(currentData);
 
       if (currentData.length === 0) {
@@ -142,18 +166,13 @@
       timestamp: Date.now()
     });
 
-    // 🔊 beep (success only)
     const beep = document.getElementById("beep");
     beep.currentTime = 0;
     beep.play();
 
-    // 🟢 screen flash
     document.body.classList.add("flash");
-    setTimeout(() => {
-      document.body.classList.remove("flash");
-    }, 150);
+    setTimeout(() => document.body.classList.remove("flash"), 150);
 
-    // clear & refocus for next scan
     scanInput.value = "";
     setTimeout(() => {
       scanInput.focus();
@@ -161,10 +180,7 @@
     }, 20);
   };
 
-  window.changeDate = () => {
-    const d = document.getElementById("dateFilter").value;
-    loadScans(d);
-  };
+  window.changeDate = () => loadScans(dateFilter.value);
 </script>
 </head>
 
@@ -204,7 +220,6 @@
 <input id="scanInput"
        placeholder="Scan waybill"
        autofocus
-       onclick="this.focus()"
        onkeydown="if(event.key==='Enter') saveScan()">
 
 <h3>View by Date</h3>
