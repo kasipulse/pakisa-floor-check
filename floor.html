@@ -1,241 +1,233 @@
-<!doctype html> 
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Floor Check</title>
-
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pakisa Floor — Admin</title>
+<link rel="icon" href="">
 <style>
-  body { 
-    font-family: Arial;
-    padding: 20px;
-    background:#f5f6fa;
-  }
-
-  .container {
-    max-width: 650px;
-    margin: auto;
-    background:white;
-    padding:25px;
-    border-radius:16px;
-    box-shadow:0 4px 20px rgba(0,0,0,0.08);
-  }
-
-  select, input {
-    width: 100%;
-    padding: 12px;
-    margin: 10px 0;
-    border-radius:10px;
-    border:1px solid #ccc;
-    background:white;
-  }
-
-  button { 
-    padding: 12px; 
-    width: 100%; 
-    background:#072760; 
-    color:white; 
-    border:0;
-    border-radius:10px;
-    font-size:16px;
-    margin-top:10px;
-  }
-
-  h2 { margin-top:10px; color:#072760; }
-  h3 { margin-top:25px; color:#072760; }
-
-  .list-item { 
-    padding:15px; 
-    background:#fff; 
-    margin:5px 0; 
-    border-radius:10px;
-    border:1px solid #eee;
-    box-shadow:0 1px 4px rgba(0,0,0,0.05);
-  }
-
-  .disabled-box {
-    opacity:0.5; 
-    pointer-events:none;
-  }
+  :root{--navy:#072760;--sky:#0F99DA;--gold:#DEB657;--bg:#f5f7fa;}
+  body{font-family:Inter, Arial, sans-serif;background:var(--bg);margin:0;padding:24px;color:#111827}
+  .wrap{max-width:980px;margin:0 auto}
+  .card{background:#fff;padding:20px;border-radius:12px;box-shadow:0 8px 28px rgba(2,6,23,0.06);margin-bottom:18px}
+  header{display:flex;align-items:center;gap:16px}
+  img.logo{width:140px}
+  h1{font-size:20px;margin:0;color:var(--navy)}
+  label{font-size:13px;font-weight:600;color:#374151;margin-top:12px;display:block}
+  input, select{width:100%;padding:10px;border-radius:8px;border:1px solid #e6edf3;margin-top:8px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .list .item{padding:12px;border-radius:10px;background:#fff;border:1px solid #eef2f7;margin-bottom:8px}
+  .disabled{opacity:0.5;pointer-events:none}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .btn{padding:10px 14px;background:var(--navy);color:#fff;border-radius:8px;border:0;cursor:pointer}
+  .logout{background:#ef4444}
+  .footer{color:#6b7280;text-align:center;margin-top:16px}
 </style>
 
-<!-- audio beep -->
-<audio id="beep">
-  <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg">
-</audio>
-
-<!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getDatabase, ref, push, onValue, query, orderByChild, equalTo } 
-    from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+  import { getDatabase, ref, push, onValue, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+  import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
     authDomain: "pakisa-floor.firebaseapp.com",
+    databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/",
     projectId: "pakisa-floor",
     storageBucket: "pakisa-floor.firebasestorage.app",
     messagingSenderId: "1003516506618",
     appId: "1:1003516506618:web:777d702f93616b6e323443",
-    measurementId: "G-JBZ8DYW49B",
-    databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/"
+    measurementId: "G-JBZ8DYW49B"
   };
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
+  const auth = getAuth(app);
 
-  let currentData = [];  
+  // editor emails
+  const editors = ["ops1@pakisalogistics.co.za","csd1@pakisalogistics.co.za","csd@pakisalogistics.co.za","ops2@pakisalogistics.co.za"];
 
-  function todayKey() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  let currentData = [];
+  let mode = localStorage.getItem('pakisaMode') || 'read';
+  let userEmail = localStorage.getItem('pakisaUser') || null;
+
+  function todayKey(){ return new Date().toISOString().slice(0,10); }
+
+  // enforce auth: if Firebase auth available, prefer it; otherwise use localStorage fallback
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      userEmail = (user.email||'').toLowerCase();
+      mode = editors.includes(userEmail) ? 'edit' : 'read';
+      localStorage.setItem('pakisaUser', userEmail);
+      localStorage.setItem('pakisaMode', mode);
+      applyMode();
+    } else {
+      // if no firebase session but localStorage has pakisaUser, allow; otherwise redirect to login
+      userEmail = localStorage.getItem('pakisaUser') || null;
+      mode = localStorage.getItem('pakisaMode') || 'read';
+      if (!userEmail) {
+        window.location.href = 'login.html';
+      } else {
+        applyMode();
+      }
+    }
+  });
+
+  function applyMode() {
+    document.getElementById('userTag').innerHTML = userEmail ? `Signed in: <strong>${userEmail}</strong>` : '';
+    const scanSection = document.getElementById('scanSection');
+    const notice = document.getElementById('readNotice');
+    if (mode === 'read') {
+      scanSection.classList.add('disabled');
+      notice.style.display = 'block';
+    } else {
+      scanSection.classList.remove('disabled');
+      notice.style.display = 'none';
+    }
+    loadScans(document.getElementById('dateFilter').value || todayKey());
   }
 
-  window.onload = () => {
-    // LOGIN CHECK
-    const mode = localStorage.getItem("floorMode");
-    const user = localStorage.getItem("floorUser");
-    if (!mode) window.location = "login.html";
-
-    document.getElementById("welcome").innerHTML = "Logged in as: <b>" + user + "</b>";
-
-    if (mode === "read") {
-      document.getElementById("scanSection").classList.add("disabled-box");
-      document.getElementById("scanNotice").style.display = "block";
-    }
-
-    loadScans(todayKey());
-    document.getElementById("scanInput").focus();
+  // sign out
+  window.doSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch(e) { /* ignore */ }
+    localStorage.removeItem('pakisaUser');
+    localStorage.removeItem('pakisaMode');
+    window.location.href = 'index.html';
   };
 
+  // DB functions (same logic you had)
   function loadScans(dateKey) {
-    const list = document.getElementById("scanList");
-    list.innerHTML = "Loading…";
+    const list = document.getElementById('scanList');
+    list.innerHTML = 'Loading…';
 
-    const q = query(ref(db, "scans"), orderByChild("date"), equalTo(dateKey));
-
+    const q = query(ref(db, 'scans'), orderByChild('date'), equalTo(dateKey));
     onValue(q, snapshot => {
-      list.innerHTML = "";
-      currentData = [];
-
-      snapshot.forEach(child => {
-        const data = child.val();
-        currentData.push(data);
-      });
-
+      const arr = [];
+      snapshot.forEach(s => arr.push(s.val()));
+      arr.sort((a,b)=> (a.timestamp||0) - (b.timestamp||0));
+      currentData = arr;
       renderList(currentData);
-
-      if (currentData.length === 0)
-        list.innerHTML = "<i>No scans for this date</i>";
+      if (currentData.length === 0) list.innerHTML = '<i>No scans for this date</i>';
     });
   }
 
   function renderList(dataArray) {
-    const list = document.getElementById("scanList");
-    list.innerHTML = "";
-    dataArray.forEach(data => {
-      const item = document.createElement("div");
-      item.className = "list-item";
-      item.innerHTML = `<b>${data.waybill}</b><br>${data.customer} — ${data.reason}`;
+    const list = document.getElementById('scanList');
+    list.innerHTML = '';
+    dataArray.forEach(d => {
+      const item = document.createElement('div');
+      item.className = 'item';
+      item.innerHTML = `<strong>${escapeHtml(d.waybill)}</strong><div style="font-size:13px;color:#374151;margin-top:6px">${escapeHtml(d.customer)} — ${escapeHtml(d.reason)} <span style="float:right;color:#6b7280">${new Date(d.timestamp).toLocaleTimeString()}</span></div>`;
       list.appendChild(item);
     });
   }
 
+  function escapeHtml(s=''){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
+
   window.filterSearch = () => {
-    const term = document.getElementById("searchInput").value.toLowerCase();
-    const filtered = currentData.filter(d =>
-      d.waybill.toLowerCase().includes(term) ||
-      d.customer.toLowerCase().includes(term) ||
-      d.reason.toLowerCase().includes(term)
-    );
+    const term = document.getElementById('searchInput').value.trim().toLowerCase();
+    if (!term) return renderList(currentData);
+    const filtered = currentData.filter(d => (d.waybill||'').toLowerCase().includes(term) || (d.customer||'').toLowerCase().includes(term) || (d.reason||'').toLowerCase().includes(term));
     renderList(filtered);
   };
 
+  window.changeDate = () => {
+    const d = document.getElementById('dateFilter').value;
+    loadScans(d);
+  };
+
+  // scan/save (edit mode checks)
   window.saveScan = () => {
-    const customer = document.getElementById("customer").value;
-    const reason = document.getElementById("reason").value;
-    const waybill = document.getElementById("scanInput").value.trim();
+    // enforce server-side / client-side check
+    if (mode !== 'edit') {
+      alert('You have read-only access.');
+      return;
+    }
+    const customer = document.getElementById('customer').value;
+    const reason = document.getElementById('reason').value;
+    const waybill = document.getElementById('scanInput').value.trim();
     if (!customer || !reason || !waybill) return;
 
-    push(ref(db, "scans"), {
+    push(ref(db, 'scans'), {
       customer,
       reason,
       waybill,
       date: todayKey(),
       timestamp: Date.now()
     });
-
-    document.getElementById("beep").play();
-    document.getElementById("scanInput").value = "";
-    document.getElementById("scanInput").focus();
+    document.getElementById('beep').play();
+    document.getElementById('scanInput').value = '';
+    document.getElementById('scanInput').focus();
   };
 
-  window.changeDate = () => {
-    const d = document.getElementById("dateFilter").value;
-    loadScans(d);
+  // initial UI setup
+  window.onload = () => {
+    document.getElementById('dateFilter').value = todayKey();
+    // mode & user will be set via onAuthStateChanged
   };
 </script>
 </head>
-
 <body>
+  <div class="wrap">
+    <div class="card topbar">
+      <div style="display:flex;gap:16px;align-items:center">
+        <img class="logo" src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" alt="Pakisa">
+        <div>
+          <h1>Pakisa Floor Check</h1>
+          <div id="userTag" style="color:#6b7280;font-size:13px"></div>
+        </div>
+      </div>
 
-<div class="container">
+      <div style="text-align:right">
+        <button class="btn logout" onclick="doSignOut()">Logout</button>
+      </div>
+    </div>
 
-  <center>
-    <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160">
-  </center>
+    <div id="readNotice" class="card" style="display:none;color:#b91c1c">
+      <strong>Read-only mode:</strong> you cannot scan or edit.
+    </div>
 
-  <div id="welcome" style="margin-top:10px; text-align:center; color:#555;"></div>
+    <div class="card" id="scanSection">
+      <label>Customer</label>
+      <select id="customer">
+        <option value="">Select Customer</option>
+        <option>First Freight Couriers</option>
+        <option>Fedex Express</option>
+        <option>Seabourne Logistics</option>
+        <option>AJM</option>
+        <option>Brima Logistics</option>
+      </select>
 
-  <div id="scanNotice" style="display:none; color:red; text-align:center; margin-top:15px;">
-    <b>Read-only mode:</b> You cannot scan or edit.
+      <label>Reason</label>
+      <select id="reason">
+        <option value="">Select Reason</option>
+        <option>Nobody home</option>
+        <option>Incorrect phone number</option>
+        <option>Bad address</option>
+        <option>Missing paperwork</option>
+        <option>Misroute</option>
+        <option>Customer refused shipment</option>
+        <option>Will be delivered on commitment date</option>
+        <option>Voicemail / consignee not available</option>
+      </select>
+
+      <label>Scan Waybill</label>
+      <input id="scanInput" placeholder="Scan waybill" onkeydown="if(event.key==='Enter') saveScan()">
+    </div>
+
+    <div class="card">
+      <div style="display:flex;gap:12px;align-items:center">
+        <input id="dateFilter" type="date" style="flex:1" onchange="changeDate()">
+        <input id="searchInput" placeholder="Search" style="flex:1" oninput="filterSearch()">
+      </div>
+
+      <h3 style="margin-top:14px">Scans</h3>
+      <div id="scanList" class="list"></div>
+    </div>
+
+    <div class="footer">Designed by Mpho Mahlaba</div>
   </div>
-
-  <h2>Floor Check</h2>
-
-  <!-- Scan section (disabled for read-only users) -->
-  <div id="scanSection">
-
-    <label>Customer</label>
-    <select id="customer">
-      <option value="">Select Customer</option>
-      <option>First Freight Couriers</option>
-      <option>Fedex Express</option>
-      <option>Seabourne Logistics</option>
-      <option>AJM</option>
-      <option>Brima Logistics</option>
-    </select>
-
-    <label>Reason</label>
-    <select id="reason">
-      <option value="">Select Reason</option>
-      <option>Nobody home</option>
-      <option>Incorrect phone number</option>
-      <option>Bad address</option>
-      <option>Missing paperwork</option>
-      <option>Misroute</option>
-      <option>Customer refused shipment</option>
-      <option>Will be delivered on commitment date</option>
-      <option>Voicemail / consignee not available</option>
-    </select>
-
-    <label>Scan Waybill</label>
-    <input id="scanInput" placeholder="Scan waybill" onkeydown="if(event.key==='Enter') saveScan()">
-  </div>
-
-  <h3>View by Date</h3>
-  <input type="date" id="dateFilter" onchange="changeDate()">
-
-  <h3>Search</h3>
-  <input id="searchInput" placeholder="Search waybill / customer / reason" onkeyup="filterSearch()">
-
-  <h3>Scans</h3>
-  <div id="scanList"><i>Loading…</i></div>
-
-  <br><br>
-  <center><b style="color:#333;">Built by Mpho Mahlaba</b></center>
-
-</div>
-
 </body>
 </html>
