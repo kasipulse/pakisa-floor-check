@@ -7,35 +7,24 @@
 
 <style>
   body {
-    font-family: system-ui, Arial;
+    font-family: Arial;
     padding: 20px;
-    background: #ffffff;
+    background: white;
     transition: background-color 0.15s ease;
-    color:#1f2937;
   }
 
-  select, input, button {
+  select, input {
     width: 100%;
     padding: 12px;
     margin: 8px 0;
-    font-size: 15px;
-    border-radius: 10px;
-    border: 1px solid #e5e7eb;
-  }
-
-  button {
-    cursor: pointer;
-    background:#0f99da;
-    color:white;
-    border:none;
+    font-size: 16px;
   }
 
   .list-item {
-    padding: 12px;
-    background: #f9fafb;
+    padding: 10px;
+    background: #f2f2f2;
     margin: 6px 0;
-    border-radius: 10px;
-    font-size:14px;
+    border-radius: 8px;
   }
 
   .flash-green { background:#2ecc71 !important; }
@@ -45,17 +34,17 @@
   .last-scan {
     background:#eef6ff;
     padding:12px;
-    border-radius:12px;
+    border-radius:10px;
     margin-bottom:15px;
     font-size:14px;
   }
-
-  .admin-only { display:none; }
 </style>
 
+<!-- audio -->
 <audio id="beep">
   <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg">
 </audio>
+
 <audio id="beep2">
   <source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg">
 </audio>
@@ -63,11 +52,14 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import {
-    getDatabase, ref, push, onValue, query, orderByChild, equalTo
+    getDatabase,
+    ref,
+    push,
+    onValue,
+    query,
+    orderByChild,
+    equalTo
   } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-  import {
-    getAuth, signInWithEmailAndPassword, onAuthStateChanged
-  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
@@ -81,14 +73,6 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
-  const auth = getAuth(app);
-
-  const ADMIN_EMAILS = [
-    "ops1@pakisalogistics.co.za",
-    "ops2@pakisalogistics.co.za",
-    "csd@pakisalogistics.co.za",
-    "csd1@pakisalogistics.co.za"
-  ];
 
   let currentData = [];
   let scanLock = false;
@@ -100,7 +84,7 @@
 
   window.onload = () => {
     loadScans(todayKey());
-    scanInput.focus();
+    document.getElementById("scanInput").focus();
   };
 
   function loadScans(dateKey) {
@@ -113,12 +97,13 @@
   }
 
   function renderList(arr) {
-    scanList.innerHTML = "";
+    const list = document.getElementById("scanList");
+    list.innerHTML = "";
     arr.forEach(d => {
       const div = document.createElement("div");
       div.className = "list-item";
       div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
-      scanList.appendChild(div);
+      list.appendChild(div);
     });
   }
 
@@ -128,12 +113,12 @@
   }
 
   function updateLastScan(d) {
-    lastScan.innerHTML =
+    document.getElementById("lastScan").innerHTML =
       `<b>Last Scan:</b> ${d.waybill}<br>${d.customer} — ${d.reason}<br><small>${new Date().toLocaleTimeString()}</small>`;
   }
 
   window.saveScan = () => {
-    if (scanLock || scanInput.disabled) return;
+    if (scanLock) return;
     scanLock = true;
 
     const customer = customerEl.value;
@@ -142,14 +127,26 @@
 
     if (!customer || !reason || !waybill) {
       flash("flash-red");
-      scanLock=false; scanInput.focus(); return;
+      scanLock = false;
+      scanInput.focus();
+      return;
     }
 
     const duplicate = currentData.find(d => d.waybill === waybill);
 
-    push(ref(db,"scans"),{ customer, reason, waybill, date:todayKey(), timestamp:Date.now() });
+    push(ref(db,"scans"),{
+      customer, reason, waybill,
+      date: todayKey(),
+      timestamp: Date.now()
+    });
 
-    duplicate ? (beep2.play(), flash("flash-amber")) : (beep.play(), flash("flash-green"));
+    if (duplicate) {
+      beep2.play();
+      flash("flash-amber");
+    } else {
+      beep.play();
+      flash("flash-green");
+    }
 
     updateLastScan({ customer, reason, waybill });
 
@@ -167,30 +164,14 @@
   };
 
   window.changeDate = () => loadScans(dateFilter.value);
-
-  onAuthStateChanged(auth, user => {
-    const editable = user && ADMIN_EMAILS.includes(user.email);
-    [customerEl, reasonEl, scanInput].forEach(el => el.disabled = !editable);
-    document.querySelectorAll(".admin-only").forEach(el => el.style.display = editable ? "block" : "none");
-  });
-
-  window.adminLogin = () =>
-    signInWithEmailAndPassword(auth, adminEmail.value, adminPass.value)
-      .catch(e=>alert("Login failed"));
 </script>
 </head>
 
 <body>
 
 <center>
-<img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="140">
+<img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="150">
 </center>
-
-<div class="admin-only">
-  <input id="adminEmail" placeholder="Admin email">
-  <input id="adminPass" type="password" placeholder="Password">
-  <button onclick="adminLogin()">Pakisa Agent Login</button>
-</div>
 
 <div id="lastScan" class="last-scan">Waiting for first scan…</div>
 
@@ -215,7 +196,8 @@
   <option>Voicemail / consignee not available</option>
 </select>
 
-<input id="scanInput" placeholder="Scan waybill" onkeydown="if(event.key==='Enter') saveScan()">
+<input id="scanInput" placeholder="Scan waybill" autofocus
+ onkeydown="if(event.key==='Enter') saveScan()">
 
 <input type="date" id="dateFilter" onchange="changeDate()">
 <input id="searchInput" placeholder="Search…" onkeyup="filterSearch()">
