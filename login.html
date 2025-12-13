@@ -1,58 +1,104 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Pakisa Agent Login</title>
-
+<link rel="icon" href="">
 <style>
-  body { font-family: Arial; background:#f2f4f7; padding:40px; }
-  .card { max-width:400px; margin:auto; padding:25px; background:white; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.1); }
-  input { width:100%; padding:12px; margin:12px 0; border-radius:8px; border:1px solid #ccc; }
-  button { width:100%; padding:12px; background:#072760; color:white; border-radius:8px; border:0; }
+  body{font-family:Inter, Arial, sans-serif;background:#f5f7fa;margin:0;padding:0;display:flex;align-items:center;justify-content:center;height:100vh}
+  .card{width:360px;background:#fff;padding:28px;border-radius:12px;box-shadow:0 10px 30px rgba(2,6,23,0.08);text-align:center}
+  img{width:120px;margin-bottom:10px}
+  h2{color:#072760;margin:0 0 8px}
+  .hint{color:#6b7280;font-size:13px;margin-bottom:14px}
+  input{width:100%;padding:10px;border-radius:8px;border:1px solid #e6edf3;margin:8px 0}
+  button{width:100%;padding:10px;border-radius:8px;border:0;background:#072760;color:#fff;font-weight:600}
+  .alt{margin-top:12px}
+  .smallbtn{display:inline-block;padding:8px 12px;border-radius:8px;border:1px solid #e6edf3;background:#fff;color:#072760;cursor:pointer}
+  .error{color:#b91c1c;margin-top:10px}
 </style>
 
-<script>
-  const allowed = [
-    "ops1@pakisalogistics.co.za",
-    "csd1@pakisalogistics.co.za",
-    "csd@pakisalogistics.co.za",
-    "ops2@pakisalogistics.co.za"
-  ];
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signInWithPhoneNumber, RecaptchaVerifier } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-  function login() {
-    const email = document.getElementById("email").value.trim();
-    const pass = document.getElementById("password").value.trim();
+  const firebaseConfig = {
+    apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+    authDomain: "pakisa-floor.firebaseapp.com",
+    databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/",
+    projectId: "pakisa-floor",
+    storageBucket: "pakisa-floor.firebasestorage.app",
+    messagingSenderId: "1003516506618",
+    appId: "1:1003516506618:web:777d702f93616b6e323443",
+    measurementId: "G-JBZ8DYW49B"
+  };
 
-    if (!allowed.includes(email)) {
-      alert("Access denied");
-      return;
-    }
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
 
-    if (pass !== "pakisa123") {  // you can change this password
-      alert("Incorrect password");
-      return;
-    }
+  const editorEmails = ["ops1@pakisalogistics.co.za","csd1@pakisalogistics.co.za","csd@pakisalogistics.co.za","ops2@pakisalogistics.co.za"];
 
-    localStorage.setItem("pakisaUser", email);
-    location.href = "floor.html";
+  function goToFloor(user) {
+    // store email locally and redirect to floor.html
+    localStorage.setItem('pakisaUser', user.email || '');
+    localStorage.setItem('pakisaMode', editorEmails.includes((user.email||'').toLowerCase()) ? 'edit' : 'read');
+    window.location.href = 'floor.html';
   }
+
+  window.doEmailLogin = async () => {
+    const email = document.getElementById('email').value.trim();
+    const pass = document.getElementById('password').value;
+    document.getElementById('err').innerText = '';
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, pass);
+      goToFloor(cred.user);
+    } catch (e) {
+      document.getElementById('err').innerText = e.message;
+    }
+  };
+
+  window.doGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      const res = await signInWithPopup(auth, provider);
+      goToFloor(res.user);
+    } catch (e) {
+      document.getElementById('err').innerText = e.message;
+    }
+  };
+
+  // Phone sign in requires enabling phone provider & reCAPTCHA in console.
+  window.setupPhone = () => {
+    // NOTE: to use, enable phone auth in Firebase console and configure reCAPTCHA site key if needed.
+    window.recaptchaVerifier = new RecaptchaVerifier('recaptcha', { 'size': 'invisible' }, auth);
+    document.getElementById('err').innerText = 'Phone sign-in requires setup in Firebase console (see README).';
+  };
+
+  // Auto-redirect if already logged in
+  auth.onAuthStateChanged(user => { if (user) goToFloor(user); });
 </script>
 </head>
-
 <body>
+  <div class="card">
+    <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" alt="Pakisa">
+    <h2>Pakisa Agent Login</h2>
+    <div class="hint">Sign in with your work email</div>
 
-<div class="card">
-  <h2>Pakisa Agent Login</h2>
+    <input id="email" placeholder="Email" type="email">
+    <input id="password" placeholder="Password" type="password">
+    <button onclick="doEmailLogin()">Sign in</button>
 
-  <label>Email</label>
-  <input id="email" placeholder="Enter email">
+    <div class="alt">
+      <div style="margin:10px 0">Or</div>
+      <button class="smallbtn" onclick="doGoogle()">Sign in with Google</button>
+    </div>
 
-  <label>Password</label>
-  <input id="password" type="password" placeholder="Enter password">
+    <div style="margin-top:12px">
+      <div id="recaptcha"></div>
+      <button class="smallbtn" onclick="setupPhone()">Phone sign-in (setup required)</button>
+    </div>
 
-  <button onclick="login()">Login</button>
-</div>
-
+    <div id="err" class="error"></div>
+  </div>
 </body>
 </html>
