@@ -7,49 +7,67 @@
 
 <style>
   body {
-    font-family: Arial;
+    font-family: system-ui, Arial;
     padding: 20px;
-    background: white;
+    background: #ffffff;
     transition: background-color 0.15s ease;
+    color:#1f2937;
   }
 
-  select, input {
+  select, input, button {
     width: 100%;
     padding: 12px;
     margin: 8px 0;
-    font-size: 16px;
+    font-size: 15px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+  }
+
+  button {
+    cursor: pointer;
+    background:#0f99da;
+    color:white;
+    border:none;
   }
 
   .list-item {
-    padding: 10px;
-    background: #f2f2f2;
+    padding: 12px;
+    background: #f9fafb;
     margin: 6px 0;
-    border-radius: 8px;
+    border-radius: 10px;
+    font-size:14px;
   }
 
-  /* FULL SCREEN GREEN FLASH */
-  .flash {
-    background-color: #2ecc71 !important;
+  .flash-green { background:#2ecc71 !important; }
+  .flash-red { background:#e74c3c !important; }
+  .flash-amber { background:#f1c40f !important; }
+
+  .last-scan {
+    background:#eef6ff;
+    padding:12px;
+    border-radius:12px;
+    margin-bottom:15px;
+    font-size:14px;
   }
+
+  .admin-only { display:none; }
 </style>
 
-<!-- audio beep -->
-<audio id="beep" preload="auto">
-  <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg">
+<audio id="beep">
+  <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg">
+</audio>
+<audio id="beep2">
+  <source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg">
 </audio>
 
-<!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import {
-    getDatabase,
-    ref,
-    push,
-    onValue,
-    query,
-    orderByChild,
-    equalTo
+    getDatabase, ref, push, onValue, query, orderByChild, equalTo
   } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+  import {
+    getAuth, signInWithEmailAndPassword, onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
@@ -58,12 +76,19 @@
     storageBucket: "pakisa-floor.firebasestorage.app",
     messagingSenderId: "1003516506618",
     appId: "1:1003516506618:web:777d702f93616b6e323443",
-    measurementId: "G-JBZ8DYW49B",
     databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/"
   };
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
+  const auth = getAuth(app);
+
+  const ADMIN_EMAILS = [
+    "ops1@pakisalogistics.co.za",
+    "ops2@pakisalogistics.co.za",
+    "csd@pakisalogistics.co.za",
+    "csd1@pakisalogistics.co.za"
+  ];
 
   let currentData = [];
   let scanLock = false;
@@ -75,110 +100,101 @@
 
   window.onload = () => {
     loadScans(todayKey());
-    document.getElementById("scanInput").focus();
+    scanInput.focus();
   };
 
   function loadScans(dateKey) {
-    const list = document.getElementById("scanList");
-    list.innerHTML = "Loading…";
-
     const q = query(ref(db, "scans"), orderByChild("date"), equalTo(dateKey));
-    onValue(q, snapshot => {
-      list.innerHTML = "";
+    onValue(q, snap => {
       currentData = [];
-
-      snapshot.forEach(child => {
-        currentData.push(child.val());
-      });
-
+      snap.forEach(c => currentData.push(c.val()));
       renderList(currentData);
-
-      if (currentData.length === 0) {
-        list.innerHTML = "<i>No scans for this date</i>";
-      }
     });
   }
 
-  function renderList(dataArray) {
-    const list = document.getElementById("scanList");
-    list.innerHTML = "";
-    dataArray.forEach(data => {
-      const item = document.createElement("div");
-      item.className = "list-item";
-      item.innerHTML = `<b>${data.waybill}</b><br>${data.customer} — ${data.reason}`;
-      list.appendChild(item);
+  function renderList(arr) {
+    scanList.innerHTML = "";
+    arr.forEach(d => {
+      const div = document.createElement("div");
+      div.className = "list-item";
+      div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
+      scanList.appendChild(div);
     });
   }
 
-  window.filterSearch = () => {
-    const term = document.getElementById("searchInput").value.toLowerCase();
-    const filtered = currentData.filter(d =>
-      d.waybill.toLowerCase().includes(term) ||
-      d.customer.toLowerCase().includes(term) ||
-      d.reason.toLowerCase().includes(term)
-    );
-    renderList(filtered);
-  };
+  function flash(cls) {
+    document.body.classList.add(cls);
+    setTimeout(()=>document.body.classList.remove(cls),150);
+  }
+
+  function updateLastScan(d) {
+    lastScan.innerHTML =
+      `<b>Last Scan:</b> ${d.waybill}<br>${d.customer} — ${d.reason}<br><small>${new Date().toLocaleTimeString()}</small>`;
+  }
 
   window.saveScan = () => {
-    if (scanLock) return;
+    if (scanLock || scanInput.disabled) return;
     scanLock = true;
 
-    const scanInput = document.getElementById("scanInput");
-    const customer = document.getElementById("customer").value;
-    const reason = document.getElementById("reason").value;
+    const customer = customerEl.value;
+    const reason = reasonEl.value;
     const waybill = scanInput.value.trim();
 
     if (!customer || !reason || !waybill) {
-      scanLock = false;
-      return;
+      flash("flash-red");
+      scanLock=false; scanInput.focus(); return;
     }
 
-    push(ref(db, "scans"), {
-      customer,
-      reason,
-      waybill,
-      date: todayKey(),
-      timestamp: Date.now()
-    });
+    const duplicate = currentData.find(d => d.waybill === waybill);
 
-    // 🔊 beep (success only)
-    const beep = document.getElementById("beep");
-    beep.currentTime = 0;
-    beep.play();
+    push(ref(db,"scans"),{ customer, reason, waybill, date:todayKey(), timestamp:Date.now() });
 
-    // 🟢 screen flash
-    document.body.classList.add("flash");
-    setTimeout(() => {
-      document.body.classList.remove("flash");
-    }, 150);
+    duplicate ? (beep2.play(), flash("flash-amber")) : (beep.play(), flash("flash-green"));
 
-    // clear & refocus for next scan
+    updateLastScan({ customer, reason, waybill });
+
     scanInput.value = "";
-    setTimeout(() => {
-      scanInput.focus();
-      scanLock = false;
-    }, 20);
+    setTimeout(()=>{ scanInput.focus(); scanLock=false; },20);
   };
 
-  window.changeDate = () => {
-    const d = document.getElementById("dateFilter").value;
-    loadScans(d);
+  window.filterSearch = () => {
+    const t = searchInput.value.toLowerCase();
+    renderList(currentData.filter(d =>
+      d.waybill.toLowerCase().includes(t) ||
+      d.customer.toLowerCase().includes(t) ||
+      d.reason.toLowerCase().includes(t)
+    ));
   };
+
+  window.changeDate = () => loadScans(dateFilter.value);
+
+  onAuthStateChanged(auth, user => {
+    const editable = user && ADMIN_EMAILS.includes(user.email);
+    [customerEl, reasonEl, scanInput].forEach(el => el.disabled = !editable);
+    document.querySelectorAll(".admin-only").forEach(el => el.style.display = editable ? "block" : "none");
+  });
+
+  window.adminLogin = () =>
+    signInWithEmailAndPassword(auth, adminEmail.value, adminPass.value)
+      .catch(e=>alert("Login failed"));
 </script>
 </head>
 
 <body>
 
 <center>
-  <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png"
-       width="160">
+<img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="140">
 </center>
 
-<h2>Floor Check</h2>
+<div class="admin-only">
+  <input id="adminEmail" placeholder="Admin email">
+  <input id="adminPass" type="password" placeholder="Password">
+  <button onclick="adminLogin()">Pakisa Agent Login</button>
+</div>
 
-<label>Customer</label>
-<select id="customer">
+<div id="lastScan" class="last-scan">Waiting for first scan…</div>
+
+<select id="customerEl">
   <option value="">Select Customer</option>
   <option>First Freight Couriers</option>
   <option>Fedex Express</option>
@@ -187,8 +203,7 @@
   <option>Brima Logistics</option>
 </select>
 
-<label>Reason</label>
-<select id="reason">
+<select id="reasonEl">
   <option value="">Select Reason</option>
   <option>Nobody home</option>
   <option>Incorrect phone number</option>
@@ -200,26 +215,13 @@
   <option>Voicemail / consignee not available</option>
 </select>
 
-<label>Scan Waybill</label>
-<input id="scanInput"
-       placeholder="Scan waybill"
-       autofocus
-       onclick="this.focus()"
-       onkeydown="if(event.key==='Enter') saveScan()">
+<input id="scanInput" placeholder="Scan waybill" onkeydown="if(event.key==='Enter') saveScan()">
 
-<h3>View by Date</h3>
 <input type="date" id="dateFilter" onchange="changeDate()">
+<input id="searchInput" placeholder="Search…" onkeyup="filterSearch()">
 
-<h3>Search</h3>
-<input id="searchInput"
-       placeholder="Search waybill / customer / reason"
-       onkeyup="filterSearch()">
+<div id="scanList"></div>
 
-<h3>Scans</h3>
-<div id="scanList"><i>Loading…</i></div>
-
-<br><br>
 <center><b>Built by Mpho Mahlaba</b></center>
-
 </body>
 </html>
