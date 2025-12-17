@@ -27,18 +27,16 @@
     border-radius: 8px;
   }
 
-  /* FULL SCREEN GREEN FLASH */
   .flash {
     background-color: #2ecc71 !important;
   }
 </style>
 
-<!-- 🔊 audio beep -->
 <audio id="beep" preload="auto">
   <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg">
 </audio>
 
-<!-- 🔐 AUTH GUARD (ADMINS ONLY) -->
+<!-- 🔐 AUTH GUARD -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -66,7 +64,7 @@
   });
 </script>
 
-<!-- 🔥 FIREBASE DB + SCAN LOGIC (UNCHANGED) -->
+<!-- 🔥 FIREBASE + SCANS -->
 <script type="module">
   import { initializeApp as initDB } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import {
@@ -83,9 +81,6 @@
     apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
     authDomain: "pakisa-floor.firebaseapp.com",
     projectId: "pakisa-floor",
-    storageBucket: "pakisa-floor.firebasestorage.app",
-    messagingSenderId: "1003516506618",
-    appId: "1:1003516506618:web:777d702f93616b6e323443",
     databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/"
   };
 
@@ -100,9 +95,12 @@
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
+  /* ✅ FIX 1: set date filter to today + load */
   window.onload = () => {
-    loadScans(todayKey());
-    document.getElementById("scanInput").focus();
+    const today = todayKey();
+    dateFilter.value = today;
+    loadScans(today);
+    scanInput.focus();
   };
 
   function loadScans(dateKey) {
@@ -135,38 +133,34 @@
   }
 
   window.filterSearch = () => {
-    const term = document.getElementById("searchInput").value.toLowerCase();
-    const filtered = currentData.filter(d =>
-      d.waybill.toLowerCase().includes(term) ||
-      d.customer.toLowerCase().includes(term) ||
-      d.reason.toLowerCase().includes(term)
+    const term = searchInput.value.toLowerCase();
+    renderList(
+      currentData.filter(d =>
+        d.waybill.toLowerCase().includes(term) ||
+        d.customer.toLowerCase().includes(term) ||
+        d.reason.toLowerCase().includes(term)
+      )
     );
-    renderList(filtered);
   };
 
   window.saveScan = () => {
     if (scanLock) return;
     scanLock = true;
 
-    const scanInput = document.getElementById("scanInput");
-    const customer = document.getElementById("customer").value;
-    const reason = document.getElementById("reason").value;
     const waybill = scanInput.value.trim();
-
-    if (!customer || !reason || !waybill) {
+    if (!customer.value || !reason.value || !waybill) {
       scanLock = false;
       return;
     }
 
     push(ref(db, "scans"), {
-      customer,
-      reason,
+      customer: customer.value,
+      reason: reason.value,
       waybill,
       date: todayKey(),
       timestamp: Date.now()
     });
 
-    const beep = document.getElementById("beep");
     beep.currentTime = 0;
     beep.play();
 
@@ -177,8 +171,16 @@
     setTimeout(() => {
       scanInput.focus();
       scanLock = false;
-    }, 20);
+    }, 10);
   };
+
+  /* ✅ FIX 2: ultra-reliable scanner Enter capture */
+  scanInput.addEventListener("keypress", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveScan();
+    }
+  });
 
   window.changeDate = () => loadScans(dateFilter.value);
 </script>
@@ -187,8 +189,7 @@
 <body>
 
 <center>
-  <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png"
-       width="160">
+  <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160">
 </center>
 
 <h2>Floor Check</h2>
@@ -217,18 +218,13 @@
 </select>
 
 <label>Scan Waybill</label>
-<input id="scanInput"
-       placeholder="Scan waybill"
-       autofocus
-       onkeydown="if(event.key==='Enter') saveScan()">
+<input id="scanInput" placeholder="Scan waybill" autofocus>
 
 <h3>View by Date</h3>
 <input type="date" id="dateFilter" onchange="changeDate()">
 
 <h3>Search</h3>
-<input id="searchInput"
-       placeholder="Search waybill / customer / reason"
-       onkeyup="filterSearch()">
+<input id="searchInput" placeholder="Search…" onkeyup="filterSearch()">
 
 <h3>Scans</h3>
 <div id="scanList"><i>Loading…</i></div>
