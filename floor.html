@@ -36,19 +36,30 @@
   <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg">
 </audio>
 
-<!-- 🔐 AUTH GUARD -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+  import {
+    getDatabase,
+    ref,
+    push,
+    onValue,
+    query,
+    orderByChild,
+    equalTo
+  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+  /* 🔥 SINGLE FIREBASE APP (FIXED) */
   const firebaseConfig = {
     apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
     authDomain: "pakisa-floor.firebaseapp.com",
-    projectId: "pakisa-floor"
+    projectId: "pakisa-floor",
+    databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/"
   };
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
+  const db = getDatabase(app);
 
   const ADMINS = [
     "ops1@pakisalogistics.co.za",
@@ -62,30 +73,6 @@
       window.location.href = "/index.html";
     }
   });
-</script>
-
-<!-- 🔥 FIREBASE + SCANS -->
-<script type="module">
-  import { initializeApp as initDB } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import {
-    getDatabase,
-    ref,
-    push,
-    onValue,
-    query,
-    orderByChild,
-    equalTo
-  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-  const firebaseConfigDB = {
-    apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
-    authDomain: "pakisa-floor.firebaseapp.com",
-    projectId: "pakisa-floor",
-    databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/"
-  };
-
-  const appDB = initDB(firebaseConfigDB);
-  const db = getDatabase(appDB);
 
   let currentData = [];
   let scanLock = false;
@@ -95,68 +82,68 @@
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
-  /* ✅ FIX 1: set date filter to today + load */
   window.onload = () => {
     const today = todayKey();
     dateFilter.value = today;
     loadScans(today);
     scanInput.focus();
+
+    /* ✅ SCANNER ENTER FIX (AFTER DOM LOAD) */
+    scanInput.addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        saveScan();
+      }
+    });
   };
 
   function loadScans(dateKey) {
-    const list = document.getElementById("scanList");
-    list.innerHTML = "Loading…";
-
     const q = query(ref(db, "scans"), orderByChild("date"), equalTo(dateKey));
-    onValue(q, snapshot => {
-      list.innerHTML = "";
+
+    onValue(q, snap => {
       currentData = [];
-
-      snapshot.forEach(child => currentData.push(child.val()));
+      snap.forEach(c => currentData.push(c.val()));
       renderList(currentData);
-
-      if (currentData.length === 0) {
-        list.innerHTML = "<i>No scans for this date</i>";
-      }
     });
   }
 
-  function renderList(dataArray) {
-    const list = document.getElementById("scanList");
-    list.innerHTML = "";
-    dataArray.forEach(data => {
-      const item = document.createElement("div");
-      item.className = "list-item";
-      item.innerHTML = `<b>${data.waybill}</b><br>${data.customer} — ${data.reason}`;
-      list.appendChild(item);
+  function renderList(arr) {
+    scanList.innerHTML = "";
+    if (!arr.length) {
+      scanList.innerHTML = "<i>No scans for this date</i>";
+      return;
+    }
+
+    arr.forEach(d => {
+      const div = document.createElement("div");
+      div.className = "list-item";
+      div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
+      scanList.appendChild(div);
     });
   }
 
   window.filterSearch = () => {
-    const term = searchInput.value.toLowerCase();
-    renderList(
-      currentData.filter(d =>
-        d.waybill.toLowerCase().includes(term) ||
-        d.customer.toLowerCase().includes(term) ||
-        d.reason.toLowerCase().includes(term)
-      )
-    );
+    const t = searchInput.value.toLowerCase();
+    renderList(currentData.filter(d =>
+      d.waybill.toLowerCase().includes(t) ||
+      d.customer.toLowerCase().includes(t) ||
+      d.reason.toLowerCase().includes(t)
+    ));
   };
 
   window.saveScan = () => {
     if (scanLock) return;
     scanLock = true;
 
-    const waybill = scanInput.value.trim();
-    if (!customer.value || !reason.value || !waybill) {
+    if (!customer.value || !reason.value || !scanInput.value.trim()) {
       scanLock = false;
       return;
     }
 
-    push(ref(db, "scans"), {
+    push(ref(db,"scans"),{
       customer: customer.value,
       reason: reason.value,
-      waybill,
+      waybill: scanInput.value.trim(),
       date: todayKey(),
       timestamp: Date.now()
     });
@@ -165,22 +152,11 @@
     beep.play();
 
     document.body.classList.add("flash");
-    setTimeout(() => document.body.classList.remove("flash"), 150);
+    setTimeout(()=>document.body.classList.remove("flash"),150);
 
     scanInput.value = "";
-    setTimeout(() => {
-      scanInput.focus();
-      scanLock = false;
-    }, 10);
+    setTimeout(()=>{ scanInput.focus(); scanLock=false; },20);
   };
-
-  /* ✅ FIX 2: ultra-reliable scanner Enter capture */
-  scanInput.addEventListener("keypress", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      saveScan();
-    }
-  });
 
   window.changeDate = () => loadScans(dateFilter.value);
 </script>
@@ -189,7 +165,7 @@
 <body>
 
 <center>
-  <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160">
+<img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160">
 </center>
 
 <h2>Floor Check</h2>
@@ -234,3 +210,4 @@
 
 </body>
 </html>
+
