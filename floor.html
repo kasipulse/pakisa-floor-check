@@ -82,20 +82,25 @@
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
-  window.onload = () => {
-    const today = todayKey();
-    dateFilter.value = today;
-    loadScans(today);
-    scanInput.focus();
+window.onload = () => {
+  const today = todayKey();
 
-    /* ✅ SCANNER ENTER FIX (AFTER DOM LOAD) */
-    scanInput.addEventListener("keydown", e => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        saveScan();
-      }
-    });
-  };
+  const dateFilterEl = document.getElementById("dateFilter");
+  const scanInputEl = document.getElementById("scanInput");
+
+  dateFilterEl.value = today;
+  loadScans(today);
+
+  scanInputEl.focus();
+
+  /* ✅ SCANNER ENTER FIX (SAFE) */
+  scanInputEl.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveScan();
+    }
+  });
+};
 
   function loadScans(dateKey) {
     const q = query(ref(db, "scans"), orderByChild("date"), equalTo(dateKey));
