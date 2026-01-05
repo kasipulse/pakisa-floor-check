@@ -49,7 +49,7 @@
     equalTo
   } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-  /* 🔥 SINGLE FIREBASE APP (FIXED) */
+  /* 🔥 FIREBASE */
   const firebaseConfig = {
     apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
     authDomain: "pakisa-floor.firebaseapp.com",
@@ -61,6 +61,7 @@
   const auth = getAuth(app);
   const db = getDatabase(app);
 
+  /* 🔐 ADMINS */
   const ADMINS = [
     "ops1@pakisalogistics.co.za",
     "ops2@pakisalogistics.co.za",
@@ -74,6 +75,15 @@
     }
   });
 
+  /* ✅ MODULE-SAFE DOM REFERENCES */
+  const customer = document.getElementById("customer");
+  const reason = document.getElementById("reason");
+  const scanInput = document.getElementById("scanInput");
+  const scanList = document.getElementById("scanList");
+  const searchInput = document.getElementById("searchInput");
+  const dateFilter = document.getElementById("dateFilter");
+  const beep = document.getElementById("beep");
+
   let currentData = [];
   let scanLock = false;
 
@@ -82,25 +92,21 @@
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
-window.onload = () => {
-  const today = todayKey();
+  /* 🚀 INIT */
+  window.addEventListener("DOMContentLoaded", () => {
+    const today = todayKey();
+    dateFilter.value = today;
+    loadScans(today);
 
-  const dateFilterEl = document.getElementById("dateFilter");
-  const scanInputEl = document.getElementById("scanInput");
+    scanInput.focus();
 
-  dateFilterEl.value = today;
-  loadScans(today);
-
-  scanInputEl.focus();
-
-  /* ✅ SCANNER ENTER FIX (SAFE) */
-  scanInputEl.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      saveScan();
-    }
+    scanInput.addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        saveScan();
+      }
+    });
   });
-};
 
   function loadScans(dateKey) {
     const q = query(ref(db, "scans"), orderByChild("date"), equalTo(dateKey));
@@ -129,11 +135,13 @@ window.onload = () => {
 
   window.filterSearch = () => {
     const t = searchInput.value.toLowerCase();
-    renderList(currentData.filter(d =>
-      d.waybill.toLowerCase().includes(t) ||
-      d.customer.toLowerCase().includes(t) ||
-      d.reason.toLowerCase().includes(t)
-    ));
+    renderList(
+      currentData.filter(d =>
+        d.waybill.toLowerCase().includes(t) ||
+        d.customer.toLowerCase().includes(t) ||
+        d.reason.toLowerCase().includes(t)
+      )
+    );
   };
 
   window.saveScan = () => {
@@ -145,7 +153,7 @@ window.onload = () => {
       return;
     }
 
-    push(ref(db,"scans"),{
+    push(ref(db, "scans"), {
       customer: customer.value,
       reason: reason.value,
       waybill: scanInput.value.trim(),
@@ -157,10 +165,13 @@ window.onload = () => {
     beep.play();
 
     document.body.classList.add("flash");
-    setTimeout(()=>document.body.classList.remove("flash"),150);
+    setTimeout(() => document.body.classList.remove("flash"), 150);
 
     scanInput.value = "";
-    setTimeout(()=>{ scanInput.focus(); scanLock=false; },20);
+    setTimeout(() => {
+      scanInput.focus();
+      scanLock = false;
+    }, 20);
   };
 
   window.changeDate = () => loadScans(dateFilter.value);
@@ -199,7 +210,7 @@ window.onload = () => {
 </select>
 
 <label>Scan Waybill</label>
-<input id="scanInput" placeholder="Scan waybill" autofocus>
+<input id="scanInput" placeholder="Scan waybill">
 
 <h3>View by Date</h3>
 <input type="date" id="dateFilter" onchange="changeDate()">
@@ -215,4 +226,3 @@ window.onload = () => {
 
 </body>
 </html>
-
