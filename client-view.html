@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Client View</title>
+
+<style>
+  body {
+    font-family: Arial;
+    padding: 20px;
+    background: #ffffff;
+  }
+
+  .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .list-item {
+    padding: 12px;
+    background: #f2f2f2;
+    margin: 8px 0;
+    border-radius: 8px;
+  }
+
+  button {
+    padding: 8px 14px;
+    border: none;
+    background: #0a2b52;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+</style>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import {
+    getDatabase,
+    ref,
+    query,
+    orderByChild,
+    equalTo,
+    onValue
+  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+    authDomain: "pakisa-floor.firebaseapp.com",
+    databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  const company = localStorage.getItem("clientCompany");
+
+  if (!company) {
+    window.location.href = "client-login.html";
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("companyName").textContent = company;
+    loadScans();
+  });
+
+  function loadScans() {
+    const q = query(
+      ref(db, "scans"),
+      orderByChild("customer"),
+      equalTo(company)
+    );
+
+    onValue(q, snap => {
+      const list = document.getElementById("scanList");
+      list.innerHTML = "";
+
+      if (!snap.exists()) {
+        list.innerHTML = "<i>No scans found</i>";
+        return;
+      }
+
+      snap.forEach(c => {
+        const d = c.val();
+        const div = document.createElement("div");
+        div.className = "list-item";
+        div.innerHTML = `
+          <b>${d.waybill}</b><br>
+          ${d.reason}<br>
+          <small>${d.date}</small>
+        `;
+        list.appendChild(div);
+      });
+    });
+  }
+
+  window.logout = () => {
+    localStorage.removeItem("clientCompany");
+    localStorage.removeItem("clientKey");
+    window.location.href = "client-login.html";
+  };
+</script>
+</head>
+
+<body>
+
+<div class="top">
+  <h2 id="companyName"></h2>
+  <button onclick="logout()">Logout</button>
+</div>
+
+<h3>Parcels on Floor</h3>
+<div id="scanList"><i>Loading…</i></div>
+
+<br><br>
+<center>
+  <small>Pakisa Express Logistics</small>
+</center>
+
+</body>
+</html>
