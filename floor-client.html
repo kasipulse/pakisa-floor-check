@@ -44,18 +44,18 @@
     <label for="endDate">End Date</label>
     <input type="date" id="endDate" onchange="applyFilters()">
 
-    <h3 style="margin-top:14px">Scans</h3>
-    <div id="scanList" class="list"></div>
-
+    <!-- ✅ Moved export buttons above the scans list -->
     <div class="buttons">
       <button onclick="exportExcel()">Export Excel</button>
       <button onclick="exportPDF()">Export PDF</button>
     </div>
+
+    <h3 style="margin-top:14px">Scans</h3>
+    <div id="scanList" class="list"></div>
   </div>
 </div>
 
 <script>
-  // 🔑 Firebase config
   var firebaseConfig = {
     apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
     authDomain: "pakisa-floor.firebaseapp.com",
@@ -101,13 +101,11 @@
     render(filtered);
   }
 
-  // Load scans from Firebase
   function loadScans(){
     db.ref('scans').once('value').then(snapshot=>{
       const data = snapshot.val() || {};
       allScans = Object.values(data).sort((a,b)=> (a.timestamp||0)-(b.timestamp||0));
 
-      // Show only today's scans by default
       const today = todayKey();
       const todayScans = allScans.filter(d=>d.date===today);
       render(todayScans);
