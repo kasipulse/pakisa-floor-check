@@ -25,19 +25,11 @@
     margin: auto;
   }
 
-  h2 {
-    text-align: center;
-  }
+  h2 { text-align: center; }
 
-  label {
-    display: block;
-    margin-top: 15px;
-    font-weight: bold;
-  }
+  label { display: block; margin-top: 15px; font-weight: bold; }
 
-  select,
-  input,
-  button {
+  select, input, button {
     width: 100%;
     padding: 10px;
     margin-top: 5px;
@@ -46,10 +38,7 @@
     border: 1px solid #ccc;
   }
 
-  select, option {
-    color: #000;
-    background: #fff;
-  }
+  select, option { color: #000; background: #fff; }
 
   button {
     background: #409dbc;
@@ -59,15 +48,9 @@
     margin-top: 20px;
   }
 
-  button:hover {
-    opacity: 0.9;
-  }
+  button:hover { opacity: 0.9; }
 
-  .error {
-    color: red;
-    margin-top: 10px;
-    font-size: 13px;
-  }
+  .error { color: red; margin-top: 10px; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -119,6 +102,13 @@
         option.textContent = company.company || company.name || "Unnamed Company";
         companySelect.appendChild(option);
       });
+
+      // ✅ Check if a company is already logged in
+      const loggedIn = JSON.parse(localStorage.getItem("loggedInCompany"));
+      if (loggedIn) {
+        companySelect.value = loggedIn.id;
+        companySelect.disabled = true; // prevent changing company
+      }
     })
     .catch(err => {
       console.error("Error loading companies:", err);
@@ -145,11 +135,17 @@
         }
 
         if (companyData.password === password) {
-          // ✅ Password correct → redirect based on role
+          // ✅ Save to localStorage
+          localStorage.setItem("loggedInCompany", JSON.stringify({
+            id: companyId,
+            name: companyData.company || companyData.name
+          }));
+
+          // ✅ Redirect based on role
           if (companyData.role === "client") {
-            window.location.href = "client-login.html"; // 🔹 Redirect clients here
+            window.location.href = "client-login.html"; // client-only page
           } else if (companyData.role === "admin") {
-            window.location.href = "floor.html"; // Admin page
+            window.location.href = "floor.html"; // admin page
           } else {
             errorMsg.textContent = "Role not recognized.";
           }
