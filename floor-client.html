@@ -1,1 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Client Floor</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<style>
+  body { font-family: Arial; background:#f5f7fa; padding:20px; }
+  h1 { color:#0a2b52; }
+  .item { background:#fff; padding:12px; margin-bottom:8px; border-radius:8px; border:1px solid #eee; }
+</style>
+</head>
+<body>
+<h1>Client Floor Check</h1>
+<div id="scanList"></div>
 
+<script>
+  var firebaseConfig = {
+    apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+    authDomain: "pakisa-floor.firebaseapp.com",
+    databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com",
+    projectId: "pakisa-floor",
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const scanList = document.getElementById("scanList");
+
+  // ✅ Get logged-in client company
+  const clientCompany = JSON.parse(localStorage.getItem("clientCompany"));
+  if(!clientCompany){
+    alert("Please login first");
+    window.location.href="client-login.html";
+  } else {
+    const companyName = clientCompany.name;
+
+    // Load scans only for this company
+    db.ref("scans").orderByChild("customer").equalTo(companyName).once("value")
+      .then(snapshot=>{
+        const data = snapshot.val();
+        if(!data){ scanList.innerHTML="<i>No scans for this company</i>"; return; }
+        Object.values(data).forEach(d=>{
+          const div = document.createElement("div");
+          div.className="item";
+          div.innerHTML=`<b>${d.waybill}</b> — ${d.reason} (${d.date})`;
+          scanList.appendChild(div);
+        });
+      })
+      .catch(err=>{ console.error(err); scanList.innerHTML="Error loading scans"; });
+  }
+</script>
+</body>
+</html>
