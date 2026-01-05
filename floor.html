@@ -114,6 +114,10 @@
     onValue(q, snap => {
       currentData = [];
       snap.forEach(c => currentData.push(c.val()));
+
+      // 🔹 DEBUG LOG: see what data is coming from Firebase
+      console.log("Loaded scans:", currentData);
+
       renderList(currentData);
     });
   }
@@ -124,6 +128,9 @@
       scanList.innerHTML = "<i>No scans for this date</i>";
       return;
     }
+
+    // sort newest first
+    arr.sort((a,b) => b.timestamp - a.timestamp);
 
     arr.forEach(d => {
       const div = document.createElement("div");
@@ -137,9 +144,9 @@
     const t = searchInput.value.toLowerCase();
     renderList(
       currentData.filter(d =>
-        d.waybill.toLowerCase().includes(t) ||
-        d.customer.toLowerCase().includes(t) ||
-        d.reason.toLowerCase().includes(t)
+        (d.waybill && d.waybill.toLowerCase().includes(t)) ||
+        (d.customer && d.customer.toLowerCase().includes(t)) ||
+        (d.reason && d.reason.toLowerCase().includes(t))
       )
     );
   };
@@ -148,30 +155,39 @@
     if (scanLock) return;
     scanLock = true;
 
-    if (!customer.value || !reason.value || !scanInput.value.trim()) {
+    const waybill = scanInput.value.trim();
+    if (!customer.value || !reason.value || !waybill) {
       scanLock = false;
       return;
     }
 
-    push(ref(db, "scans"), {
+    const scanData = {
       customer: customer.value,
       reason: reason.value,
-      waybill: scanInput.value.trim(),
+      waybill,
       date: todayKey(),
       timestamp: Date.now()
-    });
+    };
 
-    beep.currentTime = 0;
-    beep.play();
+    push(ref(db, "scans"), scanData)
+      .then(() => {
+        // 🔹 DEBUG: confirm saved
+        console.log("Saved scan:", scanData);
 
-    document.body.classList.add("flash");
-    setTimeout(() => document.body.classList.remove("flash"), 150);
+        beep.currentTime = 0;
+        beep.play();
 
-    scanInput.value = "";
-    setTimeout(() => {
-      scanInput.focus();
-      scanLock = false;
-    }, 20);
+        document.body.classList.add("flash");
+        setTimeout(() => document.body.classList.remove("flash"), 150);
+
+        scanInput.value = "";
+        scanInput.focus();
+        scanLock = false;
+      })
+      .catch(err => {
+        console.error("Error saving scan:", err);
+        scanLock = false;
+      });
   };
 
   window.changeDate = () => loadScans(dateFilter.value);
