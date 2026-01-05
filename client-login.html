@@ -116,7 +116,7 @@
         const company = data[key];
         const option = document.createElement("option");
         option.value = key;
-        option.textContent = company.company || company.name || "Unnamed Company"; // ✅ Ensure correct display
+        option.textContent = company.company || company.name || "Unnamed Company";
         companySelect.appendChild(option);
       });
     })
@@ -147,9 +147,9 @@
         if (companyData.password === password) {
           // ✅ Password correct → redirect based on role
           if (companyData.role === "client") {
-            window.location.href = "floor-client.html"; // client-only page
+            window.location.href = "client-login.html"; // 🔹 Redirect clients here
           } else if (companyData.role === "admin") {
-            window.location.href = "floor.html"; // admin page
+            window.location.href = "floor.html"; // Admin page
           } else {
             errorMsg.textContent = "Role not recognized.";
           }
