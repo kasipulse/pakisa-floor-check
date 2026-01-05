@@ -105,7 +105,6 @@
   db.ref("companies").once("value")
     .then(snapshot => {
       const data = snapshot.val();
-
       companySelect.innerHTML = '<option value="">Select company</option>';
 
       if (!data) {
@@ -117,7 +116,7 @@
         const company = data[key];
         const option = document.createElement("option");
         option.value = key;
-        option.textContent = company.company || "Unnamed Company"; // ✅ FIXED
+        option.textContent = company.company || company.name || "Unnamed Company"; // ✅ Ensure correct display
         companySelect.appendChild(option);
       });
     })
@@ -136,20 +135,31 @@
       return;
     }
 
-    // Verify password from Firebase
-    db.ref(`companies/${companyId}/password`).once("value")
+    // Get the full company record from Firebase
+    db.ref(`companies/${companyId}`).once("value")
       .then(snap => {
-        const correctPassword = snap.val();
-        if (correctPassword === password) {
-          // ✅ Password correct → redirect to floor page
-          window.location.href = "floor.html";
+        const companyData = snap.val();
+        if (!companyData) {
+          errorMsg.textContent = "Company not found.";
+          return;
+        }
+
+        if (companyData.password === password) {
+          // ✅ Password correct → redirect based on role
+          if (companyData.role === "client") {
+            window.location.href = "floor-client.html"; // client-only page
+          } else if (companyData.role === "admin") {
+            window.location.href = "floor.html"; // admin page
+          } else {
+            errorMsg.textContent = "Role not recognized.";
+          }
         } else {
           errorMsg.textContent = "Incorrect password.";
         }
       })
       .catch(err => {
         console.error("Login error:", err);
-        errorMsg.textContent = "Error verifying password.";
+        errorMsg.textContent = "Error verifying login.";
       });
   }
 </script>
