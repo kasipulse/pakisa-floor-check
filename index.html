@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Pakisa Floor Check — Read only</title>
+<title>Pakisa Floor Check</title>
 <link rel="icon" href="">
 <style>
   :root {
@@ -13,21 +13,67 @@
     --card-bg: #fff;
     --page-bg: #f5f7fa;
   }
-  body { font-family: Inter, Arial, sans-serif; background:var(--page-bg); margin:0; padding:24px; color:#1f2937; }
+  body {
+    font-family: Inter, Arial, sans-serif;
+    background:var(--page-bg);
+    margin:0;
+    padding:24px;
+    color:#1f2937;
+  }
   .container { max-width:900px; margin:0 auto; }
-  .card { background:var(--card-bg); border-radius:12px; padding:18px; box-shadow: 0 6px 24px rgba(15,23,42,0.06); }
-  header { display:flex; gap:16px; align-items:center; margin-bottom:16px; }
+  .card {
+    background:var(--card-bg);
+    border-radius:12px;
+    padding:18px;
+    box-shadow: 0 6px 24px rgba(15,23,42,0.06);
+  }
+  header {
+    display:flex;
+    gap:16px;
+    align-items:center;
+    margin-bottom:16px;
+  }
   img.logo { width:140px; height:auto; }
   h1 { margin:0; color:var(--navy); font-size:20px; }
-  label { font-weight:600; font-size:13px; color:#374151; display:block; margin-top:12px; }
-  input[type="date"], input[type="search"] { width:100%; padding:10px; border-radius:8px; border:1px solid #e5e7eb; }
+  label {
+    font-weight:600;
+    font-size:13px;
+    color:#374151;
+    display:block;
+    margin-top:12px;
+  }
+  input[type="date"], input[type="search"] {
+    width:100%;
+    padding:10px;
+    border-radius:8px;
+    border:1px solid #e5e7eb;
+  }
   .list { margin-top:12px; }
-  .item { padding:12px; border-radius:10px; background:#fff; border:1px solid #eef2f7; margin-bottom:8px; }
-  .login-btn { display:inline-block; margin-top:12px; padding:10px 14px; background:var(--navy); color:#fff; border-radius:8px; text-decoration:none; }
-  footer { margin-top:18px; text-align:center; color:#6b7280; font-size:13px; }
+  .item {
+    padding:12px;
+    border-radius:10px;
+    background:#fff;
+    border:1px solid #eef2f7;
+    margin-bottom:8px;
+  }
+  .login-btn {
+    display:inline-block;
+    padding:10px 14px;
+    background:var(--navy);
+    color:#fff;
+    border-radius:8px;
+    text-decoration:none;
+    font-size:14px;
+  }
+  footer {
+    margin-top:18px;
+    text-align:center;
+    color:#6b7280;
+    font-size:13px;
+  }
 </style>
 
-<!-- Firebase SDK (only database needed for read) -->
+<!-- Firebase SDK (read-only) -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import { getDatabase, ref, query, orderByChild, equalTo, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -39,8 +85,7 @@
     projectId: "pakisa-floor",
     storageBucket: "pakisa-floor.firebasestorage.app",
     messagingSenderId: "1003516506618",
-    appId: "1:1003516506618:web:777d702f93616b6e323443",
-    measurementId: "G-JBZ8DYW49B"
+    appId: "1:1003516506618:web:777d702f93616b6e323443"
   };
 
   const app = initializeApp(firebaseConfig);
@@ -51,6 +96,12 @@
     return new Date().toISOString().slice(0,10);
   }
 
+  function escapeHtml(s='') {
+    return String(s).replace(/[&<>"']/g, c =>
+      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])
+    );
+  }
+
   function render(list) {
     const container = document.getElementById('scanList');
     container.innerHTML = '';
@@ -58,15 +109,22 @@
       container.innerHTML = '<i>No scans for this date</i>';
       return;
     }
+
     list.forEach(d => {
       const el = document.createElement('div');
       el.className = 'item';
-      el.innerHTML = `<strong>${escapeHtml(d.waybill)}</strong><div style="font-size:13px;color:#374151;margin-top:6px">${escapeHtml(d.customer)} &nbsp; — &nbsp; ${escapeHtml(d.reason)} <span style="float:right;color:#6b7280">${new Date(d.timestamp).toLocaleTimeString()}</span></div>`;
+      el.innerHTML = `
+        <strong>${escapeHtml(d.waybill)}</strong>
+        <div style="font-size:13px;color:#374151;margin-top:6px">
+          ${escapeHtml(d.reason)}
+          <span style="float:right;color:#6b7280">
+            ${new Date(d.timestamp).toLocaleTimeString()}
+          </span>
+        </div>
+      `;
       container.appendChild(el);
     });
   }
-
-  function escapeHtml(s=''){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
 
   function load(dateStr) {
     currentData = [];
@@ -75,7 +133,6 @@
     onValue(q, snapshot => {
       const arr = [];
       snapshot.forEach(s => arr.push(s.val()));
-      // Order by timestamp ascending
       arr.sort((a,b)=> (a.timestamp||0) - (b.timestamp||0));
       currentData = arr;
       render(currentData);
@@ -85,13 +142,16 @@
   window.filterSearch = () => {
     const term = document.getElementById('search').value.trim().toLowerCase();
     if (!term) return render(currentData);
-    const filtered = currentData.filter(d => (d.waybill||'').toLowerCase().includes(term) || (d.customer||'').toLowerCase().includes(term) || (d.reason||'').toLowerCase().includes(term));
-    render(filtered);
+    render(
+      currentData.filter(d =>
+        (d.waybill||'').toLowerCase().includes(term) ||
+        (d.reason||'').toLowerCase().includes(term)
+      )
+    );
   };
 
   window.changeDate = () => {
-    const val = document.getElementById('date').value;
-    load(val);
+    load(document.getElementById('date').value);
   };
 
   window.onload = () => {
@@ -101,14 +161,17 @@
   };
 </script>
 </head>
+
 <body>
 <div class="container">
   <div class="card">
     <header>
       <img class="logo" src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" alt="Pakisa">
       <div>
-        <h1>Pakisa Floor Check — Read only</h1>
-        <div style="color:#6b7280;font-size:13px;margin-top:6px">View today's scans or backdate to review history</div>
+        <h1>Pakisa Floor Check</h1>
+        <div style="color:#6b7280;font-size:13px;margin-top:6px">
+          Public floor view — for detailed access please login below
+        </div>
       </div>
     </header>
 
@@ -116,12 +179,18 @@
     <input id="date" type="date" onchange="changeDate()">
 
     <label for="search">Search</label>
-    <input id="search" type="search" placeholder="Search waybill / customer / reason" oninput="filterSearch()">
+    <input id="search" type="search" placeholder="Search waybill or reason" oninput="filterSearch()">
 
     <h3 style="margin-top:14px">Scans</h3>
-    <div id="scanList" class="list" style="margin-top:8px"></div>
+    <div id="scanList" class="list"></div>
 
-    <a class="login-btn" href="login.html">Pakisa Agent Login</a>
+    <!-- LOGIN BUTTONS -->
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px">
+      <a class="login-btn" href="client-login.html">Client Login</a>
+      <a class="login-btn" href="login.html" style="background:#6b7280">
+        Pakisa Agent Login
+      </a>
+    </div>
   </div>
 
   <footer><small>Designed by Mpho Mahlaba</small></footer>
