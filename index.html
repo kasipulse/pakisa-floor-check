@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Pakisa Floor Check</title>
-<link rel="icon" href="">
+
 <style>
   :root {
     --navy: #072760;
@@ -13,6 +13,7 @@
     --card-bg: #fff;
     --page-bg: #f5f7fa;
   }
+
   body {
     font-family: Inter, Arial, sans-serif;
     background:var(--page-bg);
@@ -20,21 +21,37 @@
     padding:24px;
     color:#1f2937;
   }
-  .container { max-width:900px; margin:0 auto; }
+
+  .container { 
+    max-width:900px; 
+    margin:0 auto; 
+  }
+
   .card {
     background:var(--card-bg);
     border-radius:12px;
     padding:18px;
     box-shadow: 0 6px 24px rgba(15,23,42,0.06);
   }
+
   header {
     display:flex;
     gap:16px;
     align-items:center;
     margin-bottom:16px;
   }
-  img.logo { width:140px; height:auto; }
-  h1 { margin:0; color:var(--navy); font-size:20px; }
+
+  img.logo { 
+    width:140px; 
+    height:auto; 
+  }
+
+  h1 { 
+    margin:0; 
+    color:var(--navy); 
+    font-size:20px; 
+  }
+
   label {
     font-weight:600;
     font-size:13px;
@@ -42,13 +59,20 @@
     display:block;
     margin-top:12px;
   }
-  input[type="date"], input[type="search"] {
+
+  input[type="date"], 
+  input[type="search"] {
     width:100%;
-    padding:10px;
+    padding:12px;
     border-radius:8px;
     border:1px solid #e5e7eb;
+    font-size:16px; /* mobile zoom fix */
   }
-  .list { margin-top:12px; }
+
+  .list { 
+    margin-top:12px; 
+  }
+
   .item {
     padding:12px;
     border-radius:10px;
@@ -56,144 +80,37 @@
     border:1px solid #eef2f7;
     margin-bottom:8px;
   }
+
   .login-btn {
     display:inline-block;
-    padding:10px 14px;
+    padding:12px 16px;
     background:var(--navy);
     color:#fff;
-    border-radius:8px;
+    border-radius:10px;
     text-decoration:none;
-    font-size:14px;
+    font-size:15px;
+    text-align:center;
+    flex:1;
   }
+
   footer {
     margin-top:18px;
     text-align:center;
     color:#6b7280;
     font-size:13px;
   }
-</style>
 
-<!-- Firebase SDK (read-only) -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getDatabase, ref, query, orderByChild, equalTo, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+  /* 🔥 MOBILE OPTIMISATION ONLY */
+  @media (max-width: 640px) {
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
-    authDomain: "pakisa-floor.firebaseapp.com",
-    databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/",
-    projectId: "pakisa-floor",
-    storageBucket: "pakisa-floor.firebasestorage.app",
-    messagingSenderId: "1003516506618",
-    appId: "1:1003516506618:web:777d702f93616b6e323443"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-  let currentData = [];
-
-  function todayKey() {
-    return new Date().toISOString().slice(0,10);
-  }
-
-  function escapeHtml(s='') {
-    return String(s).replace(/[&<>"']/g, c =>
-      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])
-    );
-  }
-
-  function render(list) {
-    const container = document.getElementById('scanList');
-    container.innerHTML = '';
-    if (!list || list.length === 0) {
-      container.innerHTML = '<i>No scans for this date</i>';
-      return;
+    body {
+      padding:12px;
     }
 
-    list.forEach(d => {
-      const el = document.createElement('div');
-      el.className = 'item';
-      el.innerHTML = `
-        <strong>${escapeHtml(d.waybill)}</strong>
-        <div style="font-size:13px;color:#374151;margin-top:6px">
-          ${escapeHtml(d.reason)}
-          <span style="float:right;color:#6b7280">
-            ${new Date(d.timestamp).toLocaleTimeString()}
-          </span>
-        </div>
-      `;
-      container.appendChild(el);
-    });
-  }
+    header {
+      flex-direction:column;
+      align-items:flex-start;
+      text-align:left;
+    }
 
-  function load(dateStr) {
-    currentData = [];
-    render([]);
-    const q = query(ref(db, 'scans'), orderByChild('date'), equalTo(dateStr));
-    onValue(q, snapshot => {
-      const arr = [];
-      snapshot.forEach(s => arr.push(s.val()));
-      arr.sort((a,b)=> (a.timestamp||0) - (b.timestamp||0));
-      currentData = arr;
-      render(currentData);
-    });
-  }
-
-  window.filterSearch = () => {
-    const term = document.getElementById('search').value.trim().toLowerCase();
-    if (!term) return render(currentData);
-    render(
-      currentData.filter(d =>
-        (d.waybill||'').toLowerCase().includes(term) ||
-        (d.reason||'').toLowerCase().includes(term)
-      )
-    );
-  };
-
-  window.changeDate = () => {
-    load(document.getElementById('date').value);
-  };
-
-  window.onload = () => {
-    const today = todayKey();
-    document.getElementById('date').value = today;
-    load(today);
-  };
-</script>
-</head>
-
-<body>
-<div class="container">
-  <div class="card">
-    <header>
-      <img class="logo" src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" alt="Pakisa">
-      <div>
-        <h1>Pakisa Floor Check</h1>
-        <div style="color:#6b7280;font-size:13px;margin-top:6px">
-          Public floor view — for detailed access please login below
-        </div>
-      </div>
-    </header>
-
-    <label for="date">Date</label>
-    <input id="date" type="date" onchange="changeDate()">
-
-    <label for="search">Search</label>
-    <input id="search" type="search" placeholder="Search waybill or reason" oninput="filterSearch()">
-
-    <h3 style="margin-top:14px">Scans</h3>
-    <div id="scanList" class="list"></div>
-
-    <!-- LOGIN BUTTONS -->
-    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px">
-      <a class="login-btn" href="client-login.html">Client Login</a>
-      <a class="login-btn" href="login.html" style="background:#6b7280">
-        Pakisa Agent Login
-      </a>
-    </div>
-  </div>
-
-  <footer><small>Designed by Mpho Mahlaba</small></footer>
-</div>
-</body>
-</html>
+   
