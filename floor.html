@@ -49,7 +49,7 @@
     equalTo
   } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-  /* 🔥 FIREBASE */
+  /* 🔥 FIREBASE CONFIG */
   const firebaseConfig = {
     apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
     authDomain: "pakisa-floor.firebaseapp.com",
@@ -75,7 +75,7 @@
     }
   });
 
-  /* ✅ MODULE-SAFE DOM REFERENCES */
+  /* ✅ DOM REFERENCES */
   const customer = document.getElementById("customer");
   const reason = document.getElementById("reason");
   const scanInput = document.getElementById("scanInput");
@@ -108,6 +108,7 @@
     });
   });
 
+  /* 🔄 LOAD SCANS */
   function loadScans(dateKey) {
     const q = query(ref(db, "scans"), orderByChild("date"), equalTo(dateKey));
 
@@ -115,13 +116,13 @@
       currentData = [];
       snap.forEach(c => currentData.push(c.val()));
 
-      // 🔹 DEBUG LOG: see what data is coming from Firebase
-      console.log("Loaded scans:", currentData);
+      console.log("Loaded scans:", currentData); // debug log
 
       renderList(currentData);
     });
   }
 
+  /* 🖼 RENDER LIST */
   function renderList(arr) {
     scanList.innerHTML = "";
     if (!arr.length) {
@@ -129,7 +130,7 @@
       return;
     }
 
-    // sort newest first
+    // newest first
     arr.sort((a,b) => b.timestamp - a.timestamp);
 
     arr.forEach(d => {
@@ -140,6 +141,7 @@
     });
   }
 
+  /* 🔍 SEARCH FILTER */
   window.filterSearch = () => {
     const t = searchInput.value.toLowerCase();
     renderList(
@@ -151,6 +153,7 @@
     );
   };
 
+  /* ✅ SAVE SCAN */
   window.saveScan = () => {
     if (scanLock) return;
     scanLock = true;
@@ -171,8 +174,11 @@
 
     push(ref(db, "scans"), scanData)
       .then(() => {
-        // 🔹 DEBUG: confirm saved
-        console.log("Saved scan:", scanData);
+        console.log("Saved scan:", scanData); // debug log
+
+        // 🔹 Immediately update UI
+        currentData.push(scanData);
+        renderList(currentData);
 
         beep.currentTime = 0;
         beep.play();
@@ -190,6 +196,7 @@
       });
   };
 
+  /* 🔄 CHANGE DATE */
   window.changeDate = () => loadScans(dateFilter.value);
 </script>
 </head>
