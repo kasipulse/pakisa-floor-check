@@ -3,17 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <title>Client Floor</title>
+
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<!-- SheetJS for Excel -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- jsPDF for PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <style>
   body { font-family: Arial; background:#f5f7fa; padding:20px; }
   h1 { color:#0a2b52; }
   label { font-weight:bold; margin-top:12px; display:block; }
   input { padding:8px; margin-top:4px; border-radius:4px; border:1px solid #ccc; width:200px; }
+  button { margin-top:12px; padding:8px 14px; border:none; background:#409dbc; color:#fff; border-radius:6px; cursor:pointer; margin-right:6px; }
+  button:hover { opacity:0.9; }
   .item { background:#fff; padding:12px; margin-bottom:8px; border-radius:8px; border:1px solid #eee; }
 </style>
 </head>
 <body>
+
 <h1>Client Floor Check</h1>
 
 <label for="dateFilter">Filter by Date</label>
@@ -22,74 +34,118 @@
 <label for="searchFilter">Search</label>
 <input type="text" id="searchFilter" placeholder="Search waybill / reason">
 
+<div style="margin-top:12px;">
+  <button id="exportExcel">Export to Excel</button>
+  <button id="exportPDF">Export to PDF</button>
+</div>
+
 <div id="scanList" style="margin-top:12px"></div>
 
 <script>
-  var firebaseConfig = {
-    apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
-    authDomain: "pakisa-floor.firebaseapp.com",
-    databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com",
-    projectId: "pakisa-floor",
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-  const scanList = document.getElementById("scanList");
+var firebaseConfig = {
+  apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+  authDomain: "pakisa-floor.firebaseapp.com",
+  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com",
+  projectId: "pakisa-floor",
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const scanList = document.getElementById("scanList");
 
-  // ✅ Get logged-in client company
-  const clientCompany = JSON.parse(localStorage.getItem("clientCompany"));
-  if(!clientCompany){
-    alert("Please login first");
-    window.location.href="client-login.html";
-  } else {
-    const companyName = clientCompany.name;
+// Get logged-in client company from localStorage
+const clientCompany = JSON.parse(localStorage.getItem("clientCompany"));
+if(!clientCompany){
+  alert("Please login first");
+  window.location.href="client-login.html";
+} else {
+  const companyName = clientCompany.name;
+  let allScans = [];
 
-    // Load all scans for this company
-    let allScans = [];
-    db.ref("scans").orderByChild("customer").equalTo(companyName).once("value")
-      .then(snapshot=>{
-        const data = snapshot.val();
-        if(!data){ scanList.innerHTML="<i>No scans for this company</i>"; return; }
-        allScans = Object.values(data).sort((a,b)=> (a.timestamp||0)-(b.timestamp||0));
-        renderScans(allScans);
-      })
-      .catch(err=>{ console.error(err); scanList.innerHTML="Error loading scans"; });
+  // Load scans for this company
+  db.ref("scans").orderByChild("customer").equalTo(companyName).once("value")
+    .then(snapshot=>{
+      const data = snapshot.val();
+      if(!data){ scanList.innerHTML="<i>No scans for this company</i>"; return; }
+      allScans = Object.values(data).sort((a,b)=> (a.timestamp||0)-(b.timestamp||0));
+      renderScans(allScans);
+    })
+    .catch(err=>{ console.error(err); scanList.innerHTML="Error loading scans"; });
 
-    // Render function with optional filters
-    function renderScans(list){
-      const dateVal = document.getElementById("dateFilter").value;
-      const searchVal = document.getElementById("searchFilter").value.trim().toLowerCase();
+  function renderScans(list){
+    const dateVal = document.getElementById("dateFilter").value;
+    const searchVal = document.getElementById("searchFilter").value.trim().toLowerCase();
 
-      let filtered = list;
+    let filtered = list;
 
-      if(dateVal){
-        filtered = filtered.filter(d => d.date === dateVal);
-      }
-
-      if(searchVal){
-        filtered = filtered.filter(d =>
-          (d.waybill||"").toLowerCase().includes(searchVal) ||
-          (d.reason||"").toLowerCase().includes(searchVal)
-        );
-      }
-
-      scanList.innerHTML = "";
-      if(filtered.length === 0){
-        scanList.innerHTML = "<i>No scans match your filters</i>";
-        return;
-      }
-
-      filtered.forEach(d=>{
-        const div = document.createElement("div");
-        div.className="item";
-        div.innerHTML = `<b>${d.waybill}</b> — ${d.reason} (${d.date})`;
-        scanList.appendChild(div);
-      });
+    if(dateVal){
+      filtered = filtered.filter(d => d.date === dateVal);
     }
 
-    // Event listeners
-    document.getElementById("dateFilter").addEventListener("change", ()=>renderScans(allScans));
-    document.getElementById("searchFilter").addEventListener("input", ()=>renderScans(allScans));
+    if(searchVal){
+      filtered = filtered.filter(d =>
+        (d.waybill||"").toLowerCase().includes(searchVal) ||
+        (d.reason||"").toLowerCase().includes(searchVal)
+      );
+    }
+
+    scanList.innerHTML = "";
+    if(filtered.length === 0){
+      scanList.innerHTML = "<i>No scans match your filters</i>";
+      return;
+    }
+
+    filtered.forEach(d=>{
+      const div = document.createElement("div");
+      div.className="item";
+      div.innerHTML = `<b>${d.waybill}</b> — ${d.reason} (${d.date})`;
+      scanList.appendChild(div);
+    });
   }
+
+  document.getElementById("dateFilter").addEventListener("change", ()=>renderScans(allScans));
+  document.getElementById("searchFilter").addEventListener("input", ()=>renderScans(allScans));
+
+  // Export to Excel
+  document.getElementById("exportExcel").addEventListener("click", ()=>{
+    const exportData = getFilteredScans();
+    if(exportData.length === 0){ alert("No data to export"); return; }
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Scans");
+    XLSX.writeFile(wb, "ClientScans.xlsx");
+  });
+
+  // Export to PDF
+  document.getElementById("exportPDF").addEventListener("click", ()=>{
+    const exportData = getFilteredScans();
+    if(exportData.length === 0){ alert("No data to export"); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFontSize(12);
+    doc.text("Client Scans", 14, 14);
+
+    let y = 20;
+    exportData.forEach(d=>{
+      doc.text(`Waybill: ${d.waybill} — Reason: ${d.reason} — Date: ${d.date}`, 14, y);
+      y += 8;
+      if(y > 280){ doc.addPage(); y = 20; }
+    });
+
+    doc.save("ClientScans.pdf");
+  });
+
+  function getFilteredScans(){
+    const dateVal = document.getElementById("dateFilter").value;
+    const searchVal = document.getElementById("searchFilter").value.trim().toLowerCase();
+    return allScans.filter(d=>{
+      if(dateVal && d.date !== dateVal) return false;
+      if(searchVal && !((d.waybill||"").toLowerCase().includes(searchVal) || (d.reason||"").toLowerCase().includes(searchVal))) return false;
+      return true;
+    });
+  }
+
+}
 </script>
+
 </body>
 </html>
