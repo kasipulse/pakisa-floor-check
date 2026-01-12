@@ -13,11 +13,23 @@
     transition: background-color 0.15s ease;
   }
 
-  select, input {
+  select, input, textarea, button {
     width: 100%;
     padding: 12px;
     margin: 8px 0;
     font-size: 16px;
+  }
+
+  textarea {
+    resize: vertical;
+  }
+
+  button {
+    background: #0a2b52;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
   }
 
   .list-item {
@@ -72,15 +84,8 @@
     }
   });
 
-  /* ✅ DOM REFERENCES */
-  const customer = document.getElementById("customer");
-  const reason = document.getElementById("reason");
-  const scanInput = document.getElementById("scanInput");
-  const scanList = document.getElementById("scanList");
-  const searchInput = document.getElementById("searchInput");
-  const dateFilter = document.getElementById("dateFilter");
-  const beep = document.getElementById("beep");
-
+  /* DOM */
+  let customer, reason, scanInput, bulkInput, scanList, searchInput, dateFilter, beep;
   let currentData = [];
   let scanLock = false;
 
@@ -89,10 +94,17 @@
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
-  /* 🚀 INIT */
   window.addEventListener("DOMContentLoaded", () => {
-    const today = todayKey();
-    dateFilter.value = today;
+    customer = document.getElementById("customer");
+    reason = document.getElementById("reason");
+    scanInput = document.getElementById("scanInput");
+    bulkInput = document.getElementById("bulkInput");
+    scanList = document.getElementById("scanList");
+    searchInput = document.getElementById("searchInput");
+    dateFilter = document.getElementById("dateFilter");
+    beep = document.getElementById("beep");
+
+    dateFilter.value = todayKey();
     loadScans();
 
     scanInput.focus();
@@ -105,24 +117,16 @@
     });
   });
 
-  /* 🔄 LOAD SCANS (ALL) */
+  /* LOAD ALL SCANS */
   function loadScans() {
-    const scansRef = ref(db, "scans");
-    onValue(scansRef, snap => {
+    onValue(ref(db, "scans"), snap => {
       currentData = [];
-      snap.forEach(c => {
-        currentData.push(c.val());
-      });
-
-      // sort newest first
+      snap.forEach(c => currentData.push(c.val()));
       currentData.sort((a,b) => b.timestamp - a.timestamp);
-
-      console.log("Loaded scans:", currentData);
       renderList(currentData);
     });
   }
 
-  /* 🖼 RENDER LIST */
   function renderList(arr) {
     const filterDate = dateFilter.value;
     scanList.innerHTML = "";
@@ -144,22 +148,20 @@
     });
   }
 
-  /* 🔍 SEARCH FILTER */
   window.filterSearch = () => {
     const t = searchInput.value.toLowerCase();
-    const filterDate = dateFilter.value;
-
-    const filtered = currentData.filter(d =>
-      (!filterDate || d.date === filterDate) &&
-      (d.waybill.toLowerCase().includes(t) ||
-      d.customer.toLowerCase().includes(t) ||
-      d.reason.toLowerCase().includes(t))
+    renderList(
+      currentData.filter(d =>
+        d.waybill.toLowerCase().includes(t) ||
+        d.customer.toLowerCase().includes(t) ||
+        d.reason.toLowerCase().includes(t)
+      )
     );
-
-    renderList(filtered);
   };
 
-  /* ✅ SAVE SCAN */
+  window.changeDate = () => renderList(currentData);
+
+  /* SINGLE SCAN */
   window.saveScan = () => {
     if (scanLock) return;
     scanLock = true;
@@ -178,32 +180,60 @@
       timestamp: Date.now()
     };
 
-    push(ref(db, "scans"), scanData)
-      .then(() => {
-        console.log("Saved scan:", scanData);
+    push(ref(db, "scans"), scanData).then(() => {
+      currentData.push(scanData);
+      renderList(currentData);
 
-        // 🔹 Immediately update UI
-        currentData.push(scanData);
-        renderList(currentData);
+      beep.play();
+      document.body.classList.add("flash");
+      setTimeout(() => document.body.classList.remove("flash"), 150);
 
-        beep.currentTime = 0;
-        beep.play();
-
-        document.body.classList.add("flash");
-        setTimeout(() => document.body.classList.remove("flash"), 150);
-
-        scanInput.value = "";
-        scanInput.focus();
-        scanLock = false;
-      })
-      .catch(err => {
-        console.error("Error saving scan:", err);
-        scanLock = false;
-      });
+      scanInput.value = "";
+      scanInput.focus();
+      scanLock = false;
+    });
   };
 
-  /* 🔄 CHANGE DATE */
-  window.changeDate = () => renderList(currentData);
+  /* BULK SCAN */
+  window.saveBulkScans = async () => {
+    const text = bulkInput.value.trim();
+    if (!customer.value || !reason.value || !text) {
+      alert("Select customer, reason and paste waybills");
+      return;
+    }
+
+    const lines = text
+      .split(/\r?\n/)
+      .map(l => l.trim())
+      .filter(l => l.length >= 8);
+
+    if (!lines.length) {
+      alert("No valid waybills found");
+      return;
+    }
+
+    const date = todayKey();
+    const now = Date.now();
+
+    for (const waybill of lines) {
+      const scanData = {
+        customer: customer.value,
+        reason: reason.value,
+        waybill,
+        date,
+        timestamp: now
+      };
+      await push(ref(db, "scans"), scanData);
+      currentData.push(scanData);
+    }
+
+    renderList(currentData);
+    bulkInput.value = "";
+
+    beep.play();
+    document.body.classList.add("flash");
+    setTimeout(() => document.body.classList.remove("flash"), 200);
+  };
 </script>
 </head>
 
@@ -228,18 +258,21 @@
 <label>Reason</label>
 <select id="reason">
   <option value="">Select Reason</option>
+  <option>Out for delivery</option>
   <option>Nobody home</option>
   <option>Incorrect phone number</option>
   <option>Bad address</option>
   <option>Missing paperwork</option>
   <option>Misroute</option>
-  <option>Customer refused shipment</option>
-  <option>Will be delivered on commitment date</option>
-  <option>Voicemail / consignee not available</option>
 </select>
 
 <label>Scan Waybill</label>
 <input id="scanInput" placeholder="Scan waybill">
+
+<label>Bulk Waybill Paste (one per line)</label>
+<textarea id="bulkInput" placeholder="Paste waybills here, one per line"></textarea>
+
+<button onclick="saveBulkScans()">Bulk Upload</button>
 
 <h3>View by Date</h3>
 <input type="date" id="dateFilter" onchange="changeDate()">
