@@ -22,6 +22,7 @@
 
   textarea {
     resize: vertical;
+    min-height: 120px;
   }
 
   button {
@@ -45,195 +46,192 @@
 </style>
 
 <audio id="beep" preload="auto">
-  <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" type="audio/ogg">
+  <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg">
 </audio>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-  import {
-    getDatabase,
-    ref,
-    push,
-    onValue
-  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-  /* 🔥 FIREBASE CONFIG */
-  const firebaseConfig = {
-    apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
-    authDomain: "pakisa-floor.firebaseapp.com",
-    projectId: "pakisa-floor",
-    databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/"
-  };
+/* 🔥 FIREBASE CONFIG */
+const firebaseConfig = {
+  apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+  authDomain: "pakisa-floor.firebaseapp.com",
+  projectId: "pakisa-floor",
+  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/"
+};
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getDatabase(app);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
 
-  /* 🔐 ADMINS */
-  const ADMINS = [
-    "ops1@pakisalogistics.co.za",
-    "ops2@pakisalogistics.co.za",
-    "csd@pakisalogistics.co.za",
-    "csd1@pakisalogistics.co.za"
-  ];
+/* 🔐 ADMINS */
+const ADMINS = [
+  "ops1@pakisalogistics.co.za",
+  "ops2@pakisalogistics.co.za",
+  "csd@pakisalogistics.co.za",
+  "csd1@pakisalogistics.co.za"
+];
 
-  onAuthStateChanged(auth, user => {
-    if (!user || !ADMINS.includes(user.email)) {
-      window.location.href = "/index.html";
+onAuthStateChanged(auth, user => {
+  if (!user || !ADMINS.includes(user.email)) {
+    window.location.href = "/index.html";
+  }
+});
+
+/* DOM */
+let customer, reason, scanInput, bulkInput, scanList, searchInput, dateFilter, beep;
+let currentData = [];
+let scanLock = false;
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+/* INIT */
+window.addEventListener("DOMContentLoaded", () => {
+  customer = document.getElementById("customer");
+  reason = document.getElementById("reason");
+  scanInput = document.getElementById("scanInput");
+  bulkInput = document.getElementById("bulkInput");
+  scanList = document.getElementById("scanList");
+  searchInput = document.getElementById("searchInput");
+  dateFilter = document.getElementById("dateFilter");
+  beep = document.getElementById("beep");
+
+  dateFilter.value = todayKey();
+  loadScans();
+
+  scanInput.focus();
+  scanInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveScan();
     }
   });
+});
 
-  /* DOM */
-  let customer, reason, scanInput, bulkInput, scanList, searchInput, dateFilter, beep;
-  let currentData = [];
-  let scanLock = false;
+/* LOAD SCANS */
+function loadScans() {
+  onValue(ref(db, "scans"), snap => {
+    currentData = [];
+    snap.forEach(c => currentData.push(c.val()));
+    currentData.sort((a,b) => b.timestamp - a.timestamp);
+    renderList(currentData);
+  });
+}
 
-  function todayKey() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+/* RENDER */
+function renderList(arr) {
+  const filterDate = dateFilter.value;
+  scanList.innerHTML = "";
+
+  const filtered = filterDate
+    ? arr.filter(s => s.date === filterDate)
+    : arr;
+
+  if (!filtered.length) {
+    scanList.innerHTML = "<i>No scans for this date</i>";
+    return;
   }
 
-  window.addEventListener("DOMContentLoaded", () => {
-    customer = document.getElementById("customer");
-    reason = document.getElementById("reason");
-    scanInput = document.getElementById("scanInput");
-    bulkInput = document.getElementById("bulkInput");
-    scanList = document.getElementById("scanList");
-    searchInput = document.getElementById("searchInput");
-    dateFilter = document.getElementById("dateFilter");
-    beep = document.getElementById("beep");
+  filtered.forEach(d => {
+    const div = document.createElement("div");
+    div.className = "list-item";
+    div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
+    scanList.appendChild(div);
+  });
+}
 
-    dateFilter.value = todayKey();
-    loadScans();
+/* SEARCH */
+window.filterSearch = () => {
+  const t = searchInput.value.toLowerCase();
+  renderList(
+    currentData.filter(d =>
+      d.waybill.toLowerCase().includes(t) ||
+      d.customer.toLowerCase().includes(t) ||
+      d.reason.toLowerCase().includes(t)
+    )
+  );
+};
 
+window.changeDate = () => renderList(currentData);
+
+/* SINGLE SCAN */
+window.saveScan = () => {
+  if (scanLock) return;
+  scanLock = true;
+
+  const waybill = scanInput.value.trim();
+  if (!customer.value || !reason.value || !waybill) {
+    scanLock = false;
+    return;
+  }
+
+  const scanData = {
+    customer: customer.value,
+    reason: reason.value,
+    waybill,
+    date: todayKey(),
+    timestamp: Date.now()
+  };
+
+  push(ref(db, "scans"), scanData).then(() => {
+    beep.currentTime = 0;
+    beep.play();
+
+    document.body.classList.add("flash");
+    setTimeout(() => document.body.classList.remove("flash"), 150);
+
+    scanInput.value = "";
     scanInput.focus();
-
-    scanInput.addEventListener("keydown", e => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        saveScan();
-      }
-    });
+    scanLock = false;
   });
+};
 
-  /* LOAD ALL SCANS */
-  function loadScans() {
-    onValue(ref(db, "scans"), snap => {
-      currentData = [];
-      snap.forEach(c => currentData.push(c.val()));
-      currentData.sort((a,b) => b.timestamp - a.timestamp);
-      renderList(currentData);
-    });
+/* BULK UPLOAD */
+window.saveBulkScans = async () => {
+  const text = bulkInput.value.trim();
+  if (!customer.value || !reason.value || !text) {
+    alert("Select customer, reason and paste waybills");
+    return;
   }
 
-  function renderList(arr) {
-    const filterDate = dateFilter.value;
-    scanList.innerHTML = "";
+  const lines = text
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(l => l.length >= 8);
 
-    const filtered = filterDate
-      ? arr.filter(s => s.date === filterDate)
-      : arr;
-
-    if (!filtered.length) {
-      scanList.innerHTML = "<i>No scans for this date</i>";
-      return;
-    }
-
-    filtered.forEach(d => {
-      const div = document.createElement("div");
-      div.className = "list-item";
-      div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
-      scanList.appendChild(div);
-    });
+  if (!lines.length) {
+    alert("No valid waybills found");
+    return;
   }
 
-  window.filterSearch = () => {
-    const t = searchInput.value.toLowerCase();
-    renderList(
-      currentData.filter(d =>
-        d.waybill.toLowerCase().includes(t) ||
-        d.customer.toLowerCase().includes(t) ||
-        d.reason.toLowerCase().includes(t)
-      )
-    );
-  };
+  const date = todayKey();
+  const now = Date.now();
 
-  window.changeDate = () => renderList(currentData);
-
-  /* SINGLE SCAN */
-  window.saveScan = () => {
-    if (scanLock) return;
-    scanLock = true;
-
-    const waybill = scanInput.value.trim();
-    if (!customer.value || !reason.value || !waybill) {
-      scanLock = false;
-      return;
-    }
-
-    const scanData = {
+  for (const waybill of lines) {
+    await push(ref(db, "scans"), {
       customer: customer.value,
       reason: reason.value,
       waybill,
-      date: todayKey(),
-      timestamp: Date.now()
-    };
-
-    push(ref(db, "scans"), scanData).then(() => {
-      currentData.push(scanData);
-      renderList(currentData);
-
-      beep.play();
-      document.body.classList.add("flash");
-      setTimeout(() => document.body.classList.remove("flash"), 150);
-
-      scanInput.value = "";
-      scanInput.focus();
-      scanLock = false;
+      date,
+      timestamp: now
     });
-  };
+  }
 
-  /* BULK SCAN */
-  window.saveBulkScans = async () => {
-    const text = bulkInput.value.trim();
-    if (!customer.value || !reason.value || !text) {
-      alert("Select customer, reason and paste waybills");
-      return;
-    }
+  bulkInput.value = "";
+  beep.currentTime = 0;
+  beep.play();
 
-    const lines = text
-      .split(/\r?\n/)
-      .map(l => l.trim())
-      .filter(l => l.length >= 8);
+  document.body.classList.add("flash");
+  setTimeout(() => document.body.classList.remove("flash"), 200);
 
-    if (!lines.length) {
-      alert("No valid waybills found");
-      return;
-    }
-
-    const date = todayKey();
-    const now = Date.now();
-
-    for (const waybill of lines) {
-      const scanData = {
-        customer: customer.value,
-        reason: reason.value,
-        waybill,
-        date,
-        timestamp: now
-      };
-      await push(ref(db, "scans"), scanData);
-      currentData.push(scanData);
-    }
-
-    renderList(currentData);
-    bulkInput.value = "";
-
-    beep.play();
-    document.body.classList.add("flash");
-    setTimeout(() => document.body.classList.remove("flash"), 200);
-  };
+  // 🔥 force refresh so UI always updates
+  loadScans();
+};
 </script>
 </head>
 
