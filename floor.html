@@ -42,10 +42,6 @@
   .flash {
     background: #2ecc71 !important;
   }
-
-  ul {
-    padding-left: 20px;
-  }
 </style>
 
 <audio id="beep">
@@ -98,10 +94,15 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 🔥 FORCE SCAN INPUT FOCUS FOR AUTO-SCANNING
-  setInterval(() => {
-    if (document.activeElement !== scanInput) scanInput.focus();
-  }, 300);
+  // 🔥 Smart auto-focus for scanning
+  scanInput.addEventListener("blur", () => {
+    setTimeout(() => {
+      const active = document.activeElement;
+      if (active.tagName !== "SELECT" && active.tagName !== "TEXTAREA" && active !== scanInput) {
+        scanInput.focus();
+      }
+    }, 100);
+  });
 });
 
 /* 🔥 REALTIME LISTENER */
@@ -114,50 +115,46 @@ function listenForScans() {
   });
 }
 
-/* RENDER SCANS */
 function renderList(arr) {
   scanList.innerHTML = "";
-  
-  // filter by date
-  let filtered = dateFilter.value ? arr.filter(s => s.date === dateFilter.value) : arr;
 
-  // filter by search
-  const searchText = searchInput?.value.toLowerCase() || "";
-  if(searchText) {
-    filtered = filtered.filter(d =>
-      d.waybill.toLowerCase().includes(searchText) ||
-      d.customer.toLowerCase().includes(searchText) ||
-      d.reason.toLowerCase().includes(searchText)
-    );
-  }
+  const filtered = arr.filter(s => s.date === dateFilter.value);
 
-  if(filtered.length === 0) {
-    scanList.innerHTML = "<i>No scans found</i>";
+  if (!filtered.length) {
+    scanList.innerHTML = "<i>No scans for this date</i>";
     return;
   }
 
-  const ul = document.createElement("ul");
-  filtered.slice(0, 200).forEach(scan => {
-    const li = document.createElement("li");
-    li.className = "list-item";
-    li.textContent = `${scan.date} | ${scan.customer} | ${scan.waybill} | ${scan.reason}`;
-    ul.appendChild(li);
+  filtered.slice(0, 200).forEach(d => {
+    const div = document.createElement("div");
+    div.className = "list-item";
+    div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
+    scanList.appendChild(div);
   });
-  scanList.appendChild(ul);
 }
 
 /* SEARCH */
-window.filterSearch = () => renderList(currentData);
+window.filterSearch = () => {
+  const t = searchInput.value.toLowerCase();
+  renderList(
+    currentData.filter(d =>
+      d.waybill.toLowerCase().includes(t) ||
+      d.customer.toLowerCase().includes(t) ||
+      d.reason.toLowerCase().includes(t)
+    )
+  );
+};
+
 window.changeDate = () => renderList(currentData);
 
-/* SINGLE SCAN */
+/* ✅ SINGLE SCAN */
 window.saveScan = async () => {
-  if(scanLock) return;
+  if (scanLock) return;
   scanLock = true;
 
   try {
     const waybill = scanInput.value.trim();
-    if(!customer.value || !reason.value || !waybill) return;
+    if (!customer.value || !reason.value || !waybill) return;
 
     await push(ref(db, "scans"), {
       customer: customer.value,
@@ -179,18 +176,18 @@ window.saveScan = async () => {
   }
 };
 
-/* BULK UPLOAD */
+/* ✅ BULK UPLOAD */
 window.saveBulkScans = async () => {
   const text = bulkInput.value.trim();
-  if(!customer.value || !reason.value || !text) {
+  if (!customer.value || !reason.value || !text) {
     alert("Select customer, reason and paste waybills");
     return;
   }
 
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length >= 8);
-  if(!lines.length) return alert("No valid waybills");
+  if (!lines.length) return alert("No valid waybills");
 
-  for(const waybill of lines) {
+  for (const waybill of lines) {
     await push(ref(db, "scans"), {
       customer: customer.value,
       reason: reason.value,
