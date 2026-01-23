@@ -8,162 +8,202 @@
 <style>
 :root {
   --navy:#072760;
-  --sky:#0F99DA;
-  --gold:#DEB657;
   --bg:#f5f7fa;
+  --card:#ffffff;
 }
 
 body {
   margin:0;
   padding:16px;
-  font-family:Inter,Arial,sans-serif;
   background:var(--bg);
+  font-family:Inter, Arial, sans-serif;
+  color:#1f2937;
 }
 
 .container {
   max-width:900px;
-  margin:auto;
+  margin:0 auto;
 }
 
 .card {
-  background:#fff;
-  padding:18px;
+  background:var(--card);
   border-radius:14px;
-  box-shadow:0 6px 24px rgba(0,0,0,.08);
+  padding:18px;
+  box-shadow:0 6px 24px rgba(15,23,42,.08);
 }
 
-.login-row {
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
-  margin-bottom:14px;
-}
-
-.login-btn {
+header {
   display:flex;
+  gap:16px;
   align-items:center;
-  justify-content:center;
-  gap:8px;
-  padding:14px;
-  border-radius:12px;
-  font-weight:600;
-  text-decoration:none;
-  color:#fff;
 }
 
-.client { background:var(--sky); }
-.agent { background:var(--navy); }
+.logo {
+  width:140px;
+}
 
 h1 {
-  margin:8px 0 12px;
+  margin:0;
+  font-size:20px;
   color:var(--navy);
 }
 
 label {
-  font-size:13px;
-  font-weight:600;
-  margin-top:12px;
   display:block;
+  margin-top:14px;
+  font-weight:600;
+  font-size:13px;
 }
 
 input {
   width:100%;
   padding:12px;
-  border-radius:10px;
+  border-radius:8px;
   border:1px solid #e5e7eb;
   font-size:16px;
 }
 
-.item {
-  margin-top:8px;
-  padding:12px;
-  border-radius:10px;
-  border:1px solid #e5e7eb;
-  background:#fff;
+.list {
+  margin-top:14px;
 }
 
-.small {
-  font-size:12px;
-  color:#6b7280;
+.item {
+  padding:12px;
+  border-radius:10px;
+  background:#fff;
+  border:1px solid #eef2f7;
+  margin-bottom:8px;
+}
+
+.buttons {
+  display:flex;
+  gap:12px;
+  margin-top:18px;
+  flex-wrap:wrap;
+}
+
+.btn {
+  flex:1;
+  text-align:center;
+  padding:12px;
+  border-radius:10px;
+  background:var(--navy);
+  color:white;
+  text-decoration:none;
+  font-weight:600;
 }
 
 footer {
   text-align:center;
-  margin-top:16px;
-  font-size:12px;
+  margin-top:20px;
+  font-size:13px;
   color:#6b7280;
 }
+
+@media (max-width:640px) {
+  header { flex-direction:column; align-items:flex-start; }
+}
 </style>
+
+<!-- 🔥 FIREBASE -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+  authDomain: "pakisa-floor.firebaseapp.com",
+  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/",
+  projectId: "pakisa-floor"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let allScans = [];
+
+function render(list) {
+  const box = document.getElementById("scanList");
+  box.innerHTML = "";
+
+  if (!list.length) {
+    box.innerHTML = "<i>No scans found</i>";
+    return;
+  }
+
+  list.forEach(s => {
+    const d = document.createElement("div");
+    d.className = "item";
+    d.innerHTML = `
+      <strong>${s.waybill}</strong><br>
+      ${s.customer} — ${s.reason}
+    `;
+    box.appendChild(d);
+  });
+}
+
+function loadScans() {
+  onValue(ref(db,"scans"), snap => {
+    allScans = [];
+    snap.forEach(c => allScans.push(c.val()));
+
+    allScans.sort((a,b)=>b.timestamp-a.timestamp);
+
+    // show only last 5 by default
+    render(allScans.slice(0,5));
+  });
+}
+
+window.searchScan = () => {
+  const t = document.getElementById("search").value.toLowerCase();
+
+  if (!t) {
+    render(allScans.slice(0,5));
+    return;
+  }
+
+  render(
+    allScans.filter(s =>
+      s.waybill.toLowerCase().includes(t) ||
+      s.customer.toLowerCase().includes(t) ||
+      s.reason.toLowerCase().includes(t)
+    )
+  );
+};
+
+window.onload = loadScans;
+</script>
 </head>
 
 <body>
 <div class="container">
   <div class="card">
 
-    <div class="login-row">
-      <a class="login-btn client" href="client-login.html">👤 Client Login</a>
-      <a class="login-btn agent" href="agent-login.html">🧾 Agent Login</a>
-    </div>
-
-    <h1>Track Your Waybill</h1>
+    <header>
+      <img class="logo" src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png">
+      <div>
+        <h1>Pakisa Floor Check</h1>
+        <div style="font-size:13px;color:#6b7280">
+          Public tracking & delivery status view
+        </div>
+      </div>
+    </header>
 
     <label>Search Waybill</label>
-    <input id="search" placeholder="Enter waybill number" onkeyup="render()">
+    <input id="search" placeholder="Enter waybill number…" oninput="searchScan()">
 
-    <div id="list" class="small">Loading latest scans…</div>
+    <div class="list" id="scanList">
+      <i>Loading…</i>
+    </div>
+
+    <div class="buttons">
+      <a class="btn" href="client-login.html">Client Login</a>
+      <a class="btn" href="login.html">Pakisa Agent Login</a>
+    </div>
 
   </div>
 
-  <footer>Pakisa Express Logistics</footer>
+  <footer>Built by Mpho Mahlaba</footer>
 </div>
-
-<!-- FIREBASE -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-const firebaseConfig = YOUR_FIREBASE_CONFIG;
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-let scans = [];
-
-async function loadScans() {
-  const q = query(collection(db, "scans"), orderBy("timestamp", "desc"));
-  const snap = await getDocs(q);
-  scans = snap.docs.map(d => d.data());
-  render();
-}
-
-window.render = function () {
-  const list = document.getElementById("list");
-  const term = document.getElementById("search").value.trim();
-
-  let data = scans;
-
-  if (term) {
-    data = scans.filter(s =>
-      s.waybill?.toLowerCase().includes(term.toLowerCase())
-    );
-  } else {
-    data = scans.slice(0, 5); // ONLY latest 5
-  }
-
-  if (!data.length) {
-    list.innerHTML = "<i>No results found</i>";
-    return;
-  }
-
-  list.innerHTML = data.map(s => `
-    <div class="item">
-      <b>${s.waybill}</b><br>
-      ${s.status || "Scanned"}<br>
-      <span class="small">${new Date(s.timestamp?.seconds * 1000).toLocaleString()}</span>
-    </div>
-  `).join("");
-};
-
-loadScans();
-</script>
 </body>
 </html>
