@@ -184,7 +184,8 @@ window.saveScan = async () => {
     setTimeout(() => document.body.classList.remove("flash"), 150);
 
     scanInput.value = "";
-    scanInput.focus();
+    resumeScannerFocus();
+scanInput.focus();
   } finally {
     scanLock = false;
   }
@@ -208,6 +209,9 @@ window.saveBulkScans = async () => {
       waybill,
       date: todayKey(),
       timestamp: Date.now()
+      resumeScannerFocus();
+    scanInput.focus();
+    
     });
   }
 
