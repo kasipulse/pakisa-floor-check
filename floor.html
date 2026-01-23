@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Floor Check</title>
 
 <style>
@@ -42,39 +42,87 @@
   .flash {
     background: #2ecc71 !important;
   }
+
+  #loginContainer {
+    max-width: 360px;
+    margin: 50px auto;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+  }
+
+  #loginContainer input {
+    width: 100%;
+    margin: 8px 0;
+  }
+
 </style>
 
 <audio id="beep">
-  <source src="https://www.soundjay.com/buttons/sounds/button-09.mp3" type="audio/mpeg">
+  <source src="https://www.soundjay.com/buttons/sounds/button-09.mp3">
 </audio>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 /* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
-  apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+  apiKey: "YOUR_API_KEY",
   authDomain: "pakisa-floor.firebaseapp.com",
-  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/",
+  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com",
   projectId: "pakisa-floor"
 };
 
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 const db = getDatabase(app);
 
+/* 🔐 AUTHORIZED EMAILS */
+const ADMINS = [
+  "ops1@pakisalogistics.co.za",
+  "ops2@pakisalogistics.co.za",
+  "csd@pakisalogistics.co.za",
+  "csd1@pakisalogistics.co.za"
+];
+
 /* DOM */
+let loginContainer, loginEmail, loginPass, loginBtn;
+let mainContainer;
 let customer, reason, scanInput, bulkInput, scanList, searchInput, dateFilter, beep;
 let currentData = [];
 let scanLock = false;
 
-/* TODAY KEY */
-function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
 window.addEventListener("DOMContentLoaded", () => {
+  loginContainer = document.getElementById("loginContainer");
+  loginEmail = document.getElementById("loginEmail");
+  loginPass = document.getElementById("loginPass");
+  loginBtn = document.getElementById("loginBtn");
+  mainContainer = document.getElementById("mainContainer");
+
+  loginBtn.addEventListener("click", async () => {
+    try {
+      await signInWithEmailAndPassword(auth, loginEmail.value, loginPass.value);
+    } catch(e) {
+      alert("Login failed: " + e.message);
+    }
+  });
+
+  onAuthStateChanged(auth, user => {
+    if(user && ADMINS.includes(user.email)) {
+      loginContainer.style.display = "none";
+      mainContainer.style.display = "block";
+      initFloor();
+    } else {
+      loginContainer.style.display = "block";
+      mainContainer.style.display = "none";
+    }
+  });
+});
+
+/* FLOOR APP INIT */
+function initFloor() {
   customer = document.getElementById("customer");
   reason = document.getElementById("reason");
   scanInput = document.getElementById("scanInput");
@@ -89,22 +137,28 @@ window.addEventListener("DOMContentLoaded", () => {
 
   scanInput.focus();
   scanInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
+    if(e.key === "Enter") {
       e.preventDefault();
       saveScan();
     }
   });
 
-  // 🔥 Smart scanner auto-focus (does not steal focus from dropdowns or textarea)
+  // Focus loop for scanner only if not interacting with dropdowns or textarea
   setInterval(() => {
-    const active = document.activeElement;
-    if (active !== scanInput && active.tagName !== "SELECT" && active.tagName !== "TEXTAREA") {
+    const el = document.activeElement;
+    if(el !== scanInput && el.tagName !== "SELECT" && el.tagName !== "TEXTAREA") {
       scanInput.focus();
     }
-  }, 200);
-});
+  }, 300);
+}
 
-/* 🔥 REALTIME LISTENER */
+/* DATE HELPER */
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+/* REALTIME SCAN LISTENER */
 function listenForScans() {
   onValue(ref(db, "scans"), snap => {
     currentData = [];
@@ -114,17 +168,11 @@ function listenForScans() {
   });
 }
 
-/* RENDER LIST */
+/* RENDER SCANS */
 function renderList(arr) {
   scanList.innerHTML = "";
-
   const filtered = arr.filter(s => s.date === dateFilter.value);
-
-  if (!filtered.length) {
-    scanList.innerHTML = "<i>No scans for this date</i>";
-    return;
-  }
-
+  if(!filtered.length) scanList.innerHTML = "<i>No scans for this date</i>";
   filtered.slice(0, 200).forEach(d => {
     const div = document.createElement("div");
     div.className = "list-item";
@@ -142,18 +190,15 @@ window.filterSearch = () => {
     d.reason.toLowerCase().includes(t)
   ));
 };
-
 window.changeDate = () => renderList(currentData);
 
-/* ✅ SINGLE SCAN */
+/* SINGLE SCAN */
 window.saveScan = async () => {
-  if (scanLock) return;
+  if(scanLock) return;
   scanLock = true;
-
   try {
     const waybill = scanInput.value.trim();
-    if (!customer.value || !reason.value || !waybill) return;
-
+    if(!customer.value || !reason.value || !waybill) return;
     await push(ref(db, "scans"), {
       customer: customer.value,
       reason: reason.value,
@@ -161,31 +206,21 @@ window.saveScan = async () => {
       date: todayKey(),
       timestamp: Date.now()
     });
-
     beep.currentTime = 0;
     beep.play();
     document.body.classList.add("flash");
     setTimeout(() => document.body.classList.remove("flash"), 150);
-
     scanInput.value = "";
-    scanInput.focus();
-  } finally {
-    scanLock = false;
-  }
+  } finally { scanLock = false; }
 };
 
-/* ✅ BULK UPLOAD */
+/* BULK SCAN */
 window.saveBulkScans = async () => {
   const text = bulkInput.value.trim();
-  if (!customer.value || !reason.value || !text) {
-    alert("Select customer, reason and paste waybills");
-    return;
-  }
-
+  if(!customer.value || !reason.value || !text) return alert("Select customer, reason and paste waybills");
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length >= 8);
-  if (!lines.length) return alert("No valid waybills found");
-
-  for (const waybill of lines) {
+  if(!lines.length) return alert("No valid waybills");
+  for(const waybill of lines) {
     await push(ref(db, "scans"), {
       customer: customer.value,
       reason: reason.value,
@@ -194,17 +229,24 @@ window.saveBulkScans = async () => {
       timestamp: Date.now()
     });
   }
-
   bulkInput.value = "";
-  beep.currentTime = 0;
   beep.play();
-  document.body.classList.add("flash");
-  setTimeout(() => document.body.classList.remove("flash"), 200);
-};
+}
 </script>
 </head>
 
 <body>
+
+<!-- LOGIN -->
+<div id="loginContainer">
+  <h2>Pakisa Official Login</h2>
+  <input id="loginEmail" type="email" placeholder="Email">
+  <input id="loginPass" type="password" placeholder="Password">
+  <button id="loginBtn">Login</button>
+</div>
+
+<!-- MAIN FLOOR APP -->
+<div id="mainContainer" style="display:none">
 
 <center>
 <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160">
@@ -251,6 +293,7 @@ window.saveBulkScans = async () => {
 <div id="scanList"><i>Loading…</i></div>
 
 <br><center><b>Built by Mpho Mahlaba</b></center>
+</div>
 
 </body>
 </html>
