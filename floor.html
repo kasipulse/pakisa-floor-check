@@ -52,6 +52,13 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+// 🔥 FORCE ALWAYS-ON SCAN FOCUS
+setInterval(() => {
+  if (document.activeElement !== scanInput) {
+    scanInput.focus();
+  }
+}, 300);
+  
 /* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
