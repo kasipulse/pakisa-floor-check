@@ -45,37 +45,13 @@
 </style>
 
 <audio id="beep">
-  <source src="https://www.soundjay.com/buttons/sounds/button-09.mp3">
+  <source src="https://www.soundjay.com/buttons/sounds/button-09.mp3" type="audio/mpeg">
 </audio>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-let userIsTyping = false;
-
-// detect human interaction
-["mousedown", "touchstart", "keydown"].forEach(evt => {
-  document.addEventListener(evt, () => {
-    userIsTyping = true;
-  });
-});
-
-// restore scanner focus only when idle
-setInterval(() => {
-  if (
-    !userIsTyping &&
-    document.activeElement !== scanInput
-  ) {
-    scanInput.focus();
-  }
-}, 400);
-
-// when scan completes, re-enable auto focus
-function resumeScannerFocus() {
-  userIsTyping = false;
-}
-  
 /* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
@@ -92,6 +68,7 @@ let customer, reason, scanInput, bulkInput, scanList, searchInput, dateFilter, b
 let currentData = [];
 let scanLock = false;
 
+/* TODAY KEY */
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -117,6 +94,14 @@ window.addEventListener("DOMContentLoaded", () => {
       saveScan();
     }
   });
+
+  // 🔥 Smart scanner auto-focus (does not steal focus from dropdowns or textarea)
+  setInterval(() => {
+    const active = document.activeElement;
+    if (active !== scanInput && active.tagName !== "SELECT" && active.tagName !== "TEXTAREA") {
+      scanInput.focus();
+    }
+  }, 200);
 });
 
 /* 🔥 REALTIME LISTENER */
@@ -129,6 +114,7 @@ function listenForScans() {
   });
 }
 
+/* RENDER LIST */
 function renderList(arr) {
   scanList.innerHTML = "";
 
@@ -150,13 +136,11 @@ function renderList(arr) {
 /* SEARCH */
 window.filterSearch = () => {
   const t = searchInput.value.toLowerCase();
-  renderList(
-    currentData.filter(d =>
-      d.waybill.toLowerCase().includes(t) ||
-      d.customer.toLowerCase().includes(t) ||
-      d.reason.toLowerCase().includes(t)
-    )
-  );
+  renderList(currentData.filter(d =>
+    d.waybill.toLowerCase().includes(t) ||
+    d.customer.toLowerCase().includes(t) ||
+    d.reason.toLowerCase().includes(t)
+  ));
 };
 
 window.changeDate = () => renderList(currentData);
@@ -184,8 +168,7 @@ window.saveScan = async () => {
     setTimeout(() => document.body.classList.remove("flash"), 150);
 
     scanInput.value = "";
-    resumeScannerFocus();
-scanInput.focus();
+    scanInput.focus();
   } finally {
     scanLock = false;
   }
@@ -200,7 +183,7 @@ window.saveBulkScans = async () => {
   }
 
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length >= 8);
-  if (!lines.length) return alert("No valid waybills");
+  if (!lines.length) return alert("No valid waybills found");
 
   for (const waybill of lines) {
     await push(ref(db, "scans"), {
@@ -209,14 +192,14 @@ window.saveBulkScans = async () => {
       waybill,
       date: todayKey(),
       timestamp: Date.now()
-      resumeScannerFocus();
-    scanInput.focus();
-    
     });
   }
 
   bulkInput.value = "";
+  beep.currentTime = 0;
   beep.play();
+  document.body.classList.add("flash");
+  setTimeout(() => document.body.classList.remove("flash"), 200);
 };
 </script>
 </head>
