@@ -85,6 +85,7 @@ let customer, reason, scanInput, bulkInput, scanList, searchInput, dateFilter, b
 let currentData = [];
 let scanLock = false;
 
+/* DATE */
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -102,7 +103,7 @@ window.addEventListener("DOMContentLoaded", () => {
   beep = document.getElementById("beep");
 
   dateFilter.value = todayKey();
-  loadScans();
+  listenForScans();
 
   scanInput.focus();
   scanInput.addEventListener("keydown", e => {
@@ -113,8 +114,8 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-/* LOAD SCANS */
-function loadScans() {
+/* 🔥 SINGLE REALTIME LISTENER */
+function listenForScans() {
   onValue(ref(db, "scans"), snap => {
     currentData = [];
     snap.forEach(c => currentData.push(c.val()));
@@ -137,7 +138,7 @@ function renderList(arr) {
     return;
   }
 
-  filtered.forEach(d => {
+  filtered.slice(0, 200).forEach(d => {
     const div = document.createElement("div");
     div.className = "list-item";
     div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
@@ -159,26 +160,23 @@ window.filterSearch = () => {
 
 window.changeDate = () => renderList(currentData);
 
-/* SINGLE SCAN */
-window.saveScan = () => {
+/* ✅ SINGLE SCAN (FIXED LOCK) */
+window.saveScan = async () => {
   if (scanLock) return;
   scanLock = true;
 
-  const waybill = scanInput.value.trim();
-  if (!customer.value || !reason.value || !waybill) {
-    scanLock = false;
-    return;
-  }
+  try {
+    const waybill = scanInput.value.trim();
+    if (!customer.value || !reason.value || !waybill) return;
 
-  const scanData = {
-    customer: customer.value,
-    reason: reason.value,
-    waybill,
-    date: todayKey(),
-    timestamp: Date.now()
-  };
+    await push(ref(db, "scans"), {
+      customer: customer.value,
+      reason: reason.value,
+      waybill,
+      date: todayKey(),
+      timestamp: Date.now()
+    });
 
-  push(ref(db, "scans"), scanData).then(() => {
     beep.currentTime = 0;
     beep.play();
 
@@ -187,11 +185,16 @@ window.saveScan = () => {
 
     scanInput.value = "";
     scanInput.focus();
+
+  } catch (e) {
+    console.error(e);
+    alert("Scan failed");
+  } finally {
     scanLock = false;
-  });
+  }
 };
 
-/* BULK UPLOAD */
+/* ✅ BULK UPLOAD (FIXED) */
 window.saveBulkScans = async () => {
   const text = bulkInput.value.trim();
   if (!customer.value || !reason.value || !text) {
@@ -210,7 +213,6 @@ window.saveBulkScans = async () => {
   }
 
   const date = todayKey();
-  const now = Date.now();
 
   for (const waybill of lines) {
     await push(ref(db, "scans"), {
@@ -218,7 +220,7 @@ window.saveBulkScans = async () => {
       reason: reason.value,
       waybill,
       date,
-      timestamp: now
+      timestamp: Date.now() // 🔥 UNIQUE PER SCAN
     });
   }
 
@@ -228,9 +230,6 @@ window.saveBulkScans = async () => {
 
   document.body.classList.add("flash");
   setTimeout(() => document.body.classList.remove("flash"), 200);
-
-  // 🔥 force refresh so UI always updates
-  loadScans();
 };
 </script>
 </head>
