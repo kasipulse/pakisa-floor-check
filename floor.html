@@ -7,10 +7,9 @@
 
 <style>
   body {
-    font-family: Arial;
+    font-family: Arial, sans-serif;
     padding: 20px;
-    background: white;
-    transition: background-color 0.15s ease;
+    background: #fff;
   }
 
   select, input, textarea, button {
@@ -21,13 +20,13 @@
   }
 
   textarea {
-    resize: vertical;
     min-height: 120px;
+    resize: vertical;
   }
 
   button {
     background: #0a2b52;
-    color: white;
+    color: #fff;
     border: none;
     border-radius: 8px;
     cursor: pointer;
@@ -41,57 +40,39 @@
   }
 
   .flash {
-    background-color: #2ecc71 !important;
+    background: #2ecc71 !important;
   }
 </style>
 
-<audio id="beep" preload="auto">
-  <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg">
+<audio id="beep">
+  <source src="https://www.soundjay.com/buttons/sounds/button-09.mp3">
 </audio>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 /* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
   authDomain: "pakisa-floor.firebaseapp.com",
-  projectId: "pakisa-floor",
-  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/"
+  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/",
+  projectId: "pakisa-floor"
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getDatabase(app);
-
-/* 🔐 ADMINS */
-const ADMINS = [
-  "ops1@pakisalogistics.co.za",
-  "ops2@pakisalogistics.co.za",
-  "csd@pakisalogistics.co.za",
-  "csd1@pakisalogistics.co.za"
-];
-
-onAuthStateChanged(auth, user => {
-  if (!user || !ADMINS.includes(user.email)) {
-    window.location.href = "/index.html";
-  }
-});
 
 /* DOM */
 let customer, reason, scanInput, bulkInput, scanList, searchInput, dateFilter, beep;
 let currentData = [];
 let scanLock = false;
 
-/* DATE */
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-/* INIT */
 window.addEventListener("DOMContentLoaded", () => {
   customer = document.getElementById("customer");
   reason = document.getElementById("reason");
@@ -114,7 +95,7 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-/* 🔥 SINGLE REALTIME LISTENER */
+/* 🔥 REALTIME LISTENER */
 function listenForScans() {
   onValue(ref(db, "scans"), snap => {
     currentData = [];
@@ -124,14 +105,10 @@ function listenForScans() {
   });
 }
 
-/* RENDER */
 function renderList(arr) {
-  const filterDate = dateFilter.value;
   scanList.innerHTML = "";
 
-  const filtered = filterDate
-    ? arr.filter(s => s.date === filterDate)
-    : arr;
+  const filtered = arr.filter(s => s.date === dateFilter.value);
 
   if (!filtered.length) {
     scanList.innerHTML = "<i>No scans for this date</i>";
@@ -160,7 +137,7 @@ window.filterSearch = () => {
 
 window.changeDate = () => renderList(currentData);
 
-/* ✅ SINGLE SCAN (FIXED LOCK) */
+/* ✅ SINGLE SCAN */
 window.saveScan = async () => {
   if (scanLock) return;
   scanLock = true;
@@ -179,22 +156,17 @@ window.saveScan = async () => {
 
     beep.currentTime = 0;
     beep.play();
-
     document.body.classList.add("flash");
     setTimeout(() => document.body.classList.remove("flash"), 150);
 
     scanInput.value = "";
     scanInput.focus();
-
-  } catch (e) {
-    console.error(e);
-    alert("Scan failed");
   } finally {
     scanLock = false;
   }
 };
 
-/* ✅ BULK UPLOAD (FIXED) */
+/* ✅ BULK UPLOAD */
 window.saveBulkScans = async () => {
   const text = bulkInput.value.trim();
   if (!customer.value || !reason.value || !text) {
@@ -202,34 +174,21 @@ window.saveBulkScans = async () => {
     return;
   }
 
-  const lines = text
-    .split(/\r?\n/)
-    .map(l => l.trim())
-    .filter(l => l.length >= 8);
-
-  if (!lines.length) {
-    alert("No valid waybills found");
-    return;
-  }
-
-  const date = todayKey();
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length >= 8);
+  if (!lines.length) return alert("No valid waybills");
 
   for (const waybill of lines) {
     await push(ref(db, "scans"), {
       customer: customer.value,
       reason: reason.value,
       waybill,
-      date,
-      timestamp: Date.now() // 🔥 UNIQUE PER SCAN
+      date: todayKey(),
+      timestamp: Date.now()
     });
   }
 
   bulkInput.value = "";
-  beep.currentTime = 0;
   beep.play();
-
-  document.body.classList.add("flash");
-  setTimeout(() => document.body.classList.remove("flash"), 200);
 };
 </script>
 </head>
@@ -266,8 +225,8 @@ window.saveBulkScans = async () => {
 <label>Scan Waybill</label>
 <input id="scanInput" placeholder="Scan waybill">
 
-<label>Bulk Waybill Paste (one per line)</label>
-<textarea id="bulkInput" placeholder="Paste waybills here, one per line"></textarea>
+<label>Bulk Waybill Paste</label>
+<textarea id="bulkInput" placeholder="One waybill per line"></textarea>
 
 <button onclick="saveBulkScans()">Bulk Upload</button>
 
@@ -280,8 +239,7 @@ window.saveBulkScans = async () => {
 <h3>Scans</h3>
 <div id="scanList"><i>Loading…</i></div>
 
-<br><br>
-<center><b>Built by Mpho Mahlaba</b></center>
+<br><center><b>Built by Mpho Mahlaba</b></center>
 
 </body>
 </html>
