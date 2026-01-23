@@ -52,12 +52,29 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-// 🔥 FORCE ALWAYS-ON SCAN FOCUS
+let userIsTyping = false;
+
+// detect human interaction
+["mousedown", "touchstart", "keydown"].forEach(evt => {
+  document.addEventListener(evt, () => {
+    userIsTyping = true;
+  });
+});
+
+// restore scanner focus only when idle
 setInterval(() => {
-  if (document.activeElement !== scanInput) {
+  if (
+    !userIsTyping &&
+    document.activeElement !== scanInput
+  ) {
     scanInput.focus();
   }
-}, 300);
+}, 400);
+
+// when scan completes, re-enable auto focus
+function resumeScannerFocus() {
+  userIsTyping = false;
+}
   
 /* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
