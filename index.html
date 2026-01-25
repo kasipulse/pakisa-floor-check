@@ -118,87 +118,73 @@ const firebaseConfig = {
   projectId: "pakisa-floor"
 };
 
-/* ✅ INIT APP FIRST */
+/* ✅ INIT APP */
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
 let allScans = [];
 
-/* ✅ ANONYMOUS AUTH FOR PUBLIC PAGE */
+/* 🔒 ANONYMOUS AUTH */
 signInAnonymously(auth)
-  .then(() => {
-    console.log("✅ Public user authenticated");
-    loadScans();
-  })
-  .catch(err => {
-    console.error("❌ Auth failed", err);
-  });
+  .then(() => loadScans())
+  .catch(err => console.error("Auth failed", err));
 
-/* 🔄 LOAD SCANS */
+/* 🔄 LOAD SCANS - handles nested dates */
 function loadScans() {
   onValue(ref(db, "scans"), snap => {
     allScans = [];
-    snap.forEach(c => allScans.push(c.val()));
-    allScans.sort((a, b) => b.timestamp - a.timestamp);
-    render(allScans.slice(0, 20)); // show latest 20
+    snap.forEach(child => {
+      if (child.hasChildren()) {
+        // If nested by date
+        child.forEach(c => allScans.push(c.val()));
+      } else {
+        allScans.push(child.val());
+      }
+    });
+    allScans.sort((a,b)=>b.timestamp - a.timestamp);
+    render(allScans.slice(0,20));
   });
 }
 
-/* 🧱 RENDER FUNCTION */
+/* 🧱 RENDER SCANS */
 function render(list) {
   const box = document.getElementById("scanList");
   box.innerHTML = "";
-
   if (!list.length) {
     box.innerHTML = "<i>No scans found</i>";
     return;
   }
-
   list.forEach(s => {
     const d = document.createElement("div");
     d.className = "item";
-    d.innerHTML = `
-      <strong>${s.waybill}</strong><br>
-      ${s.customer} — ${s.reason}
-    `;
+    d.innerHTML = `<strong>${s.waybill}</strong><br>${s.customer} — ${s.reason}`;
     box.appendChild(d);
   });
 }
 
-/* 🔍 SEARCH */
-const searchInput = document.getElementById("search");
-
-function searchScan(clearInput = false) {
-  const t = searchInput.value.toLowerCase();
-
-  if (!t) {
-    render(allScans.slice(0, 20));
-  } else {
-    render(allScans.filter(s =>
-      s.waybill.toLowerCase().includes(t) ||
-      s.customer.toLowerCase().includes(t) ||
-      s.reason.toLowerCase().includes(t)
-    ));
-  }
-
-  if (clearInput) searchInput.value = "";
-}
+/* 🔍 SEARCH FUNCTION */
+window.searchScan = () => {
+  const term = document.getElementById("search").value.toLowerCase().trim();
+  if (!term) return render(allScans.slice(0,20));
+  render(allScans.filter(s =>
+    s.waybill.toLowerCase().includes(term) ||
+    s.customer.toLowerCase().includes(term) ||
+    s.reason.toLowerCase().includes(term)
+  ));
+};
 
 document.addEventListener("DOMContentLoaded", () => {
+  const searchInput = document.getElementById("search");
   searchInput.focus();
-
-  // Enter key triggers search & clears input
   searchInput.addEventListener("keydown", e => {
     if (e.key === "Enter") {
       e.preventDefault();
-      searchScan(true);
-      setTimeout(() => searchInput.focus(), 10);
+      searchScan();
+      searchInput.value = "";
+      setTimeout(()=>searchInput.focus(),10);
     }
   });
-
-  // Real-time filter while typing
-  searchInput.addEventListener("input", () => searchScan(false));
 });
 </script>
 </head>
@@ -206,19 +192,16 @@ document.addEventListener("DOMContentLoaded", () => {
 <body>
 <div class="container">
   <div class="card">
-
     <header>
       <img class="logo" src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png">
       <div>
         <h1>Pakisa Floor Check</h1>
-        <div style="font-size:13px;color:#6b7280">
-          Public tracking & delivery status view
-        </div>
+        <div style="font-size:13px;color:#6b7280">Quick search only</div>
       </div>
     </header>
 
     <label>Search Waybill</label>
-    <input id="search" placeholder="Enter waybill number…">
+    <input id="search" placeholder="Enter waybill number…" oninput="searchScan()">
 
     <div class="list" id="scanList">
       <i>Loading…</i>
@@ -230,7 +213,6 @@ document.addEventListener("DOMContentLoaded", () => {
     </div>
 
   </div>
-
   <footer>Built by Mpho Mahlaba</footer>
 </div>
 </body>
