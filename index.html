@@ -55,27 +55,16 @@ label {
   font-size:13px;
 }
 
-input {
+input, select, textarea, button {
   width:100%;
   padding:12px;
   border-radius:8px;
   border:1px solid #e5e7eb;
   font-size:16px;
+  margin-top:6px;
 }
 
-.list {
-  margin-top:14px;
-  max-height:400px;
-  overflow-y:auto;
-}
-
-.item {
-  padding:12px;
-  border-radius:10px;
-  background:#fff;
-  border:1px solid #eef2f7;
-  margin-bottom:8px;
-}
+textarea { min-height:120px; resize:vertical; }
 
 .buttons {
   display:flex;
@@ -95,22 +84,22 @@ input {
   font-weight:600;
 }
 
-footer {
-  text-align:center;
-  margin-top:20px;
-  font-size:13px;
-  color:#6b7280;
-}
+.list { margin-top:14px; }
+.item { padding:12px; border-radius:10px; background:#fff; border:1px solid #eef2f7; margin-bottom:8px; }
 
-@media (max-width:640px) {
-  header { flex-direction:column; align-items:flex-start; }
-}
+.flash { background:#2ecc71 !important; }
+
+footer { text-align:center; margin-top:20px; font-size:13px; color:#6b7280; }
 </style>
+
+<audio id="beep">
+  <source src="https://www.soundjay.com/buttons/sounds/button-09.mp3">
+</audio>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 /* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
@@ -125,108 +114,171 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 let allScans = [];
+let scanLock = false;
 
-/* ✅ ANONYMOUS AUTH */
+/* ✅ HELPER: today key */
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+/* ✅ AUTH & LOAD SCANS */
 signInAnonymously(auth)
-  .then(() => {
-    console.log("✅ Public user authenticated");
-    loadScans();
-  })
-  .catch(err => {
-    console.error("❌ Auth failed", err);
-  });
+.then(() => {
+  console.log("✅ Public user authenticated");
+  listenForScans();
+})
+.catch(err => console.error("❌ Auth failed", err));
 
-function loadScans() {
+/* 🔄 REALTIME SCANS */
+function listenForScans() {
   onValue(ref(db, "scans"), snap => {
     allScans = [];
     snap.forEach(c => allScans.push(c.val()));
-
-    allScans.sort((a, b) => b.timestamp - a.timestamp);
-
-    render(allScans); // show all by default
+    allScans.sort((a,b) => b.timestamp - a.timestamp);
+    renderList(allScans);
   });
 }
 
-/* 🧱 RENDER SCANS */
-function render(list) {
+/* 🖋️ RENDER LIST */
+function renderList(list) {
   const box = document.getElementById("scanList");
-  box.innerHTML = "";
+  const dateFilter = document.getElementById("dateFilter").value;
+  const search = document.getElementById("search").value.toLowerCase();
 
-  if (!list.length) {
+  let filtered = list;
+
+  if (dateFilter) filtered = filtered.filter(s => s.date === dateFilter);
+  if (search) filtered = filtered.filter(s =>
+    s.waybill.toLowerCase().includes(search) ||
+    s.customer.toLowerCase().includes(search) ||
+    s.reason.toLowerCase().includes(search)
+  );
+
+  box.innerHTML = "";
+  if (!filtered.length) {
     box.innerHTML = "<i>No scans found</i>";
     return;
   }
 
-  list.forEach(s => {
-    const d = document.createElement("div");
-    d.className = "item";
-    d.innerHTML = `
-      <strong>${s.waybill}</strong><br>
-      ${s.customer} — ${s.reason} <small style="color:#6b7280">(${s.date || "No date"})</small>
-    `;
-    box.appendChild(d);
+  filtered.slice(0,200).forEach(s => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `<strong>${s.waybill}</strong><br>${s.customer} — ${s.reason}`;
+    box.appendChild(div);
   });
 }
 
-window.searchScan = () => {
-  const t = document.getElementById("search").value.toLowerCase();
-  if (!t) {
-    render(allScans);
-    return;
-  }
+/* ✅ SINGLE SCAN */
+window.saveScan = async () => {
+  if (scanLock) return;
+  scanLock = true;
 
-  const filtered = allScans.filter(s =>
-    (s.waybill?.toLowerCase().includes(t)) ||
-    (s.customer?.toLowerCase().includes(t)) ||
-    (s.reason?.toLowerCase().includes(t))
-  );
+  try {
+    const waybill = document.getElementById("scanInput").value.trim();
+    const customer = document.getElementById("customer").value;
+    const reason = document.getElementById("reason").value;
+    if (!waybill || !customer || !reason) return alert("Select customer, reason & enter waybill");
 
-  render(filtered);
+    await push(ref(db, "scans"), {
+      waybill,
+      customer,
+      reason,
+      date: todayKey(),
+      timestamp: Date.now()
+    });
+
+    document.getElementById("scanInput").value = "";
+    document.body.classList.add("flash");
+    const beep = document.getElementById("beep");
+    beep.currentTime = 0;
+    beep.play();
+    setTimeout(() => document.body.classList.remove("flash"),150);
+  } finally { scanLock = false; }
 };
 
-document.addEventListener("DOMContentLoaded", () => {
-  const searchInput = document.getElementById("search");
+/* ✅ BULK SCAN */
+window.saveBulkScans = async () => {
+  const text = document.getElementById("bulkInput").value.trim();
+  const customer = document.getElementById("customer").value;
+  const reason = document.getElementById("reason").value;
+  if (!text || !customer || !reason) return alert("Select customer, reason & paste waybills");
 
-  searchInput.focus();
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length >= 8);
+  if (!lines.length) return alert("No valid waybills");
 
-  searchInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      searchScan();
-      searchInput.value = "";
-      setTimeout(() => searchInput.focus(), 10);
-    }
-  });
-});
+  for (const waybill of lines) {
+    await push(ref(db, "scans"), {
+      waybill,
+      customer,
+      reason,
+      date: todayKey(),
+      timestamp: Date.now()
+    });
+  }
+
+  document.getElementById("bulkInput").value = "";
+  const beep = document.getElementById("beep");
+  beep.currentTime = 0;
+  beep.play();
+};
+
+/* ✅ SEARCH & DATE FILTER */
+window.updateView = () => renderList(allScans);
 </script>
 </head>
 
 <body>
 <div class="container">
   <div class="card">
-
     <header>
       <img class="logo" src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png">
       <div>
         <h1>Pakisa Floor Check</h1>
-        <div style="font-size:13px;color:#6b7280">
-          Public tracking & delivery status view
-        </div>
+        <div style="font-size:13px;color:#6b7280">Scan, bulk upload & view deliveries</div>
       </div>
     </header>
 
-    <label>Search Waybill</label>
-    <input id="search" placeholder="Enter waybill number…" oninput="searchScan()">
+    <label>Customer</label>
+    <select id="customer">
+      <option value="">Select Customer</option>
+      <option>First Freight Couriers</option>
+      <option>Fedex Express</option>
+      <option>Seabourne Logistics</option>
+      <option>AJM</option>
+      <option>Brima Logistics</option>
+    </select>
 
-    <div class="list" id="scanList">
-      <i>Loading…</i>
-    </div>
+    <label>Reason</label>
+    <select id="reason">
+      <option value="">Select Reason</option>
+      <option>Out for delivery</option>
+      <option>Nobody home</option>
+      <option>Incorrect phone number</option>
+      <option>Bad address</option>
+      <option>Missing paperwork</option>
+      <option>Misroute</option>
+    </select>
+
+    <label>Scan Waybill</label>
+    <input id="scanInput" placeholder="Scan or type waybill…" onkeydown="if(event.key==='Enter'){saveScan()}">
+
+    <label>Bulk Waybills (one per line)</label>
+    <textarea id="bulkInput"></textarea>
+    <button onclick="saveBulkScans()">Bulk Upload</button>
+
+    <label>Filter by Date</label>
+    <input type="date" id="dateFilter" value="" onchange="updateView()">
+
+    <label>Search</label>
+    <input id="search" placeholder="Search…" oninput="updateView()">
+
+    <div class="list" id="scanList"><i>Loading…</i></div>
 
     <div class="buttons">
       <a class="btn" href="client-login.html">Client Login</a>
       <a class="btn" href="login.html">Pakisa Agent Login</a>
     </div>
-
   </div>
 
   <footer>Built by Mpho Mahlaba</footer>
