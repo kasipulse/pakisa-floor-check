@@ -118,6 +118,17 @@ const firebaseConfig = {
   projectId: "pakisa-floor"
 };
 
+const auth = getAuth(app);
+
+signInAnonymously(auth)
+  .then(() => {
+    console.log("✅ Public user authenticated");
+    loadScans();
+  })
+  .catch(err => {
+    console.error("Auth failed", err);
+  });
+
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
