@@ -185,17 +185,21 @@ window.searchScan = () => {
   );
 };
 
-const searchInput = document.getElementById("search");
+document.addEventListener("DOMContentLoaded", () => {
+  const searchInput = document.getElementById("search");
 
-searchInput.addEventListener("keydown", e => {
-  if (e.key === "Enter") {
-    e.preventDefault();
+  searchInput.focus(); // scanner ready on load
 
-    searchScan();          // final filter
-    searchInput.value = ""; // ready for next scan
+  searchInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
 
-    setTimeout(() => searchInput.focus(), 10);
-  }
+      searchScan();
+      searchInput.value = "";
+
+      setTimeout(() => searchInput.focus(), 10);
+    }
+  });
 });
 </script>
 </head>
