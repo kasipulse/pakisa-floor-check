@@ -107,8 +107,8 @@ footer {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 /* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
@@ -118,28 +118,34 @@ const firebaseConfig = {
   projectId: "pakisa-floor"
 };
 
+/* ✅ INIT APP FIRST */
 const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
 const auth = getAuth(app);
+const db = getDatabase(app);
 
 let allScans = [];
 
-/* ✅ Anonymous login for public view */
+/* ✅ ANONYMOUS AUTH FOR PUBLIC PAGE */
 signInAnonymously(auth)
-  .then(() => loadScans())
-  .catch(err => console.error("Auth failed", err));
+  .then(() => {
+    console.log("✅ Public user authenticated");
+    loadScans();
+  })
+  .catch(err => {
+    console.error("❌ Auth failed", err);
+  });
 
-/* 🔄 Load scans from Firebase */
+/* 🔄 LOAD SCANS */
 function loadScans() {
   onValue(ref(db, "scans"), snap => {
     allScans = [];
     snap.forEach(c => allScans.push(c.val()));
-    allScans.sort((a,b) => b.timestamp - a.timestamp);
-    render(allScans.slice(0, 20)); // show last 20
+    allScans.sort((a, b) => b.timestamp - a.timestamp);
+    render(allScans.slice(0, 20)); // show latest 20
   });
 }
 
-/* 🧱 Render scans */
+/* 🧱 RENDER FUNCTION */
 function render(list) {
   const box = document.getElementById("scanList");
   box.innerHTML = "";
@@ -160,28 +166,39 @@ function render(list) {
   });
 }
 
-/* 🔍 Search function */
-window.searchScan = () => {
-  const t = document.getElementById("search").value.toLowerCase();
-  if (!t) return render(allScans.slice(0, 20));
+/* 🔍 SEARCH */
+const searchInput = document.getElementById("search");
 
-  render(allScans.filter(s =>
-    s.waybill.toLowerCase().includes(t) ||
-    s.customer.toLowerCase().includes(t) ||
-    s.reason.toLowerCase().includes(t)
-  ));
-};
+function searchScan(clearInput = false) {
+  const t = searchInput.value.toLowerCase();
+
+  if (!t) {
+    render(allScans.slice(0, 20));
+  } else {
+    render(allScans.filter(s =>
+      s.waybill.toLowerCase().includes(t) ||
+      s.customer.toLowerCase().includes(t) ||
+      s.reason.toLowerCase().includes(t)
+    ));
+  }
+
+  if (clearInput) searchInput.value = "";
+}
 
 document.addEventListener("DOMContentLoaded", () => {
-  const searchInput = document.getElementById("search");
   searchInput.focus();
 
+  // Enter key triggers search & clears input
   searchInput.addEventListener("keydown", e => {
     if (e.key === "Enter") {
       e.preventDefault();
-      searchScan();
+      searchScan(true);
+      setTimeout(() => searchInput.focus(), 10);
     }
   });
+
+  // Real-time filter while typing
+  searchInput.addEventListener("input", () => searchScan(false));
 });
 </script>
 </head>
@@ -195,13 +212,13 @@ document.addEventListener("DOMContentLoaded", () => {
       <div>
         <h1>Pakisa Floor Check</h1>
         <div style="font-size:13px;color:#6b7280">
-          Public tracking & delivery status
+          Public tracking & delivery status view
         </div>
       </div>
     </header>
 
     <label>Search Waybill</label>
-    <input id="search" placeholder="Enter waybill number…" oninput="searchScan()">
+    <input id="search" placeholder="Enter waybill number…">
 
     <div class="list" id="scanList">
       <i>Loading…</i>
