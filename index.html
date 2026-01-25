@@ -168,25 +168,9 @@ function render(list) {
   });
 }
 
-/* 🔍 SEARCH */
 window.searchScan = () => {
   const t = document.getElementById("search").value.toLowerCase();
-  const searchInput = document.getElementById("search");
 
-searchInput.addEventListener("keydown", e => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-
-    // run search one last time
-    searchScan();
-
-    // clear input for next scan
-    searchInput.value = "";
-
-    // refocus so next scan works
-    setTimeout(() => searchInput.focus(), 10);
-  }
-});
   if (!t) {
     render(allScans.slice(0, 5));
     return;
@@ -200,6 +184,19 @@ searchInput.addEventListener("keydown", e => {
     )
   );
 };
+
+const searchInput = document.getElementById("search");
+
+searchInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+
+    searchScan();          // final filter
+    searchInput.value = ""; // ready for next scan
+
+    setTimeout(() => searchInput.focus(), 10);
+  }
+});
 </script>
 </head>
 
