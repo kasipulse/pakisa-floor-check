@@ -105,12 +105,12 @@ footer {
 }
 </style>
 
-<!-- 🔥 FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+/* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
   authDomain: "pakisa-floor.firebaseapp.com",
@@ -118,22 +118,36 @@ const firebaseConfig = {
   projectId: "pakisa-floor"
 };
 
+/* ✅ INIT APP FIRST */
+const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getDatabase(app);
 
+let allScans = [];
+
+/* ✅ ANONYMOUS AUTH FOR PUBLIC PAGE */
 signInAnonymously(auth)
   .then(() => {
     console.log("✅ Public user authenticated");
     loadScans();
   })
   .catch(err => {
-    console.error("Auth failed", err);
+    console.error("❌ Auth failed", err);
   });
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+/* 🔄 LOAD SCANS */
+function loadScans() {
+  onValue(ref(db, "scans"), snap => {
+    allScans = [];
+    snap.forEach(c => allScans.push(c.val()));
 
-let allScans = [];
+    allScans.sort((a, b) => b.timestamp - a.timestamp);
 
+    render(allScans.slice(0, 5)); // last 5 only
+  });
+}
+
+/* 🧱 RENDER */
 function render(list) {
   const box = document.getElementById("scanList");
   box.innerHTML = "";
@@ -154,23 +168,12 @@ function render(list) {
   });
 }
 
-function loadScans() {
-  onValue(ref(db,"scans"), snap => {
-    allScans = [];
-    snap.forEach(c => allScans.push(c.val()));
-
-    allScans.sort((a,b)=>b.timestamp-a.timestamp);
-
-    // show only last 5 by default
-    render(allScans.slice(0,5));
-  });
-}
-
+/* 🔍 SEARCH */
 window.searchScan = () => {
   const t = document.getElementById("search").value.toLowerCase();
 
   if (!t) {
-    render(allScans.slice(0,5));
+    render(allScans.slice(0, 5));
     return;
   }
 
@@ -182,7 +185,6 @@ window.searchScan = () => {
     )
   );
 };
-
 </script>
 </head>
 
