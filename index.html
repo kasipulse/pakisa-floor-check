@@ -65,6 +65,8 @@ input {
 
 .list {
   margin-top:14px;
+  max-height:400px;
+  overflow-y:auto;
 }
 
 .item {
@@ -118,14 +120,13 @@ const firebaseConfig = {
   projectId: "pakisa-floor"
 };
 
-/* ✅ INIT APP FIRST */
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
 let allScans = [];
 
-/* ✅ ANONYMOUS AUTH FOR PUBLIC PAGE */
+/* ✅ ANONYMOUS AUTH */
 signInAnonymously(auth)
   .then(() => {
     console.log("✅ Public user authenticated");
@@ -135,7 +136,6 @@ signInAnonymously(auth)
     console.error("❌ Auth failed", err);
   });
 
-/* 🔄 LOAD SCANS */
 function loadScans() {
   onValue(ref(db, "scans"), snap => {
     allScans = [];
@@ -143,11 +143,11 @@ function loadScans() {
 
     allScans.sort((a, b) => b.timestamp - a.timestamp);
 
-    render(allScans.slice(0, 5)); // last 5 only
+    render(allScans); // show all by default
   });
 }
 
-/* 🧱 RENDER */
+/* 🧱 RENDER SCANS */
 function render(list) {
   const box = document.getElementById("scanList");
   box.innerHTML = "";
@@ -162,7 +162,7 @@ function render(list) {
     d.className = "item";
     d.innerHTML = `
       <strong>${s.waybill}</strong><br>
-      ${s.customer} — ${s.reason}
+      ${s.customer} — ${s.reason} <small style="color:#6b7280">(${s.date || "No date"})</small>
     `;
     box.appendChild(d);
   });
@@ -170,33 +170,30 @@ function render(list) {
 
 window.searchScan = () => {
   const t = document.getElementById("search").value.toLowerCase();
-
   if (!t) {
-    render(allScans.slice(0, 5));
+    render(allScans);
     return;
   }
 
-  render(
-    allScans.filter(s =>
-      s.waybill.toLowerCase().includes(t) ||
-      s.customer.toLowerCase().includes(t) ||
-      s.reason.toLowerCase().includes(t)
-    )
+  const filtered = allScans.filter(s =>
+    (s.waybill?.toLowerCase().includes(t)) ||
+    (s.customer?.toLowerCase().includes(t)) ||
+    (s.reason?.toLowerCase().includes(t))
   );
+
+  render(filtered);
 };
 
 document.addEventListener("DOMContentLoaded", () => {
   const searchInput = document.getElementById("search");
 
-  searchInput.focus(); // scanner ready on load
+  searchInput.focus();
 
   searchInput.addEventListener("keydown", e => {
     if (e.key === "Enter") {
       e.preventDefault();
-
       searchScan();
       searchInput.value = "";
-
       setTimeout(() => searchInput.focus(), 10);
     }
   });
