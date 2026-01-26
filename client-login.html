@@ -3,83 +3,124 @@
 <head>
 <meta charset="UTF-8">
 <title>Client Login</title>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
 <style>
-  body { font-family: Arial; background:#0a2b52; padding:40px; color:#fff; }
-  .login-box { background:#fff; color:#000; padding:25px; max-width:400px; border-radius:8px; margin:auto; }
-  h2 { text-align:center; }
-  label { display:block; margin-top:15px; font-weight:bold; }
-  select,input,button { width:100%; padding:10px; margin-top:5px; border-radius:4px; border:1px solid #ccc; }
-  select,option { color:#000; background:#fff; }
-  button { background:#409dbc; color:#fff; border:none; cursor:pointer; margin-top:20px; }
-  button:hover { opacity:0.9; }
-  .error { color:red; margin-top:10px; font-size:13px; }
+body { font-family: Arial; background:#0a2b52; padding:40px; color:#fff; }
+.login-box { background:#fff; color:#000; padding:25px; max-width:400px; border-radius:8px; margin:auto; }
+h2 { text-align:center; }
+label { display:block; margin-top:15px; font-weight:bold; }
+select,input,button { width:100%; padding:10px; margin-top:5px; border-radius:4px; border:1px solid #ccc; }
+select,option { color:#000; background:#fff; }
+button { background:#409dbc; color:#fff; border:none; cursor:pointer; margin-top:20px; cursor:pointer; }
+.error { color:red; margin-top:10px; font-size:13px; }
 </style>
+
 </head>
 <body>
 
 <div class="login-box">
   <h2>Client Login</h2>
-  <label for="companySelect">Company</label>
+
+  <label>Company</label>
   <select id="companySelect">
-    <option value="">Loading companies...</option>
+    <option value="">Loading companies…</option>
   </select>
 
   <label>Password</label>
   <input type="password" id="password">
-  <button onclick="login()">Login</button>
+
+  <button id="loginBtn">Login</button>
   <div id="errorMsg" class="error"></div>
 </div>
 
-<script>
-  // Firebase config
-  var firebaseConfig = {
-    apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
-    authDomain: "pakisa-floor.firebaseapp.com",
-    databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com",
-    projectId: "pakisa-floor",
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-  const companySelect = document.getElementById("companySelect");
-  const errorMsg = document.getElementById("errorMsg");
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-  db.ref("companies").once("value")
-    .then(snapshot => {
-      const data = snapshot.val();
-      companySelect.innerHTML = '<option value="">Select company</option>';
-      if (!data) { errorMsg.textContent="No companies found"; return; }
-      Object.keys(data).forEach(key=>{
-        const company = data[key];
-        const option = document.createElement("option");
-        option.value = key;
-        option.textContent = company.company || company.name || "Unnamed Company";
-        companySelect.appendChild(option);
-      });
-    })
-    .catch(err => { console.error(err); errorMsg.textContent="Failed to load companies"; });
+/* 🔥 FIREBASE CONFIG */
+const firebaseConfig = {
+  apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+  authDomain: "pakisa-floor.firebaseapp.com",
+  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/",
+  projectId: "pakisa-floor"
+};
 
-  function login(){
-    errorMsg.textContent="";
-    const companyId = companySelect.value;
-    const password = document.getElementById("password").value.trim();
-    if(!companyId || !password){ errorMsg.textContent="Select company and enter password"; return; }
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-    db.ref(`companies/${companyId}`).once("value").then(snap=>{
-      const c = snap.val();
-      if(!c){ errorMsg.textContent="Company not found"; return; }
-      if(c.password === password){
-        if(c.role === "client"){
-          // ✅ Save company to localStorage
-          localStorage.setItem("clientCompany", JSON.stringify({id:companyId,name:c.company || c.name}));
-          window.location.href = "floor-client.html"; // redirect to CLIENT floor page
-        } else {
-          window.location.href = "floor.html"; // admin page
-        }
-      } else { errorMsg.textContent="Incorrect password"; }
-    }).catch(err=>{ console.error(err); errorMsg.textContent="Login error"; });
+/* DOM */
+const companySelect = document.getElementById("companySelect");
+const passwordInput = document.getElementById("password");
+const loginBtn = document.getElementById("loginBtn");
+const errorMsg = document.getElementById("errorMsg");
+
+/* Load companies */
+async function loadCompanies() {
+  try {
+    const snap = await get(ref(db, "companies"));
+
+    companySelect.innerHTML = '<option value="">Select company</option>';
+
+    if (!snap.exists()) {
+      errorMsg.textContent = "No companies found";
+      return;
+    }
+
+    const data = snap.val();
+    Object.keys(data).forEach(id => {
+      const c = data[id];
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = c.company || "Unnamed Company";
+      companySelect.appendChild(opt);
+    });
+
+  } catch (err) {
+    console.error(err);
+    errorMsg.textContent = "Failed to load companies";
   }
+}
+
+loadCompanies();
+
+/* Login */
+loginBtn.onclick = async () => {
+  errorMsg.textContent = "";
+
+  const companyId = companySelect.value;
+  const password = passwordInput.value.trim();
+
+  if (!companyId || !password) {
+    errorMsg.textContent = "Select company and enter password";
+    return;
+  }
+
+  try {
+    const snap = await get(ref(db, `companies/${companyId}`));
+    if (!snap.exists()) {
+      errorMsg.textContent = "Company not found";
+      return;
+    }
+
+    const c = snap.val();
+    if (c.password !== password) {
+      errorMsg.textContent = "Incorrect password";
+      return;
+    }
+
+    localStorage.setItem(
+      "clientCompany",
+      JSON.stringify({ id: companyId, name: c.company })
+    );
+
+    window.location.href =
+      c.role === "client" ? "floor-client.html" : "floor.html";
+
+  } catch (err) {
+    console.error(err);
+    errorMsg.textContent = "Login error";
+  }
+};
 </script>
 
 </body>
