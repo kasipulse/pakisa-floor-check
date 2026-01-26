@@ -38,11 +38,13 @@ let customer, reason, scanInput, bulkInput, scanList, dateFilter, beep, showAll;
 let currentData = [];
 let scanLock = false;
 
+/* Helpers */
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
+/* DOM Ready */
 window.addEventListener("DOMContentLoaded", () => {
   customer = document.getElementById("customer");
   reason = document.getElementById("reason");
@@ -59,6 +61,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   scanInput.focus();
 
+  // Enter key scan
   scanInput.addEventListener("keydown", e => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -66,20 +69,18 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ✅ Fixed autofocus: don't steal focus from dropdowns, textarea, or button
+  // Smart autofocus
   scanInput.addEventListener("blur", () => {
     setTimeout(() => {
-      const active = document.activeElement;
-      if (active !== scanInput && active.tagName !== "SELECT" && active.tagName !== "TEXTAREA" && active.tagName !== "BUTTON") {
-        scanInput.focus();
-      }
+      if (document.activeElement !== scanInput) scanInput.focus();
     }, 100);
   });
 
+  // Refresh when Show All toggled
   showAll.addEventListener("change", () => renderList(currentData));
 });
 
-/* 🔥 REALTIME LISTENER */
+/* 🔥 Listen for realtime scans */
 function listenForScans() {
   onValue(ref(db, "scans"), snap => {
     currentData = [];
@@ -90,9 +91,10 @@ function listenForScans() {
   });
 }
 
+/* Render scans */
 function renderList(arr) {
   scanList.innerHTML = "";
-  const today = dateFilter.value || todayKey();
+  const today = todayKey();
   const filtered = showAll.checked 
     ? arr 
     : arr.filter(s => (s.date||"").trim() === today);
@@ -110,10 +112,10 @@ function renderList(arr) {
   });
 }
 
-/* SEARCH */
+/* Search scans */
 window.filterSearch = () => {
   const t = document.getElementById("searchInput").value.toLowerCase();
-  const today = dateFilter.value || todayKey();
+  const today = todayKey();
   const filtered = showAll.checked 
     ? currentData
     : currentData.filter(d => (d.date||"").trim() === today);
@@ -129,7 +131,7 @@ window.filterSearch = () => {
 
 window.changeDate = () => renderList(currentData);
 
-/* ✅ SINGLE SCAN */
+/* Single scan */
 window.saveScan = async () => {
   if (scanLock) return;
   scanLock = true;
@@ -138,13 +140,19 @@ window.saveScan = async () => {
     const waybill = scanInput.value.trim();
     if (!customer.value || !reason.value || !waybill) return;
 
-    await push(ref(db, "scans"), {
+    const scanObj = {
       customer: customer.value,
       reason: reason.value,
       waybill,
       date: todayKey(),
       timestamp: Date.now()
-    });
+    };
+
+    await push(ref(db, "scans"), scanObj);
+
+    // Update local array and UI immediately
+    currentData.unshift(scanObj);
+    renderList(currentData);
 
     beep.currentTime = 0;
     beep.play();
@@ -158,7 +166,7 @@ window.saveScan = async () => {
   }
 };
 
-/* ✅ BULK UPLOAD */
+/* Bulk upload */
 window.saveBulkScans = async () => {
   const text = bulkInput.value.trim();
   if (!customer.value || !reason.value || !text) {
@@ -170,15 +178,18 @@ window.saveBulkScans = async () => {
   if (!lines.length) return alert("No valid waybills");
 
   for (const waybill of lines) {
-    await push(ref(db, "scans"), {
+    const scanObj = {
       customer: customer.value,
       reason: reason.value,
       waybill,
       date: todayKey(),
       timestamp: Date.now()
-    });
+    };
+    await push(ref(db, "scans"), scanObj);
+    currentData.unshift(scanObj);
   }
 
+  renderList(currentData);
   bulkInput.value = "";
   beep.play();
 };
