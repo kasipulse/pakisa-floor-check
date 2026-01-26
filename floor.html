@@ -79,9 +79,8 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 /* DOM */
-let customer, reason, scanInput, bulkInput, scanList, dateFilter, beep, showAll;
+let customer, reason, scanInput, bulkInput, scanList, beep;
 let currentData = [];
-let scanLock = false;
 
 /* Helpers */
 function todayKey() {
@@ -95,29 +94,31 @@ function startOfTodayTs() {
   return d.getTime();
 }
 
+/* Scanner debounce */
+let lastScanTime = 0;
+
 window.addEventListener("DOMContentLoaded", () => {
-  customer   = document.getElementById("customer");
-  reason     = document.getElementById("reason");
-  scanInput  = document.getElementById("scanInput");
-  bulkInput  = document.getElementById("bulkInput");
-  scanList   = document.getElementById("scanList");
-  dateFilter = document.getElementById("dateFilter");
-  beep       = document.getElementById("beep");
-  showAll    = document.getElementById("showAll");
+  customer  = document.getElementById("customer");
+  reason    = document.getElementById("reason");
+  scanInput = document.getElementById("scanInput");
+  bulkInput = document.getElementById("bulkInput");
+  scanList  = document.getElementById("scanList");
+  beep      = document.getElementById("beep");
 
-  dateFilter.value = todayKey();
   listenForScans();
-
   scanInput.focus();
 
-  scanInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      saveScan();
-    }
-  });
+  /* ✅ Scanner-safe Enter */
+  scanInput.addEventListener("keyup", e => {
+    if (e.key !== "Enter") return;
 
-  showAll.addEventListener("change", () => renderList(currentData));
+    const now = Date.now();
+    if (now - lastScanTime < 300) return; // prevent double scans
+    lastScanTime = now;
+
+    e.preventDefault();
+    saveScan();
+  });
 });
 
 /* 🔥 LISTENER — TODAY ONLY */
@@ -133,7 +134,6 @@ function listenForScans() {
     snap.forEach(c => currentData.push(c.val()));
     currentData.sort((a,b) => b.timestamp - a.timestamp);
     renderList(currentData);
-    console.log("Today scans:", currentData);
   });
 }
 
@@ -166,15 +166,16 @@ window.filterSearch = () => {
   );
 };
 
-/* Save scan */
+/* ✅ FIXED SAVE SCAN */
 window.saveScan = async () => {
-  if (scanLock) return;
-  scanLock = true;
+  const waybill = scanInput.value.trim();
+
+  if (!customer.value || !reason.value || !waybill) {
+    scanInput.focus();
+    return;
+  }
 
   try {
-    const waybill = scanInput.value.trim();
-    if (!customer.value || !reason.value || !waybill) return;
-
     await push(ref(db, "scans"), {
       customer: customer.value,
       reason: reason.value,
@@ -191,8 +192,9 @@ window.saveScan = async () => {
 
     scanInput.value = "";
     scanInput.focus();
-  } finally {
-    scanLock = false;
+  } catch (err) {
+    console.error("Scan failed", err);
+    scanInput.focus();
   }
 };
 
@@ -255,7 +257,7 @@ window.saveBulkScans = async () => {
 </select>
 
 <label>Scan Waybill</label>
-<input id="scanInput" placeholder="Scan waybill">
+<input id="scanInput" placeholder="Scan waybill" autocomplete="off">
 
 <label>Bulk Waybill Paste</label>
 <textarea id="bulkInput" placeholder="One waybill per line"></textarea>
