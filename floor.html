@@ -6,12 +6,49 @@
 <title>Pakisa Floor Check</title>
 
 <style>
-body { font-family: Arial, sans-serif; padding:20px; background:#fff; }
-select,input,textarea,button { width:100%; padding:12px; margin:8px 0; font-size:16px; box-sizing:border-box; }
-textarea { min-height:120px; resize:vertical; }
-button { background:#0a2b52; color:#fff; border:none; border-radius:8px; cursor:pointer; }
-.list-item { padding:10px; background:#f2f2f2; margin:6px 0; border-radius:8px; }
-.flash { background:#2ecc71 !important; transition: background 0.2s; }
+body {
+  font-family: Arial, sans-serif;
+  padding:20px;
+  background:#fff;
+}
+
+select,
+input,
+textarea,
+button {
+  width:100%;
+  padding:12px;
+  margin:8px 0;
+  font-size:16px;
+  box-sizing:border-box;
+}
+
+select { touch-action: manipulation; }
+
+textarea {
+  min-height:120px;
+  resize:vertical;
+}
+
+button {
+  background:#0a2b52;
+  color:#fff;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+.list-item {
+  padding:10px;
+  background:#f2f2f2;
+  margin:6px 0;
+  border-radius:8px;
+}
+
+.flash {
+  background:#2ecc71 !important;
+  transition: background 0.2s;
+}
 </style>
 
 <audio id="beep">
@@ -20,7 +57,15 @@ button { background:#0a2b52; color:#fff; border:none; border-radius:8px; cursor:
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import {
+  getDatabase,
+  ref,
+  push,
+  onValue,
+  query,
+  orderByChild,
+  startAt
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 /* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
@@ -33,26 +78,32 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* DOM elements */
+/* DOM */
 let customer, reason, scanInput, bulkInput, scanList, dateFilter, beep, showAll;
 let currentData = [];
 let scanLock = false;
 
-/* Generate YYYY-MM-DD key */
+/* Helpers */
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
+function startOfTodayTs() {
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  return d.getTime();
+}
+
 window.addEventListener("DOMContentLoaded", () => {
-  customer = document.getElementById("customer");
-  reason = document.getElementById("reason");
-  scanInput = document.getElementById("scanInput");
-  bulkInput = document.getElementById("bulkInput");
-  scanList = document.getElementById("scanList");
+  customer   = document.getElementById("customer");
+  reason     = document.getElementById("reason");
+  scanInput  = document.getElementById("scanInput");
+  bulkInput  = document.getElementById("bulkInput");
+  scanList   = document.getElementById("scanList");
   dateFilter = document.getElementById("dateFilter");
-  beep = document.getElementById("beep");
-  showAll = document.getElementById("showAll");
+  beep       = document.getElementById("beep");
+  showAll    = document.getElementById("showAll");
 
   dateFilter.value = todayKey();
   listenForScans();
@@ -60,44 +111,42 @@ window.addEventListener("DOMContentLoaded", () => {
   scanInput.focus();
 
   scanInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") { e.preventDefault(); saveScan(); }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveScan();
+    }
   });
 
-  // Keep autofocus on input
-  scanInput.addEventListener("blur", () => {
-    setTimeout(() => { if(document.activeElement !== scanInput) scanInput.focus(); }, 100);
-  });
-
-  // Refresh on "Show All" toggle
   showAll.addEventListener("change", () => renderList(currentData));
 });
 
-/* 🔥 LISTENER */
+/* 🔥 LISTENER — TODAY ONLY */
 function listenForScans() {
-  onValue(ref(db, "scans"), snap => {
+  const q = query(
+    ref(db, "scans"),
+    orderByChild("timestamp"),
+    startAt(startOfTodayTs())
+  );
+
+  onValue(q, snap => {
     currentData = [];
     snap.forEach(c => currentData.push(c.val()));
     currentData.sort((a,b) => b.timestamp - a.timestamp);
     renderList(currentData);
-    console.log("Scans loaded:", currentData);
+    console.log("Today scans:", currentData);
   });
 }
 
-/* 🔹 Render scans */
+/* Render list */
 function renderList(arr) {
   scanList.innerHTML = "";
-  const today = dateFilter.value || todayKey();
 
-  const filtered = showAll.checked
-    ? arr
-    : arr.filter(s => (s.date||"").trim() === today);
-
-  if (!filtered.length) {
-    scanList.innerHTML = "<i>No scans for this date</i>";
+  if (!arr.length) {
+    scanList.innerHTML = "<i>No scans for today</i>";
     return;
   }
 
-  filtered.slice(0,200).forEach(d => {
+  arr.slice(0,200).forEach(d => {
     const div = document.createElement("div");
     div.className = "list-item";
     div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
@@ -105,24 +154,19 @@ function renderList(arr) {
   });
 }
 
-/* 🔹 Search */
+/* Search */
 window.filterSearch = () => {
   const t = document.getElementById("searchInput").value.toLowerCase();
-  const today = dateFilter.value || todayKey();
-  const filtered = showAll.checked
-    ? currentData
-    : currentData.filter(d => (d.date||"").trim() === today);
-
-  renderList(filtered.filter(d =>
-    d.waybill.toLowerCase().includes(t) ||
-    d.customer.toLowerCase().includes(t) ||
-    d.reason.toLowerCase().includes(t)
-  ));
+  renderList(
+    currentData.filter(d =>
+      d.waybill.toLowerCase().includes(t) ||
+      d.customer.toLowerCase().includes(t) ||
+      d.reason.toLowerCase().includes(t)
+    )
+  );
 };
 
-window.changeDate = () => renderList(currentData);
-
-/* 🔹 Single scan save */
+/* Save scan */
 window.saveScan = async () => {
   if (scanLock) return;
   scanLock = true;
@@ -135,23 +179,30 @@ window.saveScan = async () => {
       customer: customer.value,
       reason: reason.value,
       waybill,
-      date: todayKey(), // ensures today's date
+      date: todayKey(),
       timestamp: Date.now()
     });
 
-    beep.currentTime = 0; beep.play();
+    beep.currentTime = 0;
+    beep.play();
+
     document.body.classList.add("flash");
     setTimeout(() => document.body.classList.remove("flash"), 150);
 
     scanInput.value = "";
     scanInput.focus();
-  } finally { scanLock = false; }
+  } finally {
+    scanLock = false;
+  }
 };
 
-/* 🔹 Bulk upload */
+/* Bulk upload */
 window.saveBulkScans = async () => {
   const text = bulkInput.value.trim();
-  if (!customer.value || !reason.value || !text) { alert("Select customer, reason and paste waybills"); return; }
+  if (!customer.value || !reason.value || !text) {
+    alert("Select customer, reason and paste waybills");
+    return;
+  }
 
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length >= 8);
   if (!lines.length) return alert("No valid waybills");
@@ -173,13 +224,14 @@ window.saveBulkScans = async () => {
 </head>
 
 <body>
+
 <center>
 <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160">
 </center>
 
 <h2>Floor Check</h2>
 
-<label for="customer">Customer</label>
+<label>Customer</label>
 <select id="customer">
   <option value="">Select Customer</option>
   <option>First Freight Couriers</option>
@@ -189,7 +241,7 @@ window.saveBulkScans = async () => {
   <option>Brima Logistics</option>
 </select>
 
-<label for="reason">Reason</label>
+<label>Reason</label>
 <select id="reason">
   <option value="">Select Reason</option>
   <option>Out for delivery</option>
@@ -202,26 +254,22 @@ window.saveBulkScans = async () => {
   <option>Future delivery</option>
 </select>
 
-<label for="scanInput">Scan Waybill</label>
+<label>Scan Waybill</label>
 <input id="scanInput" placeholder="Scan waybill">
 
-<label for="bulkInput">Bulk Waybill Paste</label>
+<label>Bulk Waybill Paste</label>
 <textarea id="bulkInput" placeholder="One waybill per line"></textarea>
 
 <button onclick="saveBulkScans()">Bulk Upload</button>
 
-<h3>Options</h3>
-<label><input type="checkbox" id="showAll"> Show all scans</label>
-
-<h3>View by Date</h3>
-<input type="date" id="dateFilter" onchange="changeDate()">
-
 <h3>Search</h3>
 <input id="searchInput" placeholder="Search…" onkeyup="filterSearch()">
 
-<h3>Scans</h3>
+<h3>Scans (Today)</h3>
 <div id="scanList"><i>Loading…</i></div>
 
-<br><center><b>Built by Mpho Mahlaba</b></center>
+<br>
+<center><b>Built by Mpho Mahlaba</b></center>
+
 </body>
 </html>
