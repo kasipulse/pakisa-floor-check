@@ -1,17 +1,18 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pakisa Floor Check</title>
 
 <style>
 body { font-family: Arial, sans-serif; padding:20px; background:#fff; }
-label { font-weight:bold; display:block; margin-top:10px; }
+label { display:block; margin-top:10px; font-weight:bold; }
 input, select, textarea, button { width:100%; padding:8px; margin-top:4px; font-size:16px; }
 textarea { min-height:100px; }
 button { background:#0a2b52; color:white; border:none; border-radius:8px; cursor:pointer; margin-top:8px; }
-.list-item { padding:10px; background:#f2f2f2; margin:6px 0; border-radius:8px; }
+.list { margin-top:14px; }
+.item { padding:10px; border-radius:8px; background:#f2f2f2; margin-bottom:6px; }
 .flash { background:#2ecc71 !important; }
 </style>
 
@@ -34,7 +35,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-let customer, reason, scanInput, bulkInput, scanList, searchInput, dateFilter, beep;
+/* DOM */
+let customer, reason, scanInput, scanList, searchInput, dateFilter, beep;
 let scans = [];
 let scanLock = false;
 
@@ -47,7 +49,6 @@ window.addEventListener("DOMContentLoaded", () => {
   customer = document.getElementById("customer");
   reason = document.getElementById("reason");
   scanInput = document.getElementById("scanInput");
-  bulkInput = document.getElementById("bulkInput");
   scanList = document.getElementById("scanList");
   searchInput = document.getElementById("searchInput");
   dateFilter = document.getElementById("dateFilter");
@@ -98,7 +99,7 @@ function renderList(arr) {
 
   filtered.slice(0,200).forEach(d => {
     const div = document.createElement("div");
-    div.className = "list-item";
+    div.className = "item";
     div.innerHTML = `<b>${d.waybill}</b> — ${d.customer} — ${d.reason}`;
     scanList.appendChild(div);
   });
@@ -116,7 +117,7 @@ window.filterSearch = () => {
 
 window.changeDate = () => renderList(scans);
 
-/* ✅ SAVE SINGLE */
+/* ✅ SAVE SINGLE SCAN */
 window.saveScan = async () => {
   if (scanLock) return;
   scanLock = true;
@@ -124,7 +125,7 @@ window.saveScan = async () => {
     const w = scanInput.value.trim();
     if (!customer.value || !reason.value || !w) return;
 
-    await push(ref(db, "scans"), {
+    await push(ref(db,"scans"), {
       customer: customer.value,
       reason: reason.value,
       waybill: w,
@@ -132,34 +133,12 @@ window.saveScan = async () => {
       timestamp: Date.now()
     });
 
-    beep.currentTime = 0;
-    beep.play();
+    beep.currentTime=0; beep.play();
     document.body.classList.add("flash");
     setTimeout(()=>document.body.classList.remove("flash"),150);
     scanInput.value="";
     scanInput.focus();
   } finally { scanLock=false; }
-};
-
-/* ✅ BULK */
-window.saveBulkScans = async () => {
-  const text = bulkInput.value.trim();
-  if (!customer.value || !reason.value || !text) { alert("Select customer, reason, paste waybills"); return; }
-
-  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>=8);
-  if (!lines.length) return alert("No valid waybills");
-
-  for (const w of lines) {
-    await push(ref(db,"scans"),{
-      customer: customer.value,
-      reason: reason.value,
-      waybill: w,
-      date: todayKey(),
-      timestamp: Date.now()
-    });
-  }
-  bulkInput.value="";
-  beep.play();
 };
 </script>
 </head>
@@ -197,11 +176,6 @@ window.saveBulkScans = async () => {
 
 <label for="scanInput">Scan Waybill</label>
 <input id="scanInput" placeholder="Scan waybill">
-
-<label for="bulkInput">Bulk Waybill Paste</label>
-<textarea id="bulkInput" placeholder="One waybill per line"></textarea>
-
-<button onclick="saveBulkScans()">Bulk Upload</button>
 
 <h3>View by Date</h3>
 <input type="date" id="dateFilter" onchange="changeDate()">
