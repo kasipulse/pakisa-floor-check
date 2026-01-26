@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
+<meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Floor Check</title>
 
@@ -64,10 +64,14 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Smart autofocus
+  // Smart autofocus: do not steal focus from selects or textarea
   scanInput.addEventListener("blur", () => {
     setTimeout(() => {
-      if (document.activeElement !== scanInput) scanInput.focus();
+      const active = document.activeElement;
+      const interactive = ["SELECT", "TEXTAREA", "INPUT"];
+      if (!interactive.includes(active.tagName)) {
+        scanInput.focus();
+      }
     }, 100);
   });
 });
