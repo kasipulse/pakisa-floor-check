@@ -63,7 +63,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* DOM ELEMENTS */
+/* DOM */
 let customer, reason, scanInput, bulkInput, scanList, searchInput, dateFilter, beep;
 let currentData = [];
 let scanLock = false;
@@ -84,7 +84,6 @@ window.addEventListener("DOMContentLoaded", () => {
   beep = document.getElementById("beep");
 
   dateFilter.value = todayKey();
-
   listenForScans();
 
   scanInput.focus();
@@ -95,7 +94,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Auto-focus for scanning
+  // 🔥 Smart auto-focus for scanning
   scanInput.addEventListener("blur", () => {
     setTimeout(() => {
       const active = document.activeElement;
@@ -113,12 +112,13 @@ function listenForScans() {
     snap.forEach(c => currentData.push(c.val()));
     currentData.sort((a,b) => b.timestamp - a.timestamp);
     renderList(currentData);
+    console.log("Scans loaded:", currentData); // DEBUG
   });
 }
 
-/* 🔄 RENDER LIST */
 function renderList(arr) {
   scanList.innerHTML = "";
+
   const filtered = arr.filter(s => s.date === dateFilter.value);
 
   if (!filtered.length) {
@@ -134,7 +134,7 @@ function renderList(arr) {
   });
 }
 
-/* 🔍 SEARCH */
+/* SEARCH */
 window.filterSearch = () => {
   const t = searchInput.value.toLowerCase();
   renderList(
@@ -177,7 +177,7 @@ window.saveScan = async () => {
   }
 };
 
-/* ✅ BULK SCAN */
+/* ✅ BULK UPLOAD */
 window.saveBulkScans = async () => {
   const text = bulkInput.value.trim();
   if (!customer.value || !reason.value || !text) {
@@ -205,13 +205,14 @@ window.saveBulkScans = async () => {
 </head>
 
 <body>
+
 <center>
 <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160">
 </center>
 
 <h2>Floor Check</h2>
 
-<label>Customer</label>
+<label for="customer">Customer</label>
 <select id="customer">
   <option value="">Select Customer</option>
   <option>First Freight Couriers</option>
@@ -221,7 +222,7 @@ window.saveBulkScans = async () => {
   <option>Brima Logistics</option>
 </select>
 
-<label>Reason</label>
+<label for="reason">Reason</label>
 <select id="reason">
   <option value="">Select Reason</option>
   <option>Out for delivery</option>
@@ -234,10 +235,10 @@ window.saveBulkScans = async () => {
   <option>Future delivery</option>
 </select>
 
-<label>Scan Waybill</label>
+<label for="scanInput">Scan Waybill</label>
 <input id="scanInput" placeholder="Scan waybill">
 
-<label>Bulk Waybill Paste</label>
+<label for="bulkInput">Bulk Waybill Paste</label>
 <textarea id="bulkInput" placeholder="One waybill per line"></textarea>
 
 <button onclick="saveBulkScans()">Bulk Upload</button>
@@ -252,5 +253,6 @@ window.saveBulkScans = async () => {
 <div id="scanList"><i>Loading…</i></div>
 
 <br><center><b>Built by Mpho Mahlaba</b></center>
+
 </body>
 </html>
