@@ -105,21 +105,37 @@ window.addEventListener("DOMContentLoaded", () => {
   scanList  = document.getElementById("scanList");
   beep      = document.getElementById("beep");
 
+  const searchInput = document.getElementById("searchInput");
+
   listenForScans();
   scanInput.focus();
 
-  /* ✅ Scanner-safe Enter */
+  /* ✅ Scanner-safe Enter (MAIN) */
   scanInput.addEventListener("keyup", e => {
     if (e.key !== "Enter") return;
 
     const now = Date.now();
-    if (now - lastScanTime < 300) return; // prevent double scans
+    if (now - lastScanTime < 300) return;
     lastScanTime = now;
 
     e.preventDefault();
     saveScan();
   });
+
+  /* 🚫 Search must NEVER trap the scanner */
+  searchInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      scanInput.focus();
+    }
+  });
+
+  /* 🔁 Always return focus to scanner */
+  searchInput.addEventListener("blur", () => {
+    setTimeout(() => scanInput.focus(), 50);
+  });
 });
+
 
 /* 🔥 LISTENER — TODAY ONLY */
 function listenForScans() {
