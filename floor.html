@@ -53,7 +53,6 @@ window.addEventListener("DOMContentLoaded", () => {
   beep = document.getElementById("beep");
   showAll = document.getElementById("showAll");
 
-  // ✅ set today first
   dateFilter.value = todayKey();
 
   listenForScans();
@@ -67,14 +66,16 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Smart autofocus
+  // ✅ Fixed autofocus: don't steal focus from dropdowns, textarea, or button
   scanInput.addEventListener("blur", () => {
     setTimeout(() => {
-      if (document.activeElement !== scanInput) scanInput.focus();
+      const active = document.activeElement;
+      if (active !== scanInput && active.tagName !== "SELECT" && active.tagName !== "TEXTAREA" && active.tagName !== "BUTTON") {
+        scanInput.focus();
+      }
     }, 100);
   });
 
-  // Refresh when show all toggled
   showAll.addEventListener("change", () => renderList(currentData));
 });
 
