@@ -99,10 +99,6 @@ footer {
   font-size:13px;
   color:#6b7280;
 }
-
-@media (max-width:640px) {
-  header { flex-direction:column; align-items:flex-start; }
-}
 </style>
 
 <script type="module">
@@ -118,74 +114,81 @@ const firebaseConfig = {
   projectId: "pakisa-floor"
 };
 
-/* ✅ INIT APP */
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
 let allScans = [];
+let ready = false;
 
-/* 🔒 ANONYMOUS AUTH */
-signInAnonymously(auth)
-  .then(() => loadScans())
-  .catch(err => console.error("Auth failed", err));
+/* 🔒 READ-ONLY ANON AUTH */
+signInAnonymously(auth).then(loadScans);
 
-/* 🔄 LOAD SCANS - handles nested dates */
+/* 🔄 LOAD SCANS (SAFE + READ-ONLY) */
 function loadScans() {
   onValue(ref(db, "scans"), snap => {
     allScans = [];
-    snap.forEach(child => {
-      if (child.hasChildren()) {
-        // If nested by date
-        child.forEach(c => allScans.push(c.val()));
+
+    snap.forEach(parent => {
+      if (parent.hasChildren()) {
+        parent.forEach(c => allScans.push(normalize(c.val())));
       } else {
-        allScans.push(child.val());
+        allScans.push(normalize(parent.val()));
       }
     });
+
     allScans.sort((a,b)=>b.timestamp - a.timestamp);
+    ready = true;
     render(allScans.slice(0,20));
   });
 }
 
-/* 🧱 RENDER SCANS */
+/* 🧹 NORMALIZE DATA (THIS FIXES THE ERRORS) */
+function normalize(s) {
+  return {
+    waybill: String(s?.waybill || ""),
+    customer: String(s?.customer || ""),
+    reason: String(s?.reason || ""),
+    timestamp: Number(s?.timestamp || 0)
+  };
+}
+
+/* 🧱 RENDER */
 function render(list) {
   const box = document.getElementById("scanList");
   box.innerHTML = "";
+
   if (!list.length) {
     box.innerHTML = "<i>No scans found</i>";
     return;
   }
+
   list.forEach(s => {
     const d = document.createElement("div");
     d.className = "item";
-    d.innerHTML = `<strong>${s.waybill}</strong><br>${s.customer} — ${s.reason}`;
+    d.innerHTML = `
+      <strong>${s.waybill || "-"}</strong><br>
+      ${s.customer || "Unknown"} — ${s.reason || "No reason"}
+    `;
     box.appendChild(d);
   });
 }
 
-/* 🔍 SEARCH FUNCTION */
+/* 🔍 SAFE SEARCH (NO CRASHES) */
 window.searchScan = () => {
-  const term = document.getElementById("search").value.toLowerCase().trim();
-  if (!term) return render(allScans.slice(0,20));
-  render(allScans.filter(s =>
-    s.waybill.toLowerCase().includes(term) ||
-    s.customer.toLowerCase().includes(term) ||
-    s.reason.toLowerCase().includes(term)
-  ));
-};
+  if (!ready) return;
 
-document.addEventListener("DOMContentLoaded", () => {
-  const searchInput = document.getElementById("search");
-  searchInput.focus();
-  searchInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      searchScan();
-      searchInput.value = "";
-      setTimeout(()=>searchInput.focus(),10);
-    }
-  });
-});
+  const term = document.getElementById("search").value.trim().toLowerCase();
+  if (!term) return render(allScans.slice(0,20));
+
+  render(
+    allScans.filter(s =>
+      s.waybill.includes(term) ||
+      s.customer.toLowerCase().includes(term) ||
+      s.reason.toLowerCase().includes(term)
+    )
+  );
+};
 </script>
 </head>
 
@@ -196,7 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <img class="logo" src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png">
       <div>
         <h1>Pakisa Floor Check</h1>
-        <div style="font-size:13px;color:#6b7280">Quick search only</div>
+        <div style="font-size:13px;color:#6b7280">Read-only search</div>
       </div>
     </header>
 
@@ -211,8 +214,8 @@ document.addEventListener("DOMContentLoaded", () => {
       <a class="btn" href="client-login.html">Client Login</a>
       <a class="btn" href="login.html">Pakisa Agent Login</a>
     </div>
-
   </div>
+
   <footer>Built by Mpho Mahlaba</footer>
 </div>
 </body>
