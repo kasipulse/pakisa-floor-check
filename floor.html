@@ -50,6 +50,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 /* 🔥 FIREBASE CONFIG */
@@ -60,8 +61,17 @@ const firebaseConfig = {
   projectId: "pakisa-floor"
 };
 
+/* INIT */
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 const db = getDatabase(app);
+
+/* 🔐 REQUIRE LOGIN (PAKISA AGENTS ONLY) */
+onAuthStateChanged(auth, user => {
+  if (!user) {
+    window.location.href = "login.html";
+  }
+});
 
 /* DOM */
 let customer, reason, scanInput, bulkInput, scanList, searchInput, dateFilter, beep;
@@ -87,6 +97,7 @@ window.addEventListener("DOMContentLoaded", () => {
   listenForScans();
 
   scanInput.focus();
+
   scanInput.addEventListener("keydown", e => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -94,18 +105,16 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 🔥 Smart auto-focus for scanning
-  scanInput.addEventListener("blur", () => {
-    setTimeout(() => {
-      const active = document.activeElement;
-      if (active.tagName !== "SELECT" && active.tagName !== "TEXTAREA" && active !== scanInput) {
-        scanInput.focus();
-      }
-    }, 100);
+  /* ✅ SAFE AUTO-FOCUS (DOES NOT BREAK DROPDOWNS) */
+  document.addEventListener("click", e => {
+    const tag = e.target.tagName;
+    if (tag !== "SELECT" && tag !== "TEXTAREA" && tag !== "INPUT") {
+      scanInput.focus();
+    }
   });
 });
 
-/* 🔥 REALTIME LISTENER */
+/* 🔄 REALTIME LISTENER */
 function listenForScans() {
   onValue(ref(db, "scans"), snap => {
     currentData = [];
@@ -118,14 +127,16 @@ function listenForScans() {
 function renderList(arr) {
   scanList.innerHTML = "";
 
-  const filtered = arr.filter(s => s.date === dateFilter.value);
+  const today = dateFilter.value;
+  const filtered = arr.filter(s => s.date === today);
+  const toShow = filtered.length ? filtered : arr.slice(0, 50);
 
-  if (!filtered.length) {
-    scanList.innerHTML = "<i>No scans for this date</i>";
+  if (!toShow.length) {
+    scanList.innerHTML = "<i>No scans found</i>";
     return;
   }
 
-  filtered.slice(0, 200).forEach(d => {
+  toShow.forEach(d => {
     const div = document.createElement("div");
     div.className = "list-item";
     div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
@@ -230,6 +241,8 @@ window.saveBulkScans = async () => {
   <option>Bad address</option>
   <option>Missing paperwork</option>
   <option>Misroute</option>
+  <option>Will be attempted on commitment date</option>
+  <option>Future delivery</option>
 </select>
 
 <label>Scan Waybill</label>
