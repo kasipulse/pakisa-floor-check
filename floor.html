@@ -3,45 +3,40 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Floor Check</title>
+<title>Pakisa Floor Check</title>
 
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    padding: 20px;
-    background: #fff;
-  }
-
-  select, input, textarea, button {
-    width: 100%;
-    padding: 12px;
-    margin: 8px 0;
-    font-size: 16px;
-  }
-
-  textarea {
-    min-height: 120px;
-    resize: vertical;
-  }
-
-  button {
-    background: #0a2b52;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-
-  .list-item {
-    padding: 10px;
-    background: #f2f2f2;
-    margin: 6px 0;
-    border-radius: 8px;
-  }
-
-  .flash {
-    background: #2ecc71 !important;
-  }
+body {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+  background: #fff;
+}
+select, input, textarea, button {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  font-size: 16px;
+}
+textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+button {
+  background: #0a2b52;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.list-item {
+  padding: 10px;
+  background: #f2f2f2;
+  margin: 6px 0;
+  border-radius: 8px;
+}
+.flash {
+  background: #2ecc71 !important;
+}
 </style>
 
 <audio id="beep">
@@ -64,7 +59,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 /* DOM */
-let customer, reason, scanInput, bulkInput, scanList, searchInput, dateFilter, beep;
+let customer, reason, scanInput, bulkInput, scanList, searchInput, beep;
 let currentData = [];
 let scanLock = false;
 
@@ -75,12 +70,11 @@ window.addEventListener("DOMContentLoaded", () => {
   bulkInput = document.getElementById("bulkInput");
   scanList = document.getElementById("scanList");
   searchInput = document.getElementById("searchInput");
-  dateFilter = document.getElementById("dateFilter");
   beep = document.getElementById("beep");
 
-  dateFilter.value = todayKey();
   listenForScans();
 
+  // Auto-focus single scan
   scanInput.focus();
   scanInput.addEventListener("keydown", e => {
     if (e.key === "Enter") {
@@ -89,7 +83,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Smart auto-focus for scanning
+  // Keep autofocus on scan input
   scanInput.addEventListener("blur", () => {
     setTimeout(() => {
       const active = document.activeElement;
@@ -100,35 +94,29 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
-/* REALTIME LISTENER */
+/* 🔥 REALTIME LISTENER */
 function listenForScans() {
   onValue(ref(db, "scans"), snap => {
     currentData = [];
     snap.forEach(c => currentData.push(c.val()));
     currentData.sort((a,b) => b.timestamp - a.timestamp);
-    console.log("Scans loaded: ", currentData);
-    renderList(currentData); // render ALL scans
+    renderList(currentData);
+    console.log("Scans loaded:", currentData);
   });
 }
 
-/* RENDER FUNCTION */
 function renderList(arr) {
   scanList.innerHTML = "";
 
   if (!arr.length) {
-    scanList.innerHTML = "<i>No scans</i>";
+    scanList.innerHTML = "<i>No scans found</i>";
     return;
   }
 
-  arr.slice(0,200).forEach(d => {
+  arr.slice(0, 200).forEach(d => {
     const div = document.createElement("div");
     div.className = "list-item";
-    div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason} — <small>${d.date}</small>`;
+    div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
     scanList.appendChild(div);
   });
 }
@@ -145,9 +133,7 @@ window.filterSearch = () => {
   );
 };
 
-window.changeDate = () => renderList(currentData);
-
-/* SINGLE SCAN */
+/* ✅ SINGLE SCAN */
 window.saveScan = async () => {
   if (scanLock) return;
   scanLock = true;
@@ -160,7 +146,6 @@ window.saveScan = async () => {
       customer: customer.value,
       reason: reason.value,
       waybill,
-      date: todayKey(),
       timestamp: Date.now()
     });
 
@@ -176,7 +161,7 @@ window.saveScan = async () => {
   }
 };
 
-/* BULK UPLOAD */
+/* ✅ BULK UPLOAD */
 window.saveBulkScans = async () => {
   const text = bulkInput.value.trim();
   if (!customer.value || !reason.value || !text) {
@@ -192,14 +177,13 @@ window.saveBulkScans = async () => {
       customer: customer.value,
       reason: reason.value,
       waybill,
-      date: todayKey(),
       timestamp: Date.now()
     });
   }
 
   bulkInput.value = "";
   beep.play();
-}
+};
 </script>
 </head>
 
@@ -249,5 +233,6 @@ window.saveBulkScans = async () => {
 <div id="scanList"><i>Loading…</i></div>
 
 <br><center><b>Built by Mpho Mahlaba</b></center>
+
 </body>
 </html>
