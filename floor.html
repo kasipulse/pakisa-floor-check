@@ -7,11 +7,11 @@
 
 <style>
 body { font-family: Arial, sans-serif; padding:20px; background:#fff; }
-select,input,textarea,button { width:100%; padding:12px; margin:8px 0; font-size:16px; }
+select,input,textarea,button { width:100%; padding:12px; margin:8px 0; font-size:16px; box-sizing:border-box; }
 textarea { min-height:120px; resize:vertical; }
 button { background:#0a2b52; color:#fff; border:none; border-radius:8px; cursor:pointer; }
 .list-item { padding:10px; background:#f2f2f2; margin:6px 0; border-radius:8px; }
-.flash { background:#2ecc71 !important; }
+.flash { background:#2ecc71 !important; transition: background 0.2s; }
 </style>
 
 <audio id="beep">
@@ -33,18 +33,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* DOM */
+/* DOM elements */
 let customer, reason, scanInput, bulkInput, scanList, dateFilter, beep, showAll;
 let currentData = [];
 let scanLock = false;
 
-/* Helpers */
+/* Generate YYYY-MM-DD key */
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-/* DOM Ready */
 window.addEventListener("DOMContentLoaded", () => {
   customer = document.getElementById("customer");
   reason = document.getElementById("reason");
@@ -56,31 +55,24 @@ window.addEventListener("DOMContentLoaded", () => {
   showAll = document.getElementById("showAll");
 
   dateFilter.value = todayKey();
-
   listenForScans();
 
   scanInput.focus();
 
-  // Enter key scan
   scanInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      saveScan();
-    }
+    if (e.key === "Enter") { e.preventDefault(); saveScan(); }
   });
 
-  // Smart autofocus
+  // Keep autofocus on input
   scanInput.addEventListener("blur", () => {
-    setTimeout(() => {
-      if (document.activeElement !== scanInput) scanInput.focus();
-    }, 100);
+    setTimeout(() => { if(document.activeElement !== scanInput) scanInput.focus(); }, 100);
   });
 
-  // Refresh when Show All toggled
+  // Refresh on "Show All" toggle
   showAll.addEventListener("change", () => renderList(currentData));
 });
 
-/* 🔥 Listen for realtime scans */
+/* 🔥 LISTENER */
 function listenForScans() {
   onValue(ref(db, "scans"), snap => {
     currentData = [];
@@ -91,12 +83,13 @@ function listenForScans() {
   });
 }
 
-/* Render scans */
+/* 🔹 Render scans */
 function renderList(arr) {
   scanList.innerHTML = "";
-  const today = todayKey();
-  const filtered = showAll.checked 
-    ? arr 
+  const today = dateFilter.value || todayKey();
+
+  const filtered = showAll.checked
+    ? arr
     : arr.filter(s => (s.date||"").trim() === today);
 
   if (!filtered.length) {
@@ -112,26 +105,24 @@ function renderList(arr) {
   });
 }
 
-/* Search scans */
+/* 🔹 Search */
 window.filterSearch = () => {
   const t = document.getElementById("searchInput").value.toLowerCase();
-  const today = todayKey();
-  const filtered = showAll.checked 
+  const today = dateFilter.value || todayKey();
+  const filtered = showAll.checked
     ? currentData
     : currentData.filter(d => (d.date||"").trim() === today);
 
-  renderList(
-    filtered.filter(d => 
-      d.waybill.toLowerCase().includes(t) ||
-      d.customer.toLowerCase().includes(t) ||
-      d.reason.toLowerCase().includes(t)
-    )
-  );
+  renderList(filtered.filter(d =>
+    d.waybill.toLowerCase().includes(t) ||
+    d.customer.toLowerCase().includes(t) ||
+    d.reason.toLowerCase().includes(t)
+  ));
 };
 
 window.changeDate = () => renderList(currentData);
 
-/* Single scan */
+/* 🔹 Single scan save */
 window.saveScan = async () => {
   if (scanLock) return;
   scanLock = true;
@@ -140,56 +131,41 @@ window.saveScan = async () => {
     const waybill = scanInput.value.trim();
     if (!customer.value || !reason.value || !waybill) return;
 
-    const scanObj = {
+    await push(ref(db, "scans"), {
       customer: customer.value,
       reason: reason.value,
       waybill,
-      date: todayKey(),
+      date: todayKey(), // ensures today's date
       timestamp: Date.now()
-    };
+    });
 
-    await push(ref(db, "scans"), scanObj);
-
-    // Update local array and UI immediately
-    currentData.unshift(scanObj);
-    renderList(currentData);
-
-    beep.currentTime = 0;
-    beep.play();
+    beep.currentTime = 0; beep.play();
     document.body.classList.add("flash");
     setTimeout(() => document.body.classList.remove("flash"), 150);
 
     scanInput.value = "";
     scanInput.focus();
-  } finally {
-    scanLock = false;
-  }
+  } finally { scanLock = false; }
 };
 
-/* Bulk upload */
+/* 🔹 Bulk upload */
 window.saveBulkScans = async () => {
   const text = bulkInput.value.trim();
-  if (!customer.value || !reason.value || !text) {
-    alert("Select customer, reason and paste waybills");
-    return;
-  }
+  if (!customer.value || !reason.value || !text) { alert("Select customer, reason and paste waybills"); return; }
 
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length >= 8);
   if (!lines.length) return alert("No valid waybills");
 
   for (const waybill of lines) {
-    const scanObj = {
+    await push(ref(db, "scans"), {
       customer: customer.value,
       reason: reason.value,
       waybill,
       date: todayKey(),
       timestamp: Date.now()
-    };
-    await push(ref(db, "scans"), scanObj);
-    currentData.unshift(scanObj);
+    });
   }
 
-  renderList(currentData);
   bulkInput.value = "";
   beep.play();
 };
@@ -197,7 +173,6 @@ window.saveBulkScans = async () => {
 </head>
 
 <body>
-
 <center>
 <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160">
 </center>
