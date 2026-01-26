@@ -1,12 +1,11 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Floor Check</title>
-
 <style>
-body { font-family: Arial, sans-serif; padding:20px; background:#fff; }
+body { font-family: Arial,sans-serif; padding:20px; background:#fff; }
 select,input,textarea,button { width:100%; padding:12px; margin:8px 0; font-size:16px; }
 textarea { min-height:120px; resize:vertical; }
 button { background:#0a2b52; color:#fff; border:none; border-radius:8px; cursor:pointer; }
@@ -22,7 +21,6 @@ button { background:#0a2b52; color:#fff; border:none; border-radius:8px; cursor:
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-/* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
   authDomain: "pakisa-floor.firebaseapp.com",
@@ -33,48 +31,36 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* DOM */
 let customer, reason, scanInput, bulkInput, scanList, searchInput, dateFilter, beep;
-let currentData = [];
-let scanLock = false;
+let currentData = [], scanLock = false;
 
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-window.addEventListener("DOMContentLoaded", () => {
-  customer = document.getElementById("customer");
-  reason = document.getElementById("reason");
-  scanInput = document.getElementById("scanInput");
-  bulkInput = document.getElementById("bulkInput");
-  scanList = document.getElementById("scanList");
-  searchInput = document.getElementById("searchInput");
-  dateFilter = document.getElementById("dateFilter");
-  beep = document.getElementById("beep");
+window.addEventListener("DOMContentLoaded",()=>{
+  customer=document.getElementById("customer");
+  reason=document.getElementById("reason");
+  scanInput=document.getElementById("scanInput");
+  bulkInput=document.getElementById("bulkInput");
+  scanList=document.getElementById("scanList");
+  searchInput=document.getElementById("searchInput");
+  dateFilter=document.getElementById("dateFilter");
+  beep=document.getElementById("beep");
 
-  dateFilter.value = todayKey();
+  dateFilter.value=todayKey();
   listenForScans();
 
   scanInput.focus();
-  scanInput.addEventListener("keydown", e => {
+  scanInput.addEventListener("keydown",e=>{
     if(e.key==="Enter"){ e.preventDefault(); saveScan(); }
-  });
-
-  scanInput.addEventListener("blur", ()=>{
-    setTimeout(()=>{
-      const active = document.activeElement;
-      if(active.tagName!=="SELECT" && active.tagName!=="TEXTAREA" && active!==scanInput){
-        scanInput.focus();
-      }
-    },100);
   });
 });
 
-/* 🔥 REALTIME SCANS */
-function listenForScans() {
-  onValue(ref(db,"scans"), snap => {
-    currentData = [];
+function listenForScans(){
+  onValue(ref(db,"scans"),snap=>{
+    currentData=[];
     snap.forEach(c=>currentData.push(c.val()));
     currentData.sort((a,b)=>b.timestamp - a.timestamp);
     renderList(currentData);
@@ -83,7 +69,7 @@ function listenForScans() {
 
 function renderList(arr){
   scanList.innerHTML="";
-  const filtered = arr.filter(s => s.date===dateFilter.value);
+  const filtered=arr.filter(s=>s.date===dateFilter.value);
   if(!filtered.length){ scanList.innerHTML="<i>No scans for this date</i>"; return; }
   filtered.slice(0,200).forEach(d=>{
     const div=document.createElement("div");
@@ -93,25 +79,23 @@ function renderList(arr){
   });
 }
 
-/* SEARCH */
-window.filterSearch = ()=>{
-  const t = searchInput.value.toLowerCase();
+window.filterSearch=()=>{
+  const t=searchInput.value.toLowerCase();
   renderList(currentData.filter(d=>
-    d.waybill.toLowerCase().includes(t) ||
-    d.customer.toLowerCase().includes(t) ||
+    d.waybill.toLowerCase().includes(t)||
+    d.customer.toLowerCase().includes(t)||
     d.reason.toLowerCase().includes(t)
   ));
 };
 
-window.changeDate = ()=>renderList(currentData);
+window.changeDate=()=>renderList(currentData);
 
-/* SINGLE SCAN */
-window.saveScan = async ()=>{
+window.saveScan=async()=>{
   if(scanLock) return;
-  scanLock = true;
+  scanLock=true;
   try{
-    const waybill = scanInput.value.trim();
-    if(!customer.value || !reason.value || !waybill) return;
+    const waybill=scanInput.value.trim();
+    if(!customer.value||!reason.value||!waybill) return;
     await push(ref(db,"scans"),{
       customer:customer.value,
       reason:reason.value,
@@ -126,11 +110,10 @@ window.saveScan = async ()=>{
   }finally{ scanLock=false; }
 };
 
-/* BULK SCAN */
-window.saveBulkScans = async ()=>{
-  const text = bulkInput.value.trim();
-  if(!customer.value || !reason.value || !text){ alert("Select customer, reason and paste waybills"); return; }
-  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>=8);
+window.saveBulkScans=async()=>{
+  const text=bulkInput.value.trim();
+  if(!customer.value||!reason.value||!text){ alert("Select customer, reason and paste waybills"); return; }
+  const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>=8);
   if(!lines.length) return alert("No valid waybills");
   for(const waybill of lines){
     await push(ref(db,"scans"),{
@@ -153,7 +136,7 @@ window.saveBulkScans = async ()=>{
 
 <h2>Floor Check</h2>
 
-<label>Customer</label>
+<label for="customer">Customer</label>
 <select id="customer">
   <option value="">Select Customer</option>
   <option>First Freight Couriers</option>
@@ -163,7 +146,7 @@ window.saveBulkScans = async ()=>{
   <option>Brima Logistics</option>
 </select>
 
-<label>Reason</label>
+<label for="reason">Reason</label>
 <select id="reason">
   <option value="">Select Reason</option>
   <option>Out for delivery</option>
@@ -176,10 +159,10 @@ window.saveBulkScans = async ()=>{
   <option>Future delivery</option>
 </select>
 
-<label>Scan Waybill</label>
+<label for="scanInput">Scan Waybill</label>
 <input id="scanInput" placeholder="Scan waybill">
 
-<label>Bulk Waybill Paste</label>
+<label for="bulkInput">Bulk Waybill Paste</label>
 <textarea id="bulkInput" placeholder="One waybill per line"></textarea>
 
 <button onclick="saveBulkScans()">Bulk Upload</button>
@@ -194,6 +177,5 @@ window.saveBulkScans = async ()=>{
 <div id="scanList"><i>Loading…</i></div>
 
 <br><center><b>Built by Mpho Mahlaba</b></center>
-
 </body>
 </html>
