@@ -34,7 +34,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 /* DOM */
-let customer, reason, scanInput, bulkInput, scanList, dateFilter, beep;
+let customer, reason, scanInput, bulkInput, scanList, dateFilter, beep, showAll;
 let currentData = [];
 let scanLock = false;
 
@@ -51,8 +51,11 @@ window.addEventListener("DOMContentLoaded", () => {
   scanList = document.getElementById("scanList");
   dateFilter = document.getElementById("dateFilter");
   beep = document.getElementById("beep");
+  showAll = document.getElementById("showAll");
 
+  // ✅ set today first
   dateFilter.value = todayKey();
+
   listenForScans();
 
   scanInput.focus();
@@ -70,6 +73,9 @@ window.addEventListener("DOMContentLoaded", () => {
       if (document.activeElement !== scanInput) scanInput.focus();
     }, 100);
   });
+
+  // Refresh when show all toggled
+  showAll.addEventListener("change", () => renderList(currentData));
 });
 
 /* 🔥 REALTIME LISTENER */
@@ -83,19 +89,19 @@ function listenForScans() {
   });
 }
 
-/* 🔥 RENDER LIST */
 function renderList(arr) {
   scanList.innerHTML = "";
   const today = dateFilter.value || todayKey();
-  
-  const filtered = arr.filter(s => (s.date||"").toString().trim() === today);
+  const filtered = showAll.checked 
+    ? arr 
+    : arr.filter(s => (s.date||"").trim() === today);
 
   if (!filtered.length) {
-    scanList.innerHTML = "<i>No scans for today</i>";
+    scanList.innerHTML = "<i>No scans for this date</i>";
     return;
   }
 
-  filtered.slice(0, 200).forEach(d => {
+  filtered.slice(0,200).forEach(d => {
     const div = document.createElement("div");
     div.className = "list-item";
     div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
@@ -103,19 +109,20 @@ function renderList(arr) {
   });
 }
 
-/* 🔍 SEARCH */
+/* SEARCH */
 window.filterSearch = () => {
   const t = document.getElementById("searchInput").value.toLowerCase();
   const today = dateFilter.value || todayKey();
+  const filtered = showAll.checked 
+    ? currentData
+    : currentData.filter(d => (d.date||"").trim() === today);
 
   renderList(
-    currentData.filter(d => {
-      const scanDate = (d.date||"").toString().trim();
-      return scanDate === today &&
-        ((d.waybill||"").toLowerCase().includes(t) ||
-         (d.customer||"").toLowerCase().includes(t) ||
-         (d.reason||"").toLowerCase().includes(t));
-    })
+    filtered.filter(d => 
+      d.waybill.toLowerCase().includes(t) ||
+      d.customer.toLowerCase().includes(t) ||
+      d.reason.toLowerCase().includes(t)
+    )
   );
 };
 
@@ -128,7 +135,7 @@ window.saveScan = async () => {
 
   try {
     const waybill = scanInput.value.trim();
-    if (!customer.value || !reason.value || !waybill) return alert("Select customer, reason and scan");
+    if (!customer.value || !reason.value || !waybill) return;
 
     await push(ref(db, "scans"), {
       customer: customer.value,
@@ -154,7 +161,8 @@ window.saveScan = async () => {
 window.saveBulkScans = async () => {
   const text = bulkInput.value.trim();
   if (!customer.value || !reason.value || !text) {
-    return alert("Select customer, reason and paste waybills");
+    alert("Select customer, reason and paste waybills");
+    return;
   }
 
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length >= 8);
@@ -215,6 +223,9 @@ window.saveBulkScans = async () => {
 
 <button onclick="saveBulkScans()">Bulk Upload</button>
 
+<h3>Options</h3>
+<label><input type="checkbox" id="showAll"> Show all scans</label>
+
 <h3>View by Date</h3>
 <input type="date" id="dateFilter" onchange="changeDate()">
 
@@ -225,6 +236,5 @@ window.saveBulkScans = async () => {
 <div id="scanList"><i>Loading…</i></div>
 
 <br><center><b>Built by Mpho Mahlaba</b></center>
-
 </body>
 </html>
