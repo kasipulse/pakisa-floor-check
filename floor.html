@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pakisa Floor Check</title>
 
 <style>
@@ -11,7 +11,7 @@ select,input,textarea,button { width:100%; padding:12px; margin:8px 0; font-size
 textarea { min-height:120px; resize:vertical; }
 button { background:#0a2b52; color:#fff; border:none; border-radius:8px; cursor:pointer; }
 .list-item { padding:10px; background:#f2f2f2; margin:6px 0; border-radius:8px; }
-.flash { background:#2ecc71 !important; transition: background 0.15s; }
+.flash { background:#2ecc71 !important; }
 </style>
 
 <audio id="beep">
@@ -52,13 +52,9 @@ window.addEventListener("DOMContentLoaded", () => {
   dateFilter = document.getElementById("dateFilter");
   beep = document.getElementById("beep");
 
-  // default date = today
   dateFilter.value = todayKey();
-
-  // load scans from Firebase
   listenForScans();
 
-  // autofocus scan input
   scanInput.focus();
 
   scanInput.addEventListener("keydown", e => {
@@ -68,6 +64,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Smart autofocus
   scanInput.addEventListener("blur", () => {
     setTimeout(() => {
       if (document.activeElement !== scanInput) scanInput.focus();
@@ -81,23 +78,24 @@ function listenForScans() {
     currentData = [];
     snap.forEach(c => currentData.push(c.val()));
     currentData.sort((a,b) => b.timestamp - a.timestamp);
-    console.log("Scans loaded:", currentData);
     renderList(currentData);
+    console.log("Scans loaded:", currentData);
   });
 }
 
-/* render scans for today (or selected date) */
+/* 🔥 RENDER LIST */
 function renderList(arr) {
   scanList.innerHTML = "";
   const today = dateFilter.value || todayKey();
-  const filtered = arr.filter(s => (s.date||"").trim() === today);
+  
+  const filtered = arr.filter(s => (s.date||"").toString().trim() === today);
 
   if (!filtered.length) {
-    scanList.innerHTML = "<i>No scans for this date</i>";
+    scanList.innerHTML = "<i>No scans for today</i>";
     return;
   }
 
-  filtered.slice(0,200).forEach(d => {
+  filtered.slice(0, 200).forEach(d => {
     const div = document.createElement("div");
     div.className = "list-item";
     div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
@@ -105,31 +103,32 @@ function renderList(arr) {
   });
 }
 
-/* search scans by waybill/customer/reason */
+/* 🔍 SEARCH */
 window.filterSearch = () => {
   const t = document.getElementById("searchInput").value.toLowerCase();
   const today = dateFilter.value || todayKey();
+
   renderList(
-    currentData.filter(d => 
-      (d.date||"").trim() === today &&
-      ((d.waybill||"").toLowerCase().includes(t) ||
-       (d.customer||"").toLowerCase().includes(t) ||
-       (d.reason||"").toLowerCase().includes(t))
-    )
+    currentData.filter(d => {
+      const scanDate = (d.date||"").toString().trim();
+      return scanDate === today &&
+        ((d.waybill||"").toLowerCase().includes(t) ||
+         (d.customer||"").toLowerCase().includes(t) ||
+         (d.reason||"").toLowerCase().includes(t));
+    })
   );
 };
 
-/* change date */
 window.changeDate = () => renderList(currentData);
 
-/* ✅ single scan */
+/* ✅ SINGLE SCAN */
 window.saveScan = async () => {
   if (scanLock) return;
   scanLock = true;
 
   try {
     const waybill = scanInput.value.trim();
-    if (!customer.value || !reason.value || !waybill) return;
+    if (!customer.value || !reason.value || !waybill) return alert("Select customer, reason and scan");
 
     await push(ref(db, "scans"), {
       customer: customer.value,
@@ -151,15 +150,14 @@ window.saveScan = async () => {
   }
 };
 
-/* ✅ bulk upload */
+/* ✅ BULK UPLOAD */
 window.saveBulkScans = async () => {
   const text = bulkInput.value.trim();
   if (!customer.value || !reason.value || !text) {
-    alert("Select customer, reason and paste waybills");
-    return;
+    return alert("Select customer, reason and paste waybills");
   }
 
-  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length>=8);
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length >= 8);
   if (!lines.length) return alert("No valid waybills");
 
   for (const waybill of lines) {
@@ -184,7 +182,7 @@ window.saveBulkScans = async () => {
 <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160">
 </center>
 
-<h2>Pakisa Floor Check</h2>
+<h2>Floor Check</h2>
 
 <label for="customer">Customer</label>
 <select id="customer">
@@ -227,5 +225,6 @@ window.saveBulkScans = async () => {
 <div id="scanList"><i>Loading…</i></div>
 
 <br><center><b>Built by Mpho Mahlaba</b></center>
+
 </body>
 </html>
