@@ -52,7 +52,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-/* 🔥 FIREBASE CONFIG */
+/* FIREBASE CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
   authDomain: "pakisa-floor.firebaseapp.com",
@@ -63,7 +63,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* DOM */
+/* DOM ELEMENTS */
 let customer, reason, scanInput, bulkInput, scanList, searchInput, dateFilter, beep;
 let currentData = [];
 let scanLock = false;
@@ -94,7 +94,6 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 🔥 Smart auto-focus for scanning
   scanInput.addEventListener("blur", () => {
     setTimeout(() => {
       const active = document.activeElement;
@@ -105,28 +104,30 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-/* 🔥 REALTIME LISTENER */
+/* LISTENER */
 function listenForScans() {
   onValue(ref(db, "scans"), snap => {
     currentData = [];
     snap.forEach(c => currentData.push(c.val()));
     currentData.sort((a,b) => b.timestamp - a.timestamp);
-    renderList(currentData);
-    console.log("Scans loaded:", currentData); // DEBUG
+    renderList(currentData); // show all by default
+    console.log("Scans loaded:", currentData);
   });
 }
 
+/* RENDER */
 function renderList(arr) {
   scanList.innerHTML = "";
 
-  const filtered = arr.filter(s => s.date === dateFilter.value);
+  const showAll = document.getElementById("showAll")?.checked;
+  const filtered = showAll ? arr : arr.filter(s => s.date === dateFilter.value);
 
   if (!filtered.length) {
-    scanList.innerHTML = "<i>No scans for this date</i>";
+    scanList.innerHTML = "<i>No scans found</i>";
     return;
   }
 
-  filtered.slice(0, 200).forEach(d => {
+  filtered.slice(0,200).forEach(d => {
     const div = document.createElement("div");
     div.className = "list-item";
     div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
@@ -137,18 +138,17 @@ function renderList(arr) {
 /* SEARCH */
 window.filterSearch = () => {
   const t = searchInput.value.toLowerCase();
-  renderList(
-    currentData.filter(d =>
-      d.waybill.toLowerCase().includes(t) ||
-      d.customer.toLowerCase().includes(t) ||
-      d.reason.toLowerCase().includes(t)
-    )
+  const list = currentData.filter(d =>
+    d.waybill.toLowerCase().includes(t) ||
+    d.customer.toLowerCase().includes(t) ||
+    d.reason.toLowerCase().includes(t)
   );
+  renderList(list);
 };
 
 window.changeDate = () => renderList(currentData);
 
-/* ✅ SINGLE SCAN */
+/* SINGLE SCAN */
 window.saveScan = async () => {
   if (scanLock) return;
   scanLock = true;
@@ -177,7 +177,7 @@ window.saveScan = async () => {
   }
 };
 
-/* ✅ BULK UPLOAD */
+/* BULK UPLOAD */
 window.saveBulkScans = async () => {
   const text = bulkInput.value.trim();
   if (!customer.value || !reason.value || !text) {
@@ -200,7 +200,7 @@ window.saveBulkScans = async () => {
 
   bulkInput.value = "";
   beep.play();
-};
+}
 </script>
 </head>
 
@@ -212,7 +212,7 @@ window.saveBulkScans = async () => {
 
 <h2>Floor Check</h2>
 
-<label for="customer">Customer</label>
+<label>Customer</label>
 <select id="customer">
   <option value="">Select Customer</option>
   <option>First Freight Couriers</option>
@@ -222,7 +222,7 @@ window.saveBulkScans = async () => {
   <option>Brima Logistics</option>
 </select>
 
-<label for="reason">Reason</label>
+<label>Reason</label>
 <select id="reason">
   <option value="">Select Reason</option>
   <option>Out for delivery</option>
@@ -235,16 +235,17 @@ window.saveBulkScans = async () => {
   <option>Future delivery</option>
 </select>
 
-<label for="scanInput">Scan Waybill</label>
+<label>Scan Waybill</label>
 <input id="scanInput" placeholder="Scan waybill">
 
-<label for="bulkInput">Bulk Waybill Paste</label>
+<label>Bulk Waybill Paste</label>
 <textarea id="bulkInput" placeholder="One waybill per line"></textarea>
 
 <button onclick="saveBulkScans()">Bulk Upload</button>
 
 <h3>View by Date</h3>
 <input type="date" id="dateFilter" onchange="changeDate()">
+<label><input type="checkbox" id="showAll" onchange="renderList(currentData)"> Show all dates</label>
 
 <h3>Search</h3>
 <input id="searchInput" placeholder="Search…" onkeyup="filterSearch()">
