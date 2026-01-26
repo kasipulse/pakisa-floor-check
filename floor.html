@@ -1,30 +1,28 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Pakisa Floor Check</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Floor Check</title>
 
 <style>
 body { font-family: Arial, sans-serif; padding:20px; background:#fff; }
-label { display:block; margin-top:10px; font-weight:bold; }
-input, select, textarea, button { width:100%; padding:8px; margin-top:4px; font-size:16px; }
-textarea { min-height:100px; }
-button { background:#0a2b52; color:white; border:none; border-radius:8px; cursor:pointer; margin-top:8px; }
-.list { margin-top:14px; }
-.item { padding:10px; border-radius:8px; background:#f2f2f2; margin-bottom:6px; }
+select,input,textarea,button { width:100%; padding:12px; margin:8px 0; font-size:16px; }
+textarea { min-height:120px; resize:vertical; }
+button { background:#0a2b52; color:#fff; border:none; border-radius:8px; cursor:pointer; }
+.list-item { padding:10px; background:#f2f2f2; margin:6px 0; border-radius:8px; }
 .flash { background:#2ecc71 !important; }
 </style>
 
 <audio id="beep">
-  <source src="https://www.soundjay.com/buttons/sounds/button-09.mp3" type="audio/mpeg">
+  <source src="https://www.soundjay.com/buttons/sounds/button-09.mp3">
 </audio>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-/* 🔥 CONFIG */
+/* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
   authDomain: "pakisa-floor.firebaseapp.com",
@@ -36,8 +34,8 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 /* DOM */
-let customer, reason, scanInput, scanList, searchInput, dateFilter, beep;
-let scans = [];
+let customer, reason, scanInput, bulkInput, scanList, searchInput, dateFilter, beep;
+let currentData = [];
 let scanLock = false;
 
 function todayKey() {
@@ -49,109 +47,113 @@ window.addEventListener("DOMContentLoaded", () => {
   customer = document.getElementById("customer");
   reason = document.getElementById("reason");
   scanInput = document.getElementById("scanInput");
+  bulkInput = document.getElementById("bulkInput");
   scanList = document.getElementById("scanList");
   searchInput = document.getElementById("searchInput");
   dateFilter = document.getElementById("dateFilter");
   beep = document.getElementById("beep");
 
   dateFilter.value = todayKey();
-  listenScans();
+  listenForScans();
 
-  // Auto scan enter
   scanInput.focus();
   scanInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      saveScan();
-    }
+    if(e.key==="Enter"){ e.preventDefault(); saveScan(); }
   });
 
-  // Auto-refocus
-  scanInput.addEventListener("blur", () => {
-    setTimeout(() => {
+  scanInput.addEventListener("blur", ()=>{
+    setTimeout(()=>{
       const active = document.activeElement;
-      if (active.tagName !== "SELECT" && active.tagName !== "TEXTAREA" && active !== scanInput) {
+      if(active.tagName!=="SELECT" && active.tagName!=="TEXTAREA" && active!==scanInput){
         scanInput.focus();
       }
-    }, 100);
+    },100);
   });
 });
 
-/* 🔥 LISTENER */
-function listenScans() {
-  onValue(ref(db, "scans"), snap => {
-    scans = [];
-    snap.forEach(c => scans.push(c.val()));
-    scans.sort((a,b) => b.timestamp - a.timestamp);
-    renderList(scans);
+/* 🔥 REALTIME SCANS */
+function listenForScans() {
+  onValue(ref(db,"scans"), snap => {
+    currentData = [];
+    snap.forEach(c=>currentData.push(c.val()));
+    currentData.sort((a,b)=>b.timestamp - a.timestamp);
+    renderList(currentData);
   });
 }
 
-/* 🔥 RENDER */
-function renderList(arr) {
-  scanList.innerHTML = "";
-  const filtered = arr.filter(s => s.date === dateFilter.value);
-
-  if (!filtered.length) {
-    scanList.innerHTML = "<i>No scans for this date</i>";
-    return;
-  }
-
-  filtered.slice(0,200).forEach(d => {
-    const div = document.createElement("div");
-    div.className = "item";
-    div.innerHTML = `<b>${d.waybill}</b> — ${d.customer} — ${d.reason}`;
+function renderList(arr){
+  scanList.innerHTML="";
+  const filtered = arr.filter(s => s.date===dateFilter.value);
+  if(!filtered.length){ scanList.innerHTML="<i>No scans for this date</i>"; return; }
+  filtered.slice(0,200).forEach(d=>{
+    const div=document.createElement("div");
+    div.className="list-item";
+    div.innerHTML=`<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
     scanList.appendChild(div);
   });
 }
 
-/* 🔍 SEARCH */
-window.filterSearch = () => {
-  const q = searchInput.value.toLowerCase();
-  renderList(scans.filter(d =>
-    d.waybill.toLowerCase().includes(q) ||
-    d.customer.toLowerCase().includes(q) ||
-    d.reason.toLowerCase().includes(q)
+/* SEARCH */
+window.filterSearch = ()=>{
+  const t = searchInput.value.toLowerCase();
+  renderList(currentData.filter(d=>
+    d.waybill.toLowerCase().includes(t) ||
+    d.customer.toLowerCase().includes(t) ||
+    d.reason.toLowerCase().includes(t)
   ));
 };
 
-window.changeDate = () => renderList(scans);
+window.changeDate = ()=>renderList(currentData);
 
-/* ✅ SAVE SINGLE SCAN */
-window.saveScan = async () => {
-  if (scanLock) return;
+/* SINGLE SCAN */
+window.saveScan = async ()=>{
+  if(scanLock) return;
   scanLock = true;
-  try {
-    const w = scanInput.value.trim();
-    if (!customer.value || !reason.value || !w) return;
-
-    await push(ref(db,"scans"), {
-      customer: customer.value,
-      reason: reason.value,
-      waybill: w,
-      date: todayKey(),
-      timestamp: Date.now()
+  try{
+    const waybill = scanInput.value.trim();
+    if(!customer.value || !reason.value || !waybill) return;
+    await push(ref(db,"scans"),{
+      customer:customer.value,
+      reason:reason.value,
+      waybill,
+      date:todayKey(),
+      timestamp:Date.now()
     });
-
     beep.currentTime=0; beep.play();
     document.body.classList.add("flash");
     setTimeout(()=>document.body.classList.remove("flash"),150);
-    scanInput.value="";
-    scanInput.focus();
-  } finally { scanLock=false; }
+    scanInput.value=""; scanInput.focus();
+  }finally{ scanLock=false; }
+};
+
+/* BULK SCAN */
+window.saveBulkScans = async ()=>{
+  const text = bulkInput.value.trim();
+  if(!customer.value || !reason.value || !text){ alert("Select customer, reason and paste waybills"); return; }
+  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>=8);
+  if(!lines.length) return alert("No valid waybills");
+  for(const waybill of lines){
+    await push(ref(db,"scans"),{
+      customer:customer.value,
+      reason:reason.value,
+      waybill,
+      date:todayKey(),
+      timestamp:Date.now()
+    });
+  }
+  bulkInput.value=""; beep.play();
 };
 </script>
 </head>
 
 <body>
-
 <center>
 <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160">
 </center>
 
-<h2>Floor Check (Pakisa Agent)</h2>
+<h2>Floor Check</h2>
 
-<label for="customer">Customer</label>
+<label>Customer</label>
 <select id="customer">
   <option value="">Select Customer</option>
   <option>First Freight Couriers</option>
@@ -161,7 +163,7 @@ window.saveScan = async () => {
   <option>Brima Logistics</option>
 </select>
 
-<label for="reason">Reason</label>
+<label>Reason</label>
 <select id="reason">
   <option value="">Select Reason</option>
   <option>Out for delivery</option>
@@ -174,8 +176,13 @@ window.saveScan = async () => {
   <option>Future delivery</option>
 </select>
 
-<label for="scanInput">Scan Waybill</label>
+<label>Scan Waybill</label>
 <input id="scanInput" placeholder="Scan waybill">
+
+<label>Bulk Waybill Paste</label>
+<textarea id="bulkInput" placeholder="One waybill per line"></textarea>
+
+<button onclick="saveBulkScans()">Bulk Upload</button>
 
 <h3>View by Date</h3>
 <input type="date" id="dateFilter" onchange="changeDate()">
