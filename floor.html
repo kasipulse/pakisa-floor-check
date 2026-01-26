@@ -1,42 +1,17 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Pakisa Floor Check</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Floor Check</title>
 
 <style>
-body {
-  font-family: Arial, sans-serif;
-  padding: 20px;
-  background: #fff;
-}
-select, input, textarea, button {
-  width: 100%;
-  padding: 12px;
-  margin: 8px 0;
-  font-size: 16px;
-}
-textarea {
-  min-height: 120px;
-  resize: vertical;
-}
-button {
-  background: #0a2b52;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
-.list-item {
-  padding: 10px;
-  background: #f2f2f2;
-  margin: 6px 0;
-  border-radius: 8px;
-}
-.flash {
-  background: #2ecc71 !important;
-}
+body { font-family: Arial, sans-serif; padding:20px; background:#fff; }
+select,input,textarea,button { width:100%; padding:12px; margin:8px 0; font-size:16px; }
+textarea { min-height:120px; resize:vertical; }
+button { background:#0a2b52; color:#fff; border:none; border-radius:8px; cursor:pointer; }
+.list-item { padding:10px; background:#f2f2f2; margin:6px 0; border-radius:8px; }
+.flash { background:#2ecc71 !important; }
 </style>
 
 <audio id="beep">
@@ -59,9 +34,14 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 /* DOM */
-let customer, reason, scanInput, bulkInput, scanList, searchInput, beep;
+let customer, reason, scanInput, bulkInput, scanList, dateFilter, beep;
 let currentData = [];
 let scanLock = false;
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
 window.addEventListener("DOMContentLoaded", () => {
   customer = document.getElementById("customer");
@@ -69,13 +49,14 @@ window.addEventListener("DOMContentLoaded", () => {
   scanInput = document.getElementById("scanInput");
   bulkInput = document.getElementById("bulkInput");
   scanList = document.getElementById("scanList");
-  searchInput = document.getElementById("searchInput");
+  dateFilter = document.getElementById("dateFilter");
   beep = document.getElementById("beep");
 
+  dateFilter.value = todayKey();
   listenForScans();
 
-  // Auto-focus single scan
   scanInput.focus();
+
   scanInput.addEventListener("keydown", e => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -83,13 +64,10 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Keep autofocus on scan input
+  // Smart autofocus
   scanInput.addEventListener("blur", () => {
     setTimeout(() => {
-      const active = document.activeElement;
-      if (active.tagName !== "SELECT" && active.tagName !== "TEXTAREA" && active !== scanInput) {
-        scanInput.focus();
-      }
+      if (document.activeElement !== scanInput) scanInput.focus();
     }, 100);
   });
 });
@@ -107,13 +85,15 @@ function listenForScans() {
 
 function renderList(arr) {
   scanList.innerHTML = "";
+  const today = dateFilter.value;
+  const filtered = arr.filter(s => s.date === today);
 
-  if (!arr.length) {
-    scanList.innerHTML = "<i>No scans found</i>";
+  if (!filtered.length) {
+    scanList.innerHTML = "<i>No scans for today</i>";
     return;
   }
 
-  arr.slice(0, 200).forEach(d => {
+  filtered.slice(0, 200).forEach(d => {
     const div = document.createElement("div");
     div.className = "list-item";
     div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
@@ -123,15 +103,19 @@ function renderList(arr) {
 
 /* SEARCH */
 window.filterSearch = () => {
-  const t = searchInput.value.toLowerCase();
+  const t = document.getElementById("searchInput").value.toLowerCase();
+  const today = dateFilter.value;
   renderList(
-    currentData.filter(d =>
-      d.waybill.toLowerCase().includes(t) ||
+    currentData.filter(d => 
+      d.date === today &&
+      (d.waybill.toLowerCase().includes(t) ||
       d.customer.toLowerCase().includes(t) ||
-      d.reason.toLowerCase().includes(t)
+      d.reason.toLowerCase().includes(t))
     )
   );
 };
+
+window.changeDate = () => renderList(currentData);
 
 /* ✅ SINGLE SCAN */
 window.saveScan = async () => {
@@ -146,6 +130,7 @@ window.saveScan = async () => {
       customer: customer.value,
       reason: reason.value,
       waybill,
+      date: todayKey(),
       timestamp: Date.now()
     });
 
@@ -177,6 +162,7 @@ window.saveBulkScans = async () => {
       customer: customer.value,
       reason: reason.value,
       waybill,
+      date: todayKey(),
       timestamp: Date.now()
     });
   }
@@ -195,7 +181,7 @@ window.saveBulkScans = async () => {
 
 <h2>Floor Check</h2>
 
-<label>Customer</label>
+<label for="customer">Customer</label>
 <select id="customer">
   <option value="">Select Customer</option>
   <option>First Freight Couriers</option>
@@ -205,7 +191,7 @@ window.saveBulkScans = async () => {
   <option>Brima Logistics</option>
 </select>
 
-<label>Reason</label>
+<label for="reason">Reason</label>
 <select id="reason">
   <option value="">Select Reason</option>
   <option>Out for delivery</option>
@@ -218,13 +204,16 @@ window.saveBulkScans = async () => {
   <option>Future delivery</option>
 </select>
 
-<label>Scan Waybill</label>
+<label for="scanInput">Scan Waybill</label>
 <input id="scanInput" placeholder="Scan waybill">
 
-<label>Bulk Waybill Paste</label>
+<label for="bulkInput">Bulk Waybill Paste</label>
 <textarea id="bulkInput" placeholder="One waybill per line"></textarea>
 
 <button onclick="saveBulkScans()">Bulk Upload</button>
+
+<h3>View by Date</h3>
+<input type="date" id="dateFilter" onchange="changeDate()">
 
 <h3>Search</h3>
 <input id="searchInput" placeholder="Search…" onkeyup="filterSearch()">
@@ -233,6 +222,5 @@ window.saveBulkScans = async () => {
 <div id="scanList"><i>Loading…</i></div>
 
 <br><center><b>Built by Mpho Mahlaba</b></center>
-
 </body>
 </html>
