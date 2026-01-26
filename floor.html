@@ -52,7 +52,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-/* FIREBASE CONFIG */
+/* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
   authDomain: "pakisa-floor.firebaseapp.com",
@@ -63,15 +63,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* DOM ELEMENTS */
+/* DOM */
 let customer, reason, scanInput, bulkInput, scanList, searchInput, dateFilter, beep;
 let currentData = [];
 let scanLock = false;
-
-function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
 
 window.addEventListener("DOMContentLoaded", () => {
   customer = document.getElementById("customer");
@@ -94,6 +89,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Smart auto-focus for scanning
   scanInput.addEventListener("blur", () => {
     setTimeout(() => {
       const active = document.activeElement;
@@ -104,33 +100,35 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-/* LISTENER */
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+/* REALTIME LISTENER */
 function listenForScans() {
   onValue(ref(db, "scans"), snap => {
     currentData = [];
     snap.forEach(c => currentData.push(c.val()));
     currentData.sort((a,b) => b.timestamp - a.timestamp);
-    renderList(currentData); // show all by default
-    console.log("Scans loaded:", currentData);
+    console.log("Scans loaded: ", currentData);
+    renderList(currentData); // render ALL scans
   });
 }
 
-/* RENDER */
+/* RENDER FUNCTION */
 function renderList(arr) {
   scanList.innerHTML = "";
 
-  const showAll = document.getElementById("showAll")?.checked;
-  const filtered = showAll ? arr : arr.filter(s => s.date === dateFilter.value);
-
-  if (!filtered.length) {
-    scanList.innerHTML = "<i>No scans found</i>";
+  if (!arr.length) {
+    scanList.innerHTML = "<i>No scans</i>";
     return;
   }
 
-  filtered.slice(0,200).forEach(d => {
+  arr.slice(0,200).forEach(d => {
     const div = document.createElement("div");
     div.className = "list-item";
-    div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
+    div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason} — <small>${d.date}</small>`;
     scanList.appendChild(div);
   });
 }
@@ -138,12 +136,13 @@ function renderList(arr) {
 /* SEARCH */
 window.filterSearch = () => {
   const t = searchInput.value.toLowerCase();
-  const list = currentData.filter(d =>
-    d.waybill.toLowerCase().includes(t) ||
-    d.customer.toLowerCase().includes(t) ||
-    d.reason.toLowerCase().includes(t)
+  renderList(
+    currentData.filter(d =>
+      d.waybill.toLowerCase().includes(t) ||
+      d.customer.toLowerCase().includes(t) ||
+      d.reason.toLowerCase().includes(t)
+    )
   );
-  renderList(list);
 };
 
 window.changeDate = () => renderList(currentData);
@@ -243,10 +242,6 @@ window.saveBulkScans = async () => {
 
 <button onclick="saveBulkScans()">Bulk Upload</button>
 
-<h3>View by Date</h3>
-<input type="date" id="dateFilter" onchange="changeDate()">
-<label><input type="checkbox" id="showAll" onchange="renderList(currentData)"> Show all dates</label>
-
 <h3>Search</h3>
 <input id="searchInput" placeholder="Search…" onkeyup="filterSearch()">
 
@@ -254,6 +249,5 @@ window.saveBulkScans = async () => {
 <div id="scanList"><i>Loading…</i></div>
 
 <br><center><b>Built by Mpho Mahlaba</b></center>
-
 </body>
 </html>
