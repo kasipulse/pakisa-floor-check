@@ -67,9 +67,6 @@ let customer, reason, scanInput, bulkInput, scanList, searchInput, dateFilter, b
 let currentData = [];
 let scanLock = false;
 
-/* 🔐 ENSURE AUTH (REQUIRED BY RULES) */
-signInAnonymously(auth);
-
 onAuthStateChanged(auth, user => {
   if (!user) return;
   listenForScans();
