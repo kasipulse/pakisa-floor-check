@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Pakisa Floor Check</title>
+<title>Pakisa Floor</title>
 
 <style>
 :root {
@@ -21,157 +21,89 @@ body {
 }
 
 .container {
-  max-width:900px;
+  max-width:700px;
   margin:0 auto;
 }
 
 .card {
   background:var(--card);
   border-radius:14px;
-  padding:18px;
+  padding:26px;
   box-shadow:0 6px 24px rgba(15,23,42,.08);
-}
-
-header {
-  display:flex;
-  gap:16px;
-  align-items:center;
+  text-align:center;
 }
 
 .logo {
-  width:140px;
+  width:180px;
+  margin-bottom:18px;
 }
 
 h1 {
   margin:0;
-  font-size:20px;
+  font-size:22px;
   color:var(--navy);
 }
 
-.list {
-  margin-top:14px;
-}
-
-.item {
-  padding:12px;
-  border-radius:10px;
-  background:#fff;
-  border:1px solid #eef2f7;
-  margin-bottom:8px;
+.subtitle {
+  font-size:14px;
+  color:#6b7280;
+  margin-top:6px;
 }
 
 .buttons {
   display:flex;
-  gap:12px;
-  margin-top:18px;
+  gap:16px;
+  margin-top:30px;
   flex-wrap:wrap;
 }
 
 .btn {
   flex:1;
-  text-align:center;
-  padding:12px;
-  border-radius:10px;
+  padding:14px;
+  border-radius:12px;
   background:var(--navy);
   color:white;
   text-decoration:none;
   font-weight:600;
+  font-size:15px;
+}
+
+.btn:hover {
+  opacity:0.9;
 }
 
 footer {
-  text-align:center;
-  margin-top:20px;
+  margin-top:26px;
   font-size:13px;
   color:#6b7280;
+  line-height:1.6;
 }
 </style>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-/* 🔥 FIREBASE CONFIG */
-const firebaseConfig = {
-  apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
-  authDomain: "pakisa-floor.firebaseapp.com",
-  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/",
-  projectId: "pakisa-floor"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-/* 🔄 LOAD LATEST SCANS (READ-ONLY) */
-onValue(ref(db, "scans"), snap => {
-  const scans = [];
-
-  snap.forEach(parent => {
-    if (parent.hasChildren()) {
-      parent.forEach(c => scans.push(normalize(c.val())));
-    } else {
-      scans.push(normalize(parent.val()));
-    }
-  });
-
-  scans.sort((a,b)=>b.timestamp - a.timestamp);
-  render(scans.slice(0,20));
-});
-
-/* 🧹 NORMALIZE DATA */
-function normalize(s) {
-  return {
-    waybill: String(s?.waybill || "-"),
-    customer: String(s?.customer || "Unknown"),
-    reason: String(s?.reason || "No reason"),
-    timestamp: Number(s?.timestamp || 0)
-  };
-}
-
-/* 🧱 RENDER */
-function render(list) {
-  const box = document.getElementById("scanList");
-  box.innerHTML = "";
-
-  if (!list.length) {
-    box.innerHTML = "<i>No scans found</i>";
-    return;
-  }
-
-  list.forEach(s => {
-    const d = document.createElement("div");
-    d.className = "item";
-    d.innerHTML = `
-      <strong>${s.waybill}</strong><br>
-      ${s.customer} — ${s.reason}
-    `;
-    box.appendChild(d);
-  });
-}
-</script>
 </head>
 
 <body>
 <div class="container">
   <div class="card">
-    <header>
-      <img class="logo" src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png">
-      <div>
-        <h1>Pakisa Floor Check</h1>
-        <div style="font-size:13px;color:#6b7280">Read-only latest scans</div>
-      </div>
-    </header>
 
-    <div class="list" id="scanList">
-      <i>Loading…</i>
-    </div>
+    <img class="logo"
+      src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png"
+      alt="Pakisa Logo">
+
+    <h1>Pakisa Floor System</h1>
+    <div class="subtitle">Operations Portal</div>
 
     <div class="buttons">
       <a class="btn" href="client-login.html">Client Login</a>
       <a class="btn" href="login.html">Pakisa Agent Login</a>
     </div>
-  </div>
 
-  <footer>Built by Mpho Mahlaba</footer>
+    <footer>
+      © 2026 Pakisa Logistics Express (Pty) Ltd<br>
+      Built by Mpho Mahlaba<br>
+      Version 1.13
+    </footer>
+
+  </div>
 </div>
 </body>
 </html>
