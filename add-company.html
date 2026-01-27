@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Add Company</title>
+</head>
+<body>
+
+<button onclick="addSeabourne()">Add Seabourne Logistics</button>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+  authDomain: "pakisa-floor.firebaseapp.com",
+  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/",
+  projectId: "pakisa-floor"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+window.addSeabourne = async () => {
+  await set(ref(db, "companies/SEABOURNE"), {
+    company: "Seabourne Logistics",
+    password: "SEA12345",
+    role: "client"
+  });
+
+  alert("✅ Seabourne Logistics added");
+};
+</script>
+
+</body>
+</html>
