@@ -1,12 +1,21 @@
 <!doctype html>
 <html>
-<head>
-  <meta charset="utf-8">
-  <title>Add Company</title>
-</head>
 <body>
 
-<button onclick="addSeabourne()">Add Seabourne Logistics</button>
+<h3>Add Company</h3>
+
+<input id="key" placeholder="Company Key (SEABOURNE)">
+<br><br>
+
+<input id="name" placeholder="Company Name">
+<br><br>
+
+<input id="password" placeholder="Password">
+<br><br>
+
+<button onclick="addCompany()">Add Company</button>
+
+<p id="msg"></p>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -22,14 +31,27 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-window.addSeabourne = async () => {
-  await set(ref(db, "companies/SEABOURNE"), {
-    company: "Seabourne Logistics",
-    password: "SEA12345",
-    role: "client"
-  });
+window.addCompany = () => {
+  const key = document.getElementById("key").value.trim();
+  const name = document.getElementById("name").value.trim();
+  const password = document.getElementById("password").value.trim();
 
-  alert("✅ Seabourne Logistics added");
+  if (!key || !name || !password) {
+    alert("Fill all fields");
+    return;
+  }
+
+  set(ref(db, "companies/" + key), {
+    company: name,
+    password: password,
+    role: "client"
+  })
+  .then(() => {
+    document.getElementById("msg").innerText = "✅ Company added";
+  })
+  .catch(err => {
+    document.getElementById("msg").innerText = "❌ " + err.message;
+  });
 };
 </script>
 
