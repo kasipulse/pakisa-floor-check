@@ -56,6 +56,13 @@
 </div>
 
 <script>
+  const companyId = localStorage.getItem("companyId");
+
+if (!companyId) {
+  alert("Session expired. Please log in again.");
+  window.location.href = "client-login.html";
+}
+
   var firebaseConfig = {
     apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
     authDomain: "pakisa-floor.firebaseapp.com",
@@ -102,15 +109,23 @@
   }
 
   function loadScans(){
-    db.ref('scans').once('value').then(snapshot=>{
+  db.ref('scans')
+    .orderByChild('companyId')
+    .equalTo(companyId)
+    .once('value')
+    .then(snapshot => {
+
       const data = snapshot.val() || {};
-      allScans = Object.values(data).sort((a,b)=> (a.timestamp||0)-(b.timestamp||0));
+      allScans = Object.values(data)
+        .sort((a,b)=> (a.timestamp||0)-(b.timestamp||0));
 
       const today = todayKey();
-      const todayScans = allScans.filter(d=>d.date===today);
+      const todayScans = allScans.filter(d => d.date === today);
       render(todayScans);
-    }).catch(err=>console.error("Error loading scans:",err));
-  }
+
+    })
+    .catch(err => console.error("Error loading scans:", err));
+}
 
   function exportExcel(){
     const filtered = getCurrentDisplay();
