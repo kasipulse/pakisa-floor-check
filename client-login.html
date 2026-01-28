@@ -130,22 +130,75 @@ const passwordInput = document.getElementById("password");
 const loginBtn = document.getElementById("loginBtn");
 const errorMsg = document.getElementById("errorMsg");
 
-/* Load companies */
+/* Load companies ONCE */
 async function loadCompanies() {
   try {
     const snap = await get(ref(db, "companies"));
     companySelect.innerHTML = '<option value="">Select company</option>';
+
     if (!snap.exists()) {
       errorMsg.textContent = "No companies found";
       return;
     }
+
     const data = snap.val();
-    Object.keys(data).forEach(id => {
-      const c = data[id];
+    Object.entries(data).forEach(([id, c]) => {
       const opt = document.createElement("option");
-      opt.value = id;
-      opt.textContent = c.company || "Unnamed Company";
+      opt.value = id;               // IMPORTANT
+      opt.textContent = c.company;  // What user sees
       companySelect.appendChild(opt);
     });
+
   } catch (err) {
-    conso
+    console.error(err);
+    errorMsg.textContent = "Failed to load companies";
+  }
+}
+
+/* Login */
+loginBtn.addEventListener("click", async () => {
+  errorMsg.textContent = "";
+
+  const companyId = companySelect.value;
+  const password = passwordInput.value.trim();
+
+  if (!companyId) {
+    errorMsg.textContent = "Please select a company";
+    return;
+  }
+
+  if (!password) {
+    errorMsg.textContent = "Please enter password";
+    return;
+  }
+
+  try {
+    const snap = await get(ref(db, `companies/${companyId}`));
+    if (!snap.exists()) {
+      errorMsg.textContent = "Company not found";
+      return;
+    }
+
+    const company = snap.val();
+
+    if (company.password !== password) {
+      errorMsg.textContent = "Incorrect password";
+      return;
+    }
+
+    // ✅ SUCCESS
+    localStorage.setItem("companyId", companyId);
+    localStorage.setItem("companyName", company.company);
+    localStorage.setItem("role", company.role);
+
+    window.location.href = "floor.html";
+
+  } catch (err) {
+    console.error(err);
+    errorMsg.textContent = "Login failed";
+  }
+});
+
+/* Init */
+loadCompanies();
+</script>
