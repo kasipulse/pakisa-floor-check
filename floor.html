@@ -192,12 +192,14 @@ window.saveScan = async () => {
   }
 
   await push(ref(db, "scans"), {
-    customer: customer.value,
-    reason: reason.value,
-    waybill,
-    date: todayKey(),
-    timestamp: Date.now()
-  });
+  companyId,              // 🔑 THIS IS THE KEY
+  companyName,
+  customer: customer.value,
+  reason: reason.value,
+  waybill,
+  date: todayKey(),
+  timestamp: Date.now()
+});
 
   beep.currentTime = 0;
   beep.play();
