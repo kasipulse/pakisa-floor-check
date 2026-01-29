@@ -56,23 +56,11 @@
 </div>
 
 <script>
-  function loadScans(){
-  db.ref('scans')
-    .orderByChild('companyId')
-    .equalTo(companyId)
-    .once('value')
-    .then(snapshot=>{
-      allScans = [];
-      snapshot.forEach(snap=>{
-        allScans.push(snap.val());
-      });
+  const companyId = localStorage.getItem("companyId");
 
-      allScans.sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
-
-      const today = todayKey();
-      render(allScans.filter(d=>d.date===today));
-    })
-    .catch(err=>console.error("Error loading scans:", err));
+if (!companyId) {
+  alert("Session expired. Please login again.");
+  window.location.href = "client-login.html";
 }
 
   var firebaseConfig = {
