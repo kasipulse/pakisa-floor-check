@@ -57,6 +57,7 @@
 
 <script>
   const companyId = localStorage.getItem("companyId");
+  const companyName = localStorage.getItem("companyName");
 
 if (!companyId) {
   alert("Session expired. Please login again.");
@@ -109,11 +110,14 @@ if (!companyId) {
   }
 
   function loadScans(){
-  db.ref('scans')
-    .orderByChild('companyId')
-    .equalTo(companyId)
-    .once('value')
-    .then(snapshot => {
+  db.ref("scans").push({
+  companyId: companyId,        // ✅ REQUIRED
+  customer: companyName,       // optional but useful
+  waybill: waybill,
+  reason: reason,
+  date: todayKey(),
+  timestamp: Date.now()
+});
 
       const data = snapshot.val() || {};
       allScans = Object.values(data)
