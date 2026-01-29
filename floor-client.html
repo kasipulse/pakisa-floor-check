@@ -148,20 +148,25 @@ if (!companyId) {
     doc.save("floor_scans.pdf");
   }
 
-  function getCurrentDisplay(){ 
-    const listItems = document.getElementById('scanList').children;
-    const result = [];
-    for(let item of listItems){
-      const text = item.innerText.split("\n").map(t=>t.trim());
-      result.push({
-        waybill: text[0],
-        customer: text[1].split("—")[0].trim(),
-        reason: text[1].split("—")[1].trim(),
-        timestamp: new Date(text[1].split("—")[1]).getTime()
-      });
-    }
-    return result.length ? result : allScans;
-  }
+function getCurrentDisplay() {
+  const search = document.getElementById('searchFilter').value.trim().toLowerCase();
+  const start = document.getElementById('startDate').value;
+  const end = document.getElementById('endDate').value;
+
+  return allScans.filter(d => {
+    if (start && d.date < start) return false;
+    if (end && d.date > end) return false;
+    if (
+      search &&
+      !(
+        (d.waybill || "").toLowerCase().includes(search) ||
+        (d.reason || "").toLowerCase().includes(search)
+      )
+    ) return false;
+
+    return true;
+  });
+}
 
   window.onload = loadScans;
 </script>
