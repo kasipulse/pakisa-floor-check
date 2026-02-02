@@ -56,104 +56,71 @@
 </div>
 
 <script>
-  const companyId = localStorage.getItem("companyId");
-  const companyName = localStorage.getItem("companyName");
+/* 🔐 Session */
+const companyId = localStorage.getItem("companyId");
+const companyName = localStorage.getItem("companyName");
 
 if (!companyId) {
   alert("Session expired. Please login again.");
   window.location.href = "client-login.html";
 }
 
-  var firebaseConfig = {
-    apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
-    authDomain: "pakisa-floor.firebaseapp.com",
-    databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com",
-    projectId: "pakisa-floor",
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+/* 🔥 Firebase */
+var firebaseConfig = {
+  apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+  authDomain: "pakisa-floor.firebaseapp.com",
+  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com",
+  projectId: "pakisa-floor",
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-  let allScans = [];
+/* State */
+let allScans = [];
 
-  function escapeHtml(s=''){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
-
-  function render(list){
-    const container = document.getElementById('scanList');
-    container.innerHTML = '';
-    if(!list.length) { container.innerHTML='<i>No scans found</i>'; return; }
-    list.forEach(d=>{
-      const el = document.createElement('div');
-      el.className='item';
-      el.innerHTML = `<strong>${escapeHtml(d.waybill)}</strong>
-        <div style="font-size:13px;margin-top:6px">
-          ${escapeHtml(d.customer)} — ${escapeHtml(d.reason)}
-          <span style="float:right;color:#6b7280">${new Date(d.timestamp).toLocaleTimeString()}</span>
-        </div>`;
-      container.appendChild(el);
-    });
-  }
-
-  function todayKey(){ return new Date().toISOString().slice(0,10); }
-
-  function applyFilters(){
-    const search = document.getElementById('searchFilter').value.trim().toLowerCase();
-    const start = document.getElementById('startDate').value;
-    const end = document.getElementById('endDate').value;
-
-    const filtered = allScans.filter(d=>{
-      if(start && d.date < start) return false;
-      if(end && d.date > end) return false;
-      if(search && !((d.waybill||'').toLowerCase().includes(search) || (d.reason||'').toLowerCase().includes(search))) return false;
-      return true;
-    });
-    render(filtered);
-  }
-
-  <script>
-function loadScans() {
-  db.ref("scans")
-    .orderByChild("companyId")
-    .equal
-
-      const data = snapshot.val() || {};
-      allScans = Object.values(data)
-        .sort((a,b)=> (a.timestamp||0)-(b.timestamp||0));
-
-      const today = todayKey();
-      const todayScans = allScans.filter(d => d.date === today);
-      render(todayScans);
-
-    })
-    .catch(err => console.error("Error loading scans:", err));
+/* Utils */
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
 }
 
-  function exportExcel(){
-    const filtered = getCurrentDisplay();
-    const ws = XLSX.utils.json_to_sheet(filtered);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Scans");
-    XLSX.writeFile(wb, "floor_scans.xlsx");
+function escapeHtml(s = "") {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+  );
+}
+
+/* Render */
+function render(list) {
+  const container = document.getElementById("scanList");
+  container.innerHTML = "";
+
+  if (!list.length) {
+    container.innerHTML = "<i>No scans found</i>";
+    return;
   }
 
-  function exportPDF(){
-    const filtered = getCurrentDisplay();
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    let y = 10;
-    filtered.forEach((d,i)=>{
-      doc.text(`${i+1}. ${d.waybill} | ${d.customer} | ${d.reason} | ${new Date(d.timestamp).toLocaleString()}`, 10, y);
-      y += 10;
-      if(y>280){ doc.addPage(); y=10; }
-    });
-    doc.save("floor_scans.pdf");
-  }
+  list.forEach(d => {
+    const el = document.createElement("div");
+    el.className = "item";
+    el.innerHTML = `
+      <strong>${escapeHtml(d.waybill)}</strong>
+      <div style="font-size:13px;margin-top:6px">
+        ${escapeHtml(d.customer)} — ${escapeHtml(d.reason)}
+        <span style="float:right;color:#6b7280">
+          ${new Date(d.timestamp).toLocaleTimeString()}
+        </span>
+      </div>`;
+    container.appendChild(el);
+  });
+}
 
-function getCurrentDisplay() {
-  const search = document.getElementById('searchFilter').value.trim().toLowerCase();
-  const start = document.getElementById('startDate').value;
-  const end = document.getElementById('endDate').value;
+/* Filters */
+function applyFilters() {
+  const search = document.getElementById("searchFilter").value.toLowerCase();
+  const start = document.getElementById("startDate").value;
+  const end = document.getElementById("endDate").value;
 
-  return allScans.filter(d => {
+  const filtered = allScans.filter(d => {
     if (start && d.date < start) return false;
     if (end && d.date > end) return false;
     if (
@@ -163,13 +130,63 @@ function getCurrentDisplay() {
         (d.reason || "").toLowerCase().includes(search)
       )
     ) return false;
-
     return true;
   });
+
+  render(filtered);
 }
 
-  window.onload = loadScans;
+/* 🔍 LOAD SCANS — COMPANY ONLY */
+function loadScans() {
+  db.ref("scans")
+    .orderByChild("companyId")
+    .equalTo(companyId)
+    .once("value")
+    .then(snapshot => {
+      allScans = [];
+      snapshot.forEach(s => allScans.push(s.val()));
+
+      allScans.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+      const today = todayKey();
+      render(allScans.filter(d => d.date === today));
+    })
+    .catch(err => console.error("Load scans failed:", err));
+}
+
+/* Export */
+function exportExcel() {
+  const ws = XLSX.utils.json_to_sheet(getCurrentDisplay());
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Scans");
+  XLSX.writeFile(wb, "floor_scans.xlsx");
+}
+
+function exportPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  let y = 10;
+
+  getCurrentDisplay().forEach((d, i) => {
+    doc.text(
+      `${i + 1}. ${d.waybill} | ${d.customer} | ${d.reason}`,
+      10,
+      y
+    );
+    y += 10;
+    if (y > 280) { doc.addPage(); y = 10; }
+  });
+
+  doc.save("floor_scans.pdf");
+}
+
+function getCurrentDisplay() {
+  return allScans;
+}
+
+window.onload = loadScans;
 </script>
+
 
 </body>
 </html>
