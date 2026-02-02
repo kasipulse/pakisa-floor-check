@@ -109,15 +109,11 @@ if (!companyId) {
     render(filtered);
   }
 
-  function loadScans(){
-  db.ref("scans").push({
-  companyId: companyId,        // ✅ REQUIRED
-  customer: companyName,       // optional but useful
-  waybill: waybill,
-  reason: reason,
-  date: todayKey(),
-  timestamp: Date.now()
-});
+  <script>
+function loadScans() {
+  db.ref("scans")
+    .orderByChild("companyId")
+    .equal
 
       const data = snapshot.val() || {};
       allScans = Object.values(data)
