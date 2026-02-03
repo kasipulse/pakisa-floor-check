@@ -88,6 +88,37 @@ function escapeHtml(s = "") {
   );
 }
 
+/* 🔔 Industrial Scan Sound */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playScanSound() {
+  const oscillator = audioCtx.createOscillator();
+  const gainNode = audioCtx.createGain();
+
+  oscillator.type = 'square';
+  oscillator.frequency.setValueAtTime(150, audioCtx.currentTime);
+  gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
+
+  oscillator.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+
+  oscillator.start();
+  oscillator.frequency.linearRampToValueAtTime(400, audioCtx.currentTime + 0.7);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
+  oscillator.stop(audioCtx.currentTime + 1);
+}
+
+/* Highlight New Scan */
+function highlightNewScan(el) {
+  el.style.background = '#064e3b'; // dark green
+  el.style.color = '#e6f4ea';
+  el.style.transition = 'background 1s, color 1s';
+  setTimeout(() => {
+    el.style.background = '#fff';
+    el.style.color = '#1f2937';
+  }, 2000);
+}
+
 /* Render */
 function render(list) {
   const container = document.getElementById("scanList");
@@ -97,7 +128,7 @@ function render(list) {
     return;
   }
 
-  list.forEach(d => {
+  list.forEach((d, idx) => {
     const el = document.createElement("div");
     el.className = "item";
     el.innerHTML = `
@@ -109,6 +140,12 @@ function render(list) {
         </span>
       </div>`;
     container.appendChild(el);
+
+    // Play sound + highlight for the **most recent scan**
+    if(idx === 0) {
+      playScanSound();
+      highlightNewScan(el);
+    }
   });
 }
 
@@ -139,9 +176,7 @@ function loadScans() {
       snapshot.forEach(s => {
         const scan = s.val();
 
-        // Include scan if companyId matches OR if companyId is missing but customer matches
         if(scan.companyId === companyId || (!scan.companyId && scan.customer === companyName)) {
-          // Auto-fill missing companyId
           if(!scan.companyId) {
             s.ref.update({ companyId, companyName });
             scan.companyId = companyId;
