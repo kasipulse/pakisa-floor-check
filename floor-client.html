@@ -88,11 +88,10 @@ function escapeHtml(s = "") {
   );
 }
 
-/* Render Scans */
+/* Render */
 function render(list) {
   const container = document.getElementById("scanList");
   container.innerHTML = "";
-
   if (!list.length) {
     container.innerHTML = "<i>No scans found</i>";
     return;
@@ -113,42 +112,52 @@ function render(list) {
   });
 }
 
-/* Filter scans by search & date */
+/* Filters */
 function applyFilters() {
   const search = document.getElementById("searchFilter").value.toLowerCase();
   const start = document.getElementById("startDate").value;
   const end = document.getElementById("endDate").value;
 
   const filtered = allScans.filter(d => {
-    const scanDate = d.date || new Date(d.timestamp).toISOString().slice(0,10);
-
-    if (start && scanDate < start) return false;
-    if (end && scanDate > end) return false;
-    if (search && !((d.waybill || "").toLowerCase().includes(search) ||
-                   (d.reason || "").toLowerCase().includes(search))) return false;
+    if (start && d.date < start) return false;
+    if (end && d.date > end) return false;
+    if (search &&
+        !((d.waybill||"").toLowerCase().includes(search) || 
+          (d.reason||"").toLowerCase().includes(search))
+    ) return false;
     return true;
   });
 
   render(filtered);
 }
 
-/* 🔍 Load all scans for this company */
+/* 🔍 Load Scans for the Company (and fallback to customer if companyId missing) */
 function loadScans() {
-  db.ref("scans")
-    .orderByChild("companyId")
-    .equalTo(companyId)
-    .once("value")
+  db.ref("scans").once("value")
     .then(snapshot => {
       allScans = [];
-      snapshot.forEach(s => allScans.push(s.val()));
-      
-      allScans.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      snapshot.forEach(s => {
+        const scan = s.val();
+
+        // Include scan if companyId matches OR if companyId is missing but customer matches
+        if(scan.companyId === companyId || (!scan.companyId && scan.customer === companyName)) {
+          // Auto-fill missing companyId
+          if(!scan.companyId) {
+            s.ref.update({ companyId, companyName });
+            scan.companyId = companyId;
+            scan.companyName = companyName;
+          }
+          allScans.push(scan);
+        }
+      });
+
+      allScans.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
       render(allScans);
     })
     .catch(err => console.error("Load scans failed:", err));
 }
 
-/* Export to Excel */
+/* Export */
 function exportExcel() {
   const ws = XLSX.utils.json_to_sheet(getCurrentDisplay());
   const wb = XLSX.utils.book_new();
@@ -156,27 +165,24 @@ function exportExcel() {
   XLSX.writeFile(wb, "floor_scans.xlsx");
 }
 
-/* Export to PDF */
 function exportPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   let y = 10;
 
-  getCurrentDisplay().forEach((d, i) => {
+  getCurrentDisplay().forEach((d,i)=>{
     doc.text(`${i+1}. ${d.waybill} | ${d.customer} | ${d.reason} | ${new Date(d.timestamp).toLocaleString()}`, 10, y);
     y += 10;
-    if (y > 280) { doc.addPage(); y = 10; }
+    if(y>280){ doc.addPage(); y=10; }
   });
 
   doc.save("floor_scans.pdf");
 }
 
-/* Return current displayed scans (for export) */
 function getCurrentDisplay() {
   return allScans;
 }
 
-/* Load on page ready */
 window.onload = loadScans;
 </script>
 
