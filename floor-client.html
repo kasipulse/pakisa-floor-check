@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Client Floor Check</title>
 
 <!-- Firebase v8 -->
@@ -13,18 +14,115 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-  body { font-family: Arial, sans-serif; background: #f5f7fa; padding: 20px; color: #1f2937; }
-  .container { max-width: 900px; margin: 0 auto; }
-  .card { background: #fff; padding: 18px; border-radius: 12px; box-shadow: 0 6px 24px rgba(15,23,42,0.06); }
-  header { display:flex; align-items:center; gap:16px; margin-bottom:16px; }
-  h1 { margin:0; font-size:20px; color:#0a2b52; }
-  label { font-weight:600; font-size:13px; margin-top:12px; display:block; }
-  input, select { width:100%; padding:10px; border-radius:8px; border:1px solid #e5e7eb; margin-top:6px; }
-  .list { margin-top:12px; }
-  .item { padding:12px; border-radius:10px; background:#fff; border:1px solid #eef2f7; margin-bottom:8px; }
-  .buttons { margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; }
-  button { padding:10px 14px; border:none; border-radius:8px; background:#409dbc; color:#fff; cursor:pointer; }
-  button:hover { opacity:0.9; }
+  body {
+    font-family: Arial, sans-serif;
+    background: #f5f7fa;
+    padding: 20px;
+    color: #1f2937;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .card {
+    background: #fff;
+    padding: 18px;
+    border-radius: 12px;
+    box-shadow: 0 6px 24px rgba(15,23,42,0.06);
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 20px;
+    color: #0a2b52;
+  }
+
+  label {
+    font-weight: 600;
+    font-size: 13px;
+    margin-top: 12px;
+    display: block;
+  }
+
+  input, select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    margin-top: 6px;
+    font-size: 14px;
+  }
+
+  .list {
+    margin-top: 12px;
+  }
+
+  .item {
+    padding: 12px;
+    border-radius: 10px;
+    background: #fff;
+    border: 1px solid #eef2f7;
+    margin-bottom: 8px;
+  }
+
+  .buttons {
+    margin-top: 12px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    padding: 10px 14px;
+    border: none;
+    border-radius: 8px;
+    background: #409dbc;
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  button:hover {
+    opacity: 0.9;
+  }
+
+  /* 📱 Mobile tweaks */
+  @media (max-width: 600px) {
+    body {
+      padding: 12px;
+    }
+
+    h1 {
+      font-size: 18px;
+    }
+
+    .buttons {
+      flex-direction: column;
+    }
+
+    button {
+      width: 100%;
+    }
+
+    .item {
+      font-size: 14px;
+    }
+
+    .item span {
+      display: block;
+      float: none;
+      margin-top: 4px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -44,7 +142,6 @@
     <label for="endDate">End Date</label>
     <input type="date" id="endDate" onchange="applyFilters()">
 
-    <!-- ✅ Moved export buttons above the scans list -->
     <div class="buttons">
       <button onclick="exportExcel()">Export Excel</button>
       <button onclick="exportPDF()">Export PDF</button>
@@ -56,16 +153,12 @@
 </div>
 
 <script>
-/* 🔐 Session */
 const companyId = localStorage.getItem("companyId");
-const companyName = localStorage.getItem("companyName");
-
 if (!companyId) {
   alert("Session expired. Please login again.");
   window.location.href = "client-login.html";
 }
 
-/* 🔥 Firebase */
 var firebaseConfig = {
   apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
   authDomain: "pakisa-floor.firebaseapp.com",
@@ -75,10 +168,8 @@ var firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* State */
 let allScans = [];
 
-/* Utils */
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -89,7 +180,6 @@ function escapeHtml(s = "") {
   );
 }
 
-/* Render */
 function render(list) {
   const container = document.getElementById("scanList");
   container.innerHTML = "";
@@ -114,7 +204,6 @@ function render(list) {
   });
 }
 
-/* Filters */
 function applyFilters() {
   const search = document.getElementById("searchFilter").value.toLowerCase();
   const start = document.getElementById("startDate").value;
@@ -125,10 +214,8 @@ function applyFilters() {
     if (end && d.date > end) return false;
     if (
       search &&
-      !(
-        (d.waybill || "").toLowerCase().includes(search) ||
-        (d.reason || "").toLowerCase().includes(search)
-      )
+      !((d.waybill || "").toLowerCase().includes(search) ||
+        (d.reason || "").toLowerCase().includes(search))
     ) return false;
     return true;
   });
@@ -136,7 +223,6 @@ function applyFilters() {
   render(filtered);
 }
 
-/* 🔍 LOAD SCANS — COMPANY ONLY */
 function loadScans() {
   db.ref("scans")
     .orderByChild("companyId")
@@ -145,18 +231,13 @@ function loadScans() {
     .then(snapshot => {
       allScans = [];
       snapshot.forEach(s => allScans.push(s.val()));
-
       allScans.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-      const today = todayKey();
-      render(allScans.filter(d => d.date === today));
-    })
-    .catch(err => console.error("Load scans failed:", err));
+      render(allScans.filter(d => d.date === todayKey()));
+    });
 }
 
-/* Export */
 function exportExcel() {
-  const ws = XLSX.utils.json_to_sheet(getCurrentDisplay());
+  const ws = XLSX.utils.json_to_sheet(allScans);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Scans");
   XLSX.writeFile(wb, "floor_scans.xlsx");
@@ -166,27 +247,15 @@ function exportPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   let y = 10;
-
-  getCurrentDisplay().forEach((d, i) => {
-    doc.text(
-      `${i + 1}. ${d.waybill} | ${d.customer} | ${d.reason}`,
-      10,
-      y
-    );
+  allScans.forEach((d, i) => {
+    doc.text(`${i + 1}. ${d.waybill} | ${d.customer} | ${d.reason}`, 10, y);
     y += 10;
     if (y > 280) { doc.addPage(); y = 10; }
   });
-
   doc.save("floor_scans.pdf");
-}
-
-function getCurrentDisplay() {
-  return allScans;
 }
 
 window.onload = loadScans;
 </script>
-
-
 </body>
 </html>
