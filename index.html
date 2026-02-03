@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Pakisa Floor</title>
 
+<!-- Firebase v8 -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
 <style>
 :root {
   --navy:#072760;
@@ -78,6 +82,42 @@ footer {
   color:#6b7280;
   line-height:1.6;
 }
+
+/* Waybill search styling */
+.search-section {
+  margin-top:30px;
+  text-align:left;
+}
+
+.search-section input {
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #e5e7eb;
+  margin-top:8px;
+  margin-bottom:12px;
+}
+
+.search-section button {
+  padding:10px 16px;
+  border:none;
+  border-radius:8px;
+  background:var(--navy);
+  color:white;
+  cursor:pointer;
+}
+
+.search-section button:hover {
+  opacity:0.9;
+}
+
+.result {
+  margin-top:16px;
+  padding:12px;
+  border-radius:10px;
+  background:#e6f4ea;
+  border:1px solid #064e3b;
+}
 </style>
 </head>
 
@@ -97,6 +137,14 @@ footer {
       <a class="btn" href="login.html">Pakisa Agent Login</a>
     </div>
 
+    <!-- ✅ Waybill Search Section -->
+    <div class="search-section">
+      <h3>Check Your Waybill</h3>
+      <input type="text" id="waybillInput" placeholder="Enter your waybill number">
+      <button onclick="searchWaybill()">Search</button>
+      <div id="waybillResult"></div>
+    </div>
+
     <footer>
       © 2026 Pakisa Logistics Express (Pty) Ltd<br>
       Built by Mpho Mahlaba<br>
@@ -105,5 +153,55 @@ footer {
 
   </div>
 </div>
+
+<script>
+/* 🔥 Firebase config */
+var firebaseConfig = {
+  apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+  authDomain: "pakisa-floor.firebaseapp.com",
+  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com",
+  projectId: "pakisa-floor",
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* 🔍 Search Waybill */
+function searchWaybill() {
+  const input = document.getElementById("waybillInput").value.trim();
+  const resultDiv = document.getElementById("waybillResult");
+  resultDiv.innerHTML = "";
+
+  if (!input) {
+    resultDiv.innerHTML = "<span style='color:red'>Please enter a waybill number.</span>";
+    return;
+  }
+
+  db.ref("scans").orderByChild("waybill").equalTo(input).once("value")
+    .then(snapshot => {
+      if (!snapshot.exists()) {
+        resultDiv.innerHTML = "<span style='color:red'>Waybill not found.</span>";
+        return;
+      }
+
+      snapshot.forEach(s => {
+        const scan = s.val();
+        const div = document.createElement("div");
+        div.className = "result";
+        div.innerHTML = `
+          <strong>Waybill:</strong> ${scan.waybill}<br>
+          <strong>Customer:</strong> ${scan.customer}<br>
+          <strong>Reason:</strong> ${scan.reason}<br>
+          <strong>Date:</strong> ${scan.date}<br>
+          <strong>Time:</strong> ${new Date(scan.timestamp).toLocaleTimeString()}
+        `;
+        resultDiv.appendChild(div);
+      });
+    })
+    .catch(err => {
+      resultDiv.innerHTML = "<span style='color:red'>Error fetching waybill.</span>";
+      console.error(err);
+    });
+}
+</script>
 </body>
 </html>
