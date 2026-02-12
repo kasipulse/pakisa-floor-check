@@ -263,78 +263,51 @@ window.saveBulkScans = async () => {
   beep.play();
 };
 
-/* 📦 IMPORT POD FROM EXCEL — ROBUST VERSION */
-window.importPOD = async () => {
-  const fileInput = document.getElementById("podFile");
-  const file = fileInput.files[0];
+window.importPODBulk = async () => {
+  const text = document.getElementById("bulkPOD").value.trim();
+  if (!text) return alert("Paste POD data first!");
 
-  if (!file) {
-    alert("Select Excel file first");
-    return;
-  }
-
-  const data = await file.arrayBuffer();
-  const workbook = XLSX.read(data, { type: "array" });
-
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  // raw:false ensures Excel numbers are converted to strings
-  const rows = XLSX.utils.sheet_to_json(sheet, { raw: false });
-
-  if (!rows.length) {
-    alert("Excel file has no rows");
-    return;
-  }
-
+  const lines = text.split(/\r?\n/);
   const updates = {};
 
-  rows.forEach(row => {
-    // Clean waybill: remove spaces, fix .0 from Excel
-    const waybillRaw = row["Tracking No"] || row["Waybill"] || "";
+  lines.forEach(line => {
+    // Skip header row
+    if (line.toLowerCase().includes("tracking")) return;
+
+    // Split by tab
+    const parts = line.split(/\t/).map(p => p.trim());
+    if (parts.length < 4) return; // must have 4 columns
+
+    let [waybillRaw, podDateRaw, podTimeRaw, signedBy] = parts;
     const waybill = String(waybillRaw).trim().replace(/\s+/g, "").replace(/\.0$/, "");
+    if (!waybill) return;
 
-    if (!waybill) {
-      console.warn("Skipping row, no valid waybill", row);
-      return;
-    }
-
-    // Get date and time from Excel, fallback if missing
-    const podDateRaw = row["POD Date"] || row["Date"] || "";
-    const podTimeRaw = row["POD Time"] || row["Time"] || "";
-
-    // Convert Excel date/time to timestamp
+    // Combine date + time into timestamp
     let podTimestamp = Date.now(); // fallback
     if (podDateRaw) {
-      // Parse DD/MM/YYYY format
       const [dd, mm, yyyy] = podDateRaw.split("/").map(Number);
-      let hh = 0, min = 0;
-      if (podTimeRaw) {
-        const [hours, minutes] = podTimeRaw.split(":").map(Number);
-        hh = hours || 0;
-        min = minutes || 0;
-      }
-      podTimestamp = new Date(yyyy, mm - 1, dd, hh, min).getTime();
+      let hh = 0, min = 0, sec = 0;
+      if (podTimeRaw) [hh, min, sec] = podTimeRaw.split(":").map(Number);
+      podTimestamp = new Date(yyyy, mm-1, dd, hh, min, sec).getTime();
     }
 
     updates[`pods/${waybill}`] = {
       waybill,
-      signedBy: row["Recipient"] || row["Signed By"] || "",
-      date: podDateRaw || "",
-      time: podTimeRaw || "",
+      signedBy,
+      date: podDateRaw,
+      time: podTimeRaw,
       status: "Delivered",
       importedAt: Date.now(),
       podTimestamp
     };
   });
 
-  if (Object.keys(updates).length === 0) {
-    alert("No valid waybills found in Excel!");
-    return;
-  }
+  if (Object.keys(updates).length === 0) return alert("No valid PODs found!");
 
   await update(ref(db), updates);
 
   alert("POD import complete ✅");
-  fileInput.value = "";
+  document.getElementById("bulkPOD").value = "";
 };
 
 </script>
@@ -376,6 +349,10 @@ window.importPOD = async () => {
 
 <label>Bulk Waybill Paste</label>
 <textarea id="bulkInput" placeholder="One waybill per line"></textarea>
+  
+<label>Bulk POD Paste</label>
+<textarea id="bulkPOD" placeholder="Paste PODs here: Tracking No TAB POD Date TAB POD Time TAB Recipient, one per line"></textarea>
+<button onclick="importPODBulk()">Import POD</button>
 
 <button onclick="saveBulkScans()">Bulk Upload</button>
 
