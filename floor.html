@@ -141,44 +141,72 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-/* 🔥 LISTENER — TODAY ONLY */
-function listenForScans() {
-  const q = query(
-    ref(db, "scans"),
-    orderByChild("timestamp"),
-    startAt(startOfTodayTs())
-  );
+/* 🔥 LISTENER — TODAY SCANS + ALL PODS */
+async function listenForScansAndPods() {
+  const scansRef = ref(db, "scans");
+  const podsRef = ref(db, "pods");
 
-  onValue(q, snap => {
-    currentData = [];
-    snap.forEach(c => currentData.push(c.val()));
-    currentData.sort((a,b) => b.timestamp - a.timestamp);
-    renderList(currentData);
+  // Get scans for today
+  const scansSnap = await get(scansRef);
+  let scans = [];
+  scansSnap.forEach(c => {
+    const val = c.val();
+    if (val.timestamp >= startOfTodayTs()) scans.push(val);
   });
+
+  // Get all PODs
+  const podsSnap = await get(podsRef);
+  const pods = {};
+  podsSnap.forEach(p => {
+    const val = p.val();
+    if (val.waybill) pods[val.waybill] = val;
+  });
+
+  // Merge scans with PODs
+  const combined = [];
+
+  // First add scanned waybills
+  scans.forEach(s => {
+    const pod = pods[s.waybill];
+    combined.push({
+      waybill: s.waybill,
+      customer: s.customer,
+      reason: s.reason,
+      timestamp: s.timestamp,
+      pod
+    });
+  });
+
+  // Then add PODs that were not scanned today
+  Object.values(pods).forEach(p => {
+    if (!scans.find(s => s.waybill === p.waybill)) {
+      combined.push({
+        waybill: p.waybill,
+        customer: "N/A",
+        reason: "Not scanned yet",
+        timestamp: p.importedAt || 0,
+        pod: p
+      });
+    }
+  });
+
+  // Sort descending by timestamp
+  combined.sort((a, b) => b.timestamp - a.timestamp);
+
+  renderList(combined);
 }
 
+/* 🔥 RENDER LIST (SCANS + PODS) */
 async function renderList(arr) {
   scanList.innerHTML = "";
 
   if (!arr.length) {
-    scanList.innerHTML = "<i>No scans for today</i>";
+    scanList.innerHTML = "<i>No scans or PODs</i>";
     return;
   }
 
-  for (const d of arr.slice(0, 200)) {
-
-    let podText = "";
-
-    try {
-      const podSnap = await get(ref(db, "pods/" + d.waybill));
-      if (podSnap.exists()) {
-        const pod = podSnap.val();
-        podText = `<br><span style="color:green;"><b>POD:</b> Signed by ${pod.signedBy}</span>`;
-      }
-    } catch (e) {
-      console.error("POD check failed", e);
-    }
-
+  arr.slice(0, 200).forEach(d => {
+    const podText = d.pod ? `<br><span style="color:green;"><b>POD:</b> Signed by ${d.pod.signedBy} — ${d.pod.date || ""} ${d.pod.time || ""}</span>` : "";
     const div = document.createElement("div");
     div.className = "list-item";
     div.innerHTML = `
@@ -186,11 +214,9 @@ async function renderList(arr) {
       ${d.customer} — ${d.reason}
       ${podText}
     `;
-
     scanList.appendChild(div);
-  }
+  });
 }
-
 
 /* Search */
 window.filterSearch = () => {
