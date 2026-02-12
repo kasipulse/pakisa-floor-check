@@ -263,8 +263,6 @@ window.saveBulkScans = async () => {
   beep.play();
 };
 
-
-/* 📦 IMPORT POD FROM EXCEL */
 window.importPOD = async () => {
 
   const fileInput = document.getElementById("podFile");
@@ -289,18 +287,33 @@ window.importPOD = async () => {
   const updates = {};
 
   rows.forEach(row => {
-
-    const waybill = String(row["Waybill"] || "").trim();
+    const waybill = String(row["Tracking No"] || "").trim();
     if (!waybill) return;
+
+    const podDate = row["POD Date"] || ""; // e.g. "11/02/2026"
+    const podTime = row["POD Time"] || "00:00"; // default to midnight if empty
+
+    // Convert to timestamp (milliseconds)
+    let timestamp = Date.now();
+    if (podDate) {
+      const [day, month, year] = podDate.split("/").map(Number);
+      let hours = 0, minutes = 0;
+      if (podTime) {
+        const [h, m] = podTime.split(":").map(Number);
+        hours = h || 0;
+        minutes = m || 0;
+      }
+      timestamp = new Date(year, month - 1, day, hours, minutes).getTime();
+    }
 
     updates[`pods/${waybill}`] = {
       waybill,
-      signedBy: row["Signed By"] || "",
-      date: row["Date"] || "",
-      status: row["Status"] || "Delivered",
-      importedAt: Date.now()
+      signedBy: row["Recipient"] || "",
+      date: podDate,
+      time: podTime,
+      status: "Delivered",
+      importedAt: timestamp // use POD time
     };
-
   });
 
   await update(ref(db), updates);
