@@ -243,6 +243,54 @@ window.saveBulkScans = async () => {
   bulkInput.value = "";
   beep.play();
 };
+
+
+/* 📦 IMPORT POD FROM EXCEL */
+window.importPOD = async () => {
+
+  const fileInput = document.getElementById("podFile");
+  const file = fileInput.files[0];
+
+  if (!file) {
+    alert("Select Excel file first");
+    return;
+  }
+
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data);
+
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet);
+
+  if (!rows.length) {
+    alert("Excel file has no rows");
+    return;
+  }
+
+  const updates = {};
+
+  rows.forEach(row => {
+
+    const waybill = String(row["Waybill"] || "").trim();
+    if (!waybill) return;
+
+    updates[`pods/${waybill}`] = {
+      waybill,
+      signedBy: row["Signed By"] || "",
+      date: row["Date"] || "",
+      status: row["Status"] || "Delivered",
+      importedAt: Date.now()
+    };
+
+  });
+
+  await update(ref(db), updates);
+
+  alert("POD import complete ✅");
+
+  fileInput.value = "";
+};
+
 </script>
 </head>
 
