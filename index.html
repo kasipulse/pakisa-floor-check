@@ -83,7 +83,6 @@ footer {
   line-height:1.6;
 }
 
-/* Waybill search styling */
 .search-section {
   margin-top:30px;
   text-align:left;
@@ -137,7 +136,6 @@ footer {
       <a class="btn" href="login.html">Pakisa Agent Login</a>
     </div>
 
-    <!-- ✅ Waybill Search Section -->
     <div class="search-section">
       <h3>Check Your Waybill</h3>
       <input type="text" id="waybillInput" placeholder="Enter your waybill number">
@@ -162,10 +160,11 @@ var firebaseConfig = {
   databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com",
   projectId: "pakisa-floor",
 };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-<script>
+/* 🔍 Search Waybill (Scans + POD merged) */
 function searchWaybill() {
   const input = document.getElementById("waybillInput").value.trim();
   const resultDiv = document.getElementById("waybillResult");
@@ -176,49 +175,39 @@ function searchWaybill() {
     return;
   }
 
-  // 🔹 Get both scans and pods
   const scansRef = db.ref("scans").orderByChild("waybill").equalTo(input).once("value");
   const podsRef  = db.ref("pods").orderByChild("waybill").equalTo(input).once("value");
 
   Promise.all([scansRef, podsRef])
     .then(([scanSnap, podSnap]) => {
-      let found = false;
 
-      // Show scans
-      scanSnap.forEach(s => {
-        found = true;
-        const scan = s.val();
-        const div = document.createElement("div");
-        div.className = "result";
-        div.innerHTML = `
-          <strong>Waybill:</strong> ${scan.waybill}<br>
+      if (!scanSnap.exists() && !podSnap.exists()) {
+        resultDiv.innerHTML = "<span style='color:red'>Waybill not found.</span>";
+        return;
+      }
+
+      const scan = scanSnap.exists() ? Object.values(scanSnap.val())[0] : null;
+      const pod  = podSnap.exists() ? Object.values(podSnap.val())[0] : null;
+
+      const div = document.createElement("div");
+      div.className = "result";
+      div.innerHTML = `
+        <strong>Waybill:</strong> ${input}<br>
+        ${scan ? `
           <strong>Customer:</strong> ${scan.customer}<br>
           <strong>Reason:</strong> ${scan.reason}<br>
-          <strong>Date:</strong> ${scan.date}<br>
-          <strong>Time:</strong> ${new Date(scan.timestamp).toLocaleTimeString()}
-        `;
-        resultDiv.appendChild(div);
-      });
-
-      // Show PODs
-      podSnap.forEach(p => {
-        found = true;
-        const pod = p.val();
-        const div = document.createElement("div");
-        div.className = "result";
-        div.innerHTML = `
-          <strong>Waybill:</strong> ${pod.waybill}<br>
+          <strong>Scanned Date:</strong> ${scan.date}<br>
+          <strong>Scanned Time:</strong> ${new Date(scan.timestamp).toLocaleTimeString()}<br>
+        ` : ""}
+        ${pod ? `
           <strong>Status:</strong> ${pod.status || "Delivered"}<br>
           <strong>Signed By:</strong> ${pod.signedBy || "N/A"}<br>
-          <strong>Date:</strong> ${pod.date || "N/A"}<br>
-          <strong>Time:</strong> ${pod.time || "N/A"}
-        `;
-        resultDiv.appendChild(div);
-      });
+          <strong>POD Date:</strong> ${pod.date || "N/A"}<br>
+          <strong>POD Time:</strong> ${pod.time || "N/A"}
+        ` : ""}
+      `;
 
-      if (!found) {
-        resultDiv.innerHTML = "<span style='color:red'>Waybill not found.</span>";
-      }
+      resultDiv.appendChild(div);
     })
     .catch(err => {
       resultDiv.innerHTML = "<span style='color:red'>Error fetching waybill.</span>";
@@ -227,6 +216,5 @@ function searchWaybill() {
 }
 </script>
 
-</script>
 </body>
 </html>
