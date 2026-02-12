@@ -130,39 +130,50 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-/* LISTENER — TODAY SCANS + ALL PODS */
+/* 🔥 LISTENER — TODAY SCANS + ALL PODS (SAFE MERGE) */
 async function listenForScansAndPods() {
   const scansRef = ref(db, "scans");
   const podsRef = ref(db, "pods");
 
+  // 1️⃣ Get all scans
   const scansSnap = await get(scansRef);
-  let scans = [];
+  const scans = [];
   scansSnap.forEach(c => {
     const val = c.val();
+    // Only today
     if (val.timestamp >= startOfTodayTs()) scans.push(val);
   });
 
+  // 2️⃣ Get all PODs
   const podsSnap = await get(podsRef);
   const pods = {};
   podsSnap.forEach(p => {
     const val = p.val();
-    if (val.waybill) pods[val.waybill] = val;
+    if (!val.waybill) return;
+    // Clean waybill string (trim + remove .0 from Excel)
+    const waybill = String(val.waybill).trim().replace(/\.0$/, "");
+    pods[waybill] = { ...val, waybill }; // overwrite cleaned waybill
   });
 
+  // 3️⃣ Merge scans + PODs
   const combined = [];
 
+  // ✅ First, add all scans
   scans.forEach(s => {
+    const waybill = String(s.waybill).trim().replace(/\.0$/, "");
     combined.push({
-      waybill: s.waybill,
+      waybill,
       customer: s.customer,
       reason: s.reason,
       timestamp: s.timestamp,
-      pod: pods[s.waybill] || null
+      pod: pods[waybill] || null // attach POD if exists
     });
   });
 
+  // ✅ Then, add PODs that were NOT scanned today
   Object.values(pods).forEach(p => {
-    if (!scans.find(s => s.waybill === p.waybill)) {
+    const existsInScans = scans.some(s => String(s.waybill).trim().replace(/\.0$/, "") === p.waybill);
+    if (!existsInScans) {
       combined.push({
         waybill: p.waybill,
         customer: "N/A",
@@ -173,9 +184,14 @@ async function listenForScansAndPods() {
     }
   });
 
-  combined.sort((a,b) => b.timestamp - a.timestamp);
-  currentData = combined;
+  // 4️⃣ Sort newest first
+  combined.sort((a, b) => b.timestamp - a.timestamp);
+
+  currentData = combined; // for search/filter
   renderList(currentData);
+
+  // 🔍 Debug tip: check if your waybill is in combined
+  console.log("Check waybill 888646527112:", combined.find(d => d.waybill === "888646527112"));
 }
 
 /* RENDER LIST */
