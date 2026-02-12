@@ -277,7 +277,7 @@ window.importPOD = async () => {
   const workbook = XLSX.read(data);
 
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(sheet);
+  const rows = XLSX.utils.sheet_to_json(sheet, { raw: false }); // raw: false ensures Excel dates come as strings
 
   if (!rows.length) {
     alert("Excel file has no rows");
@@ -290,19 +290,31 @@ window.importPOD = async () => {
     const waybill = String(row["Tracking No"] || "").trim();
     if (!waybill) return;
 
-    const podDate = row["POD Date"] || ""; // e.g. "11/02/2026"
-    const podTime = row["POD Time"] || "00:00"; // default to midnight if empty
+    // Ensure POD Date is a string
+    let podDate = row["POD Date"];
+    if (!podDate) podDate = "";
+    else podDate = String(podDate).trim(); // convert to string
 
-    // Convert to timestamp (milliseconds)
+    let podTime = row["POD Time"] || "00:00";
+    podTime = String(podTime).trim();
+
+    // Convert to timestamp
     let timestamp = Date.now();
     if (podDate) {
-      const [day, month, year] = podDate.split("/").map(Number);
-      let hours = 0, minutes = 0;
-      if (podTime) {
-        const [h, m] = podTime.split(":").map(Number);
-        hours = h || 0;
-        minutes = m || 0;
+      let day = 1, month = 1, year = 2000;
+      if (podDate.includes("/")) {
+        // format: dd/mm/yyyy
+        [day, month, year] = podDate.split("/").map(Number);
+      } else {
+        // fallback if Excel date comes as YYYY-MM-DD
+        [year, month, day] = podDate.split("-").map(Number);
       }
+
+      let hours = 0, minutes = 0;
+      if (podTime.includes(":")) {
+        [hours, minutes] = podTime.split(":").map(Number);
+      }
+
       timestamp = new Date(year, month - 1, day, hours, minutes).getTime();
     }
 
@@ -312,14 +324,13 @@ window.importPOD = async () => {
       date: podDate,
       time: podTime,
       status: "Delivered",
-      importedAt: timestamp // use POD time
+      importedAt: timestamp
     };
   });
 
   await update(ref(db), updates);
 
   alert("POD import complete ✅");
-
   fileInput.value = "";
 };
 
