@@ -263,6 +263,7 @@ window.saveBulkScans = async () => {
   beep.play();
 };
 
+/* 📦 IMPORT POD FROM EXCEL — ROBUST VERSION */
 window.importPOD = async () => {
   const fileInput = document.getElementById("podFile");
   const file = fileInput.files[0];
@@ -273,10 +274,11 @@ window.importPOD = async () => {
   }
 
   const data = await file.arrayBuffer();
-  const workbook = XLSX.read(data);
+  const workbook = XLSX.read(data, { type: "array" });
 
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(sheet, { raw: false }); // raw: false converts dates to strings
+  // raw:false ensures Excel numbers are converted to strings
+  const rows = XLSX.utils.sheet_to_json(sheet, { raw: false });
 
   if (!rows.length) {
     alert("Excel file has no rows");
@@ -286,43 +288,48 @@ window.importPOD = async () => {
   const updates = {};
 
   rows.forEach(row => {
-    // Get waybill, remove spaces, and ensure it's a string
-    const waybill = String(row["Tracking No"] || row["Waybill"] || "").replace(/\s+/g, "");
-    if (!waybill) return;
+    // Clean waybill: remove spaces, fix .0 from Excel
+    const waybillRaw = row["Tracking No"] || row["Waybill"] || "";
+    const waybill = String(waybillRaw).trim().replace(/\s+/g, "").replace(/\.0$/, "");
 
-    // Combine POD Date + POD Time if available
-    let podDateStr = row["POD Date"] || "";
-    let podTimeStr = row["POD Time"] || "00:00";
+    if (!waybill) {
+      console.warn("Skipping row, no valid waybill", row);
+      return;
+    }
 
-    // Parse date + time to timestamp
+    // Get date and time from Excel, fallback if missing
+    const podDateRaw = row["POD Date"] || row["Date"] || "";
+    const podTimeRaw = row["POD Time"] || row["Time"] || "";
+
+    // Convert Excel date/time to timestamp
     let podTimestamp = Date.now(); // fallback
-
-    if (podDateStr) {
-      try {
-        // Handle Excel date numbers (e.g., 44920) or string "11/02/2026"
-        let dateObj;
-        if (typeof podDateStr === "number") {
-          dateObj = XLSX.SSF.parse_date_code(podDateStr);
-          dateObj = new Date(dateObj.y, dateObj.m - 1, dateObj.d);
-        } else {
-          dateObj = new Date(`${podDateStr} ${podTimeStr}`);
-        }
-        if (!isNaN(dateObj)) podTimestamp = dateObj.getTime();
-      } catch (e) {
-        console.warn("Failed to parse POD date/time", podDateStr, podTimeStr, e);
+    if (podDateRaw) {
+      // Parse DD/MM/YYYY format
+      const [dd, mm, yyyy] = podDateRaw.split("/").map(Number);
+      let hh = 0, min = 0;
+      if (podTimeRaw) {
+        const [hours, minutes] = podTimeRaw.split(":").map(Number);
+        hh = hours || 0;
+        min = minutes || 0;
       }
+      podTimestamp = new Date(yyyy, mm - 1, dd, hh, min).getTime();
     }
 
     updates[`pods/${waybill}`] = {
       waybill,
       signedBy: row["Recipient"] || row["Signed By"] || "",
-      podDate: podDateStr,
-      podTime: podTimeStr,
-      timestamp: podTimestamp,
-      status: row["Status"] || "Delivered",
-      importedAt: Date.now()
+      date: podDateRaw || "",
+      time: podTimeRaw || "",
+      status: "Delivered",
+      importedAt: Date.now(),
+      podTimestamp
     };
   });
+
+  if (Object.keys(updates).length === 0) {
+    alert("No valid waybills found in Excel!");
+    return;
+  }
 
   await update(ref(db), updates);
 
