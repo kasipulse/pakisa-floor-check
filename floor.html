@@ -68,7 +68,8 @@ import {
   query,
   orderByChild,
   startAt,
-  update
+  update,
+  get
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 /* 🔥 FIREBASE CONFIG */
@@ -156,8 +157,7 @@ function listenForScans() {
   });
 }
 
-/* Render list */
-function renderList(arr) {
+async function renderList(arr) {
   scanList.innerHTML = "";
 
   if (!arr.length) {
@@ -165,13 +165,32 @@ function renderList(arr) {
     return;
   }
 
-  arr.slice(0,200).forEach(d => {
+  for (const d of arr.slice(0, 200)) {
+
+    let podText = "";
+
+    try {
+      const podSnap = await get(ref(db, "pods/" + d.waybill));
+      if (podSnap.exists()) {
+        const pod = podSnap.val();
+        podText = `<br><span style="color:green;"><b>POD:</b> Signed by ${pod.signedBy}</span>`;
+      }
+    } catch (e) {
+      console.error("POD check failed", e);
+    }
+
     const div = document.createElement("div");
     div.className = "list-item";
-    div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
+    div.innerHTML = `
+      <b>${d.waybill}</b><br>
+      ${d.customer} — ${d.reason}
+      ${podText}
+    `;
+
     scanList.appendChild(div);
-  });
+  }
 }
+
 
 /* Search */
 window.filterSearch = () => {
