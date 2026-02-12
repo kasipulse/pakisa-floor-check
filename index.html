@@ -165,7 +165,7 @@ var firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* 🔍 Search Waybill */
+<script>
 function searchWaybill() {
   const input = document.getElementById("waybillInput").value.trim();
   const resultDiv = document.getElementById("waybillResult");
@@ -176,14 +176,17 @@ function searchWaybill() {
     return;
   }
 
-  db.ref("scans").orderByChild("waybill").equalTo(input).once("value")
-    .then(snapshot => {
-      if (!snapshot.exists()) {
-        resultDiv.innerHTML = "<span style='color:red'>Waybill not found.</span>";
-        return;
-      }
+  // 🔹 Get both scans and pods
+  const scansRef = db.ref("scans").orderByChild("waybill").equalTo(input).once("value");
+  const podsRef  = db.ref("pods").orderByChild("waybill").equalTo(input).once("value");
 
-      snapshot.forEach(s => {
+  Promise.all([scansRef, podsRef])
+    .then(([scanSnap, podSnap]) => {
+      let found = false;
+
+      // Show scans
+      scanSnap.forEach(s => {
+        found = true;
         const scan = s.val();
         const div = document.createElement("div");
         div.className = "result";
@@ -196,12 +199,34 @@ function searchWaybill() {
         `;
         resultDiv.appendChild(div);
       });
+
+      // Show PODs
+      podSnap.forEach(p => {
+        found = true;
+        const pod = p.val();
+        const div = document.createElement("div");
+        div.className = "result";
+        div.innerHTML = `
+          <strong>Waybill:</strong> ${pod.waybill}<br>
+          <strong>Status:</strong> ${pod.status || "Delivered"}<br>
+          <strong>Signed By:</strong> ${pod.signedBy || "N/A"}<br>
+          <strong>Date:</strong> ${pod.date || "N/A"}<br>
+          <strong>Time:</strong> ${pod.time || "N/A"}
+        `;
+        resultDiv.appendChild(div);
+      });
+
+      if (!found) {
+        resultDiv.innerHTML = "<span style='color:red'>Waybill not found.</span>";
+      }
     })
     .catch(err => {
       resultDiv.innerHTML = "<span style='color:red'>Error fetching waybill.</span>";
       console.error(err);
     });
 }
+</script>
+
 </script>
 </body>
 </html>
