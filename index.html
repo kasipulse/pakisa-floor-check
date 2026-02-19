@@ -160,11 +160,10 @@ var firebaseConfig = {
   databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com",
   projectId: "pakisa-floor",
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* Helper: normalize waybill string */
+/* Helper: normalize waybill string (trim + remove Excel .0) */
 function normalizeWaybill(str) {
   return String(str || '').trim().replace(/\.0$/, '');
 }
@@ -220,50 +219,12 @@ function searchWaybill() {
     });
 }
 
-/* 🔥 Show all today's scans automatically */
-function showTodaysScans() {
-  const resultDiv = document.getElementById("waybillResult");
-  resultDiv.innerHTML = "<strong>Loading today's scans...</strong>";
-
-  const startOfToday = new Date();
-  startOfToday.setHours(0,0,0,0);
-  const tsToday = startOfToday.getTime();
-
-  db.ref("scans").orderByChild("timestamp").startAt(tsToday).once("value")
-    .then(snapshot => {
-      if (!snapshot.exists()) {
-        resultDiv.innerHTML = "<span style='color:red'>No scans for today yet.</span>";
-        return;
-      }
-
-      const scans = Object.values(snapshot.val()).map(s => ({
-        waybill: normalizeWaybill(s.waybill),
-        customer: s.customer,
-        reason: s.reason,
-        timestamp: s.timestamp
-      }));
-
-      let html = "<h4>Today's Scans</h4>";
-      scans.forEach(s => {
-        html += `<div class="result">
-          <strong>Waybill:</strong> ${s.waybill}<br>
-          <strong>Customer:</strong> ${s.customer}<br>
-          <strong>Reason:</strong> ${s.reason}<br>
-          <strong>Time:</strong> ${new Date(s.timestamp).toLocaleTimeString()}
-        </div>`;
-      });
-
-      resultDiv.innerHTML = html;
-    })
-    .catch(err => {
-      resultDiv.innerHTML = "<span style='color:red'>Error loading today's scans.</span>";
-      console.error(err);
-    });
-}
-
-/* Run on page load */
-window.addEventListener("DOMContentLoaded", () => {
-  showTodaysScans();
+/* Optional: auto-normalize input on blur or paste */
+document.getElementById("waybillInput").addEventListener("blur", e => {
+  e.target.value = normalizeWaybill(e.target.value);
+});
+document.getElementById("waybillInput").addEventListener("paste", e => {
+  setTimeout(() => e.target.value = normalizeWaybill(e.target.value), 50);
 });
 </script>
 
