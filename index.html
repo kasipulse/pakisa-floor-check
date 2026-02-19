@@ -164,63 +164,107 @@ var firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* 🔍 Search Waybill (Scans + POD merged, safe for today/yesterday & numeric waybills) */
+/* Helper: normalize waybill string */
+function normalizeWaybill(str) {
+  return String(str || '').trim().replace(/\.0$/, '');
+}
+
+/* 🔍 Search Waybill (Scans + POD merged) */
 function searchWaybill() {
-  const inputRaw = document.getElementById("waybillInput").value.trim();
+  const input = normalizeWaybill(document.getElementById("waybillInput").value);
   const resultDiv = document.getElementById("waybillResult");
   resultDiv.innerHTML = "";
 
-  if (!inputRaw) {
+  if (!input) {
     resultDiv.innerHTML = "<span style='color:red'>Please enter a waybill number.</span>";
     return;
   }
 
-  // Clean waybill to match Excel-imported numbers or .0 endings
-  const input = String(inputRaw).trim().replace(/\.0$/, "");
+  const scansRef = db.ref("scans").orderByChild("waybill").equalTo(input).once("value");
+  const podsRef  = db.ref("pods").orderByChild("waybill").equalTo(input).once("value");
 
-  const scansRef = db.ref("scans").orderByChild("waybill");
-  const podsRef  = db.ref("pods").orderByChild("waybill");
+  Promise.all([scansRef, podsRef])
+    .then(([scanSnap, podSnap]) => {
 
-  Promise.all([
-    scansRef.equalTo(input).once("value"),
-    podsRef.equalTo(input).once("value")
-  ])
-  .then(([scanSnap, podSnap]) => {
+      if (!scanSnap.exists() && !podSnap.exists()) {
+        resultDiv.innerHTML = "<span style='color:red'>Waybill not found.</span>";
+        return;
+      }
 
-    if (!scanSnap.exists() && !podSnap.exists()) {
-      resultDiv.innerHTML = "<span style='color:red'>Waybill not found.</span>";
-      return;
-    }
+      const scan = scanSnap.exists() ? Object.values(scanSnap.val())[0] : null;
+      const pod  = podSnap.exists() ? Object.values(podSnap.val())[0] : null;
 
-    // Always take first match (safe if only one per waybill)
-    const scan = scanSnap.exists() ? Object.values(scanSnap.val())[0] : null;
-    const pod  = podSnap.exists() ? Object.values(podSnap.val())[0] : null;
+      const div = document.createElement("div");
+      div.className = "result";
+      div.innerHTML = `
+        <strong>Waybill:</strong> ${input}<br>
+        ${scan ? `
+          <strong>Customer:</strong> ${scan.customer}<br>
+          <strong>Reason:</strong> ${scan.reason}<br>
+          <strong>Scanned Date:</strong> ${scan.date}<br>
+          <strong>Scanned Time:</strong> ${new Date(scan.timestamp).toLocaleTimeString()}<br>
+        ` : ""}
+        ${pod ? `
+          <strong>Status:</strong> ${pod.status || "Delivered"}<br>
+          <strong>Signed By:</strong> ${pod.signedBy || "N/A"}<br>
+          <strong>POD Date:</strong> ${pod.date || "N/A"}<br>
+          <strong>POD Time:</strong> ${pod.time || "N/A"}
+        ` : ""}
+      `;
 
-    const div = document.createElement("div");
-    div.className = "result";
-    div.innerHTML = `
-      <strong>Waybill:</strong> ${input}<br>
-      ${scan ? `
-        <strong>Customer:</strong> ${scan.customer}<br>
-        <strong>Reason:</strong> ${scan.reason}<br>
-        <strong>Scanned Date:</strong> ${scan.date || "N/A"}<br>
-        <strong>Scanned Time:</strong> ${scan.timestamp ? new Date(scan.timestamp).toLocaleTimeString() : "N/A"}<br>
-      ` : ""}
-      ${pod ? `
-        <strong>Status:</strong> ${pod.status || "Delivered"}<br>
-        <strong>Signed By:</strong> ${pod.signedBy || "N/A"}<br>
-        <strong>POD Date:</strong> ${pod.date || "N/A"}<br>
-        <strong>POD Time:</strong> ${pod.time || "N/A"}
-      ` : ""}
-    `;
-
-    resultDiv.appendChild(div);
-  })
-  .catch(err => {
-    resultDiv.innerHTML = "<span style='color:red'>Error fetching waybill.</span>";
-    console.error(err);
-  });
+      resultDiv.appendChild(div);
+    })
+    .catch(err => {
+      resultDiv.innerHTML = "<span style='color:red'>Error fetching waybill.</span>";
+      console.error(err);
+    });
 }
+
+/* 🔥 Show all today's scans automatically */
+function showTodaysScans() {
+  const resultDiv = document.getElementById("waybillResult");
+  resultDiv.innerHTML = "<strong>Loading today's scans...</strong>";
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0,0,0,0);
+  const tsToday = startOfToday.getTime();
+
+  db.ref("scans").orderByChild("timestamp").startAt(tsToday).once("value")
+    .then(snapshot => {
+      if (!snapshot.exists()) {
+        resultDiv.innerHTML = "<span style='color:red'>No scans for today yet.</span>";
+        return;
+      }
+
+      const scans = Object.values(snapshot.val()).map(s => ({
+        waybill: normalizeWaybill(s.waybill),
+        customer: s.customer,
+        reason: s.reason,
+        timestamp: s.timestamp
+      }));
+
+      let html = "<h4>Today's Scans</h4>";
+      scans.forEach(s => {
+        html += `<div class="result">
+          <strong>Waybill:</strong> ${s.waybill}<br>
+          <strong>Customer:</strong> ${s.customer}<br>
+          <strong>Reason:</strong> ${s.reason}<br>
+          <strong>Time:</strong> ${new Date(s.timestamp).toLocaleTimeString()}
+        </div>`;
+      });
+
+      resultDiv.innerHTML = html;
+    })
+    .catch(err => {
+      resultDiv.innerHTML = "<span style='color:red'>Error loading today's scans.</span>";
+      console.error(err);
+    });
+}
+
+/* Run on page load */
+window.addEventListener("DOMContentLoaded", () => {
+  showTodaysScans();
+});
 </script>
 
 </body>
