@@ -164,55 +164,62 @@ var firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* 🔍 Search Waybill (Scans + POD merged) */
+/* 🔍 Search Waybill (Scans + POD merged, safe for today/yesterday & numeric waybills) */
 function searchWaybill() {
-  const input = document.getElementById("waybillInput").value.trim();
+  const inputRaw = document.getElementById("waybillInput").value.trim();
   const resultDiv = document.getElementById("waybillResult");
   resultDiv.innerHTML = "";
 
-  if (!input) {
+  if (!inputRaw) {
     resultDiv.innerHTML = "<span style='color:red'>Please enter a waybill number.</span>";
     return;
   }
 
-  const scansRef = db.ref("scans").orderByChild("waybill").equalTo(input).once("value");
-  const podsRef  = db.ref("pods").orderByChild("waybill").equalTo(input).once("value");
+  // Clean waybill to match Excel-imported numbers or .0 endings
+  const input = String(inputRaw).trim().replace(/\.0$/, "");
 
-  Promise.all([scansRef, podsRef])
-    .then(([scanSnap, podSnap]) => {
+  const scansRef = db.ref("scans").orderByChild("waybill");
+  const podsRef  = db.ref("pods").orderByChild("waybill");
 
-      if (!scanSnap.exists() && !podSnap.exists()) {
-        resultDiv.innerHTML = "<span style='color:red'>Waybill not found.</span>";
-        return;
-      }
+  Promise.all([
+    scansRef.equalTo(input).once("value"),
+    podsRef.equalTo(input).once("value")
+  ])
+  .then(([scanSnap, podSnap]) => {
 
-      const scan = scanSnap.exists() ? Object.values(scanSnap.val())[0] : null;
-      const pod  = podSnap.exists() ? Object.values(podSnap.val())[0] : null;
+    if (!scanSnap.exists() && !podSnap.exists()) {
+      resultDiv.innerHTML = "<span style='color:red'>Waybill not found.</span>";
+      return;
+    }
 
-      const div = document.createElement("div");
-      div.className = "result";
-      div.innerHTML = `
-        <strong>Waybill:</strong> ${input}<br>
-        ${scan ? `
-          <strong>Customer:</strong> ${scan.customer}<br>
-          <strong>Reason:</strong> ${scan.reason}<br>
-          <strong>Scanned Date:</strong> ${scan.date}<br>
-          <strong>Scanned Time:</strong> ${new Date(scan.timestamp).toLocaleTimeString()}<br>
-        ` : ""}
-        ${pod ? `
-          <strong>Status:</strong> ${pod.status || "Delivered"}<br>
-          <strong>Signed By:</strong> ${pod.signedBy || "N/A"}<br>
-          <strong>POD Date:</strong> ${pod.date || "N/A"}<br>
-          <strong>POD Time:</strong> ${pod.time || "N/A"}
-        ` : ""}
-      `;
+    // Always take first match (safe if only one per waybill)
+    const scan = scanSnap.exists() ? Object.values(scanSnap.val())[0] : null;
+    const pod  = podSnap.exists() ? Object.values(podSnap.val())[0] : null;
 
-      resultDiv.appendChild(div);
-    })
-    .catch(err => {
-      resultDiv.innerHTML = "<span style='color:red'>Error fetching waybill.</span>";
-      console.error(err);
-    });
+    const div = document.createElement("div");
+    div.className = "result";
+    div.innerHTML = `
+      <strong>Waybill:</strong> ${input}<br>
+      ${scan ? `
+        <strong>Customer:</strong> ${scan.customer}<br>
+        <strong>Reason:</strong> ${scan.reason}<br>
+        <strong>Scanned Date:</strong> ${scan.date || "N/A"}<br>
+        <strong>Scanned Time:</strong> ${scan.timestamp ? new Date(scan.timestamp).toLocaleTimeString() : "N/A"}<br>
+      ` : ""}
+      ${pod ? `
+        <strong>Status:</strong> ${pod.status || "Delivered"}<br>
+        <strong>Signed By:</strong> ${pod.signedBy || "N/A"}<br>
+        <strong>POD Date:</strong> ${pod.date || "N/A"}<br>
+        <strong>POD Time:</strong> ${pod.time || "N/A"}
+      ` : ""}
+    `;
+
+    resultDiv.appendChild(div);
+  })
+  .catch(err => {
+    resultDiv.innerHTML = "<span style='color:red'>Error fetching waybill.</span>";
+    console.error(err);
+  });
 }
 </script>
 
