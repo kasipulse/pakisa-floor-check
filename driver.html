@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pakisa Driver Tracker</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background:#ffffff;
+  padding:20px;
+  text-align:center;
+}
+
+.card {
+  max-width:420px;
+  margin:auto;
+  padding:25px;
+  border-radius:16px;
+  background:#f7f9fc;
+  box-shadow:0 8px 25px rgba(0,0,0,0.08);
+}
+
+h2 {
+  margin-top:10px;
+  color:#0a2b52;
+}
+
+button {
+  width:100%;
+  padding:14px;
+  margin-top:15px;
+  font-size:16px;
+  border:none;
+  border-radius:10px;
+  background:#0a2b52;
+  color:white;
+  cursor:pointer;
+}
+
+.status {
+  margin-top:15px;
+  font-size:14px;
+  color:#2ecc71;
+  font-weight:bold;
+}
+
+.small {
+  font-size:12px;
+  color:#666;
+  margin-top:8px;
+}
+</style>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+/* 🔥 YOUR FIREBASE */
+const firebaseConfig = {
+  apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+  authDomain: "pakisa-floor.firebaseapp.com",
+  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/",
+  projectId: "pakisa-floor"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+/* 🔑 DRIVER ID (auto or stored) */
+let driverId = localStorage.getItem("driverId");
+
+if (!driverId) {
+  driverId = "DRV-" + Math.floor(Math.random()*100000);
+  localStorage.setItem("driverId", driverId);
+}
+
+/* 🚀 AUTO TRACKING */
+let watchId = null;
+
+function startTracking() {
+
+  if (!navigator.geolocation) {
+    alert("Location not supported");
+    return;
+  }
+
+  document.getElementById("status").innerText = "Tracking live…";
+
+  watchId = navigator.geolocation.watchPosition(
+    async pos => {
+
+      const data = {
+        driverId,
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+        updatedAt: Date.now()
+      };
+
+      await set(ref(db, "drivers_live/" + driverId), data);
+
+    },
+    err => {
+      document.getElementById("status").innerText = "Location error";
+    },
+    {
+      enableHighAccuracy: true,
+      maximumAge: 10000,
+      timeout: 15000
+    }
+  );
+}
+
+/* auto start when page opens */
+window.addEventListener("DOMContentLoaded", () => {
+  startTracking();
+});
+
+/* manual button (optional reassurance) */
+window.startShift = () => {
+  startTracking();
+};
+</script>
+</head>
+
+<body>
+
+<div class="card">
+
+  <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1771237505/pakisa_logistics_express_pty_ltd_logo-removebg-preview_gr7h0r.png"
+       width="160"
+       style="margin-bottom:15px;">
+
+  <h2>Driver Tracker</h2>
+
+  <button onclick="startShift()">Start Shift</button>
+
+  <div id="status" class="status">
+    Initialising…
+  </div>
+
+  <div class="small">
+    Leave this page open during your shift
+  </div>
+
+</div>
+
+</body>
+</html>
