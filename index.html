@@ -146,11 +146,16 @@ footer {
     <footer>
       © 2026 Pakisa Logistics Express (Pty) Ltd<br>
       Built by Mpho Mahlaba<br>
-      Version 1.14
+      Version 2.1
     </footer>
 
   </div>
 </div>
+
+<!-- CLICK SOUND -->
+<audio id="beep" preload="auto">
+  <source src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3" type="audio/mpeg">
+</audio>
 
 <script>
 /* 🔥 Firebase config */
@@ -172,6 +177,7 @@ function normalizeWaybill(str) {
 function searchWaybill() {
   const input = normalizeWaybill(document.getElementById("waybillInput").value);
   const resultDiv = document.getElementById("waybillResult");
+  const beep = document.getElementById("beep");
   resultDiv.innerHTML = "";
 
   if (!input) {
@@ -184,7 +190,6 @@ function searchWaybill() {
     .equalTo(input)
     .once("value");
 
-  /* ✅ FAST pod lookup by key */
   const podsRef = db.ref("pods/" + input).once("value");
 
   Promise.all([scansRef, podsRef])
@@ -223,8 +228,12 @@ function searchWaybill() {
           <strong>POD Time:</strong> ${pod.time || "N/A"}
         ` : ""}
       `;
-
       resultDiv.appendChild(div);
+
+      /* 🔔 Play click sound */
+      beep.pause();
+      beep.currentTime = 0;
+      beep.play().catch(()=>{});
     })
     .catch(err => {
       console.error(err);
