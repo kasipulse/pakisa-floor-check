@@ -51,11 +51,13 @@ button {
 }
 </style>
 
+<!-- 🔊 STRONGER SCAN CLICK -->
 <audio id="beep" preload="auto">
-  <source src="https://www.soundjay.com/buttons/sounds/button-4.mp3?v=2" type="audio/mpeg">
+  <source src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3" type="audio/mpeg">
 </audio>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 <script type="module">
 const companyId = localStorage.getItem("companyId");
 const companyName = localStorage.getItem("companyName");
@@ -81,14 +83,22 @@ onAuthStateChanged(auth, (user) => {
   if (!user) {
     window.location.href = "login.html";
   } else {
-    console.log("Authenticated as:", user.email);
-    listenForScansAndPods(); // move this here
+    listenForScansAndPods();
   }
 });
 
 /* DOM */
 let customer, reason, scanInput, bulkInput, scanList, beep;
 let currentData = [];
+
+/* 🔊 RELIABLE PLAY FUNCTION */
+function playBeep() {
+  try {
+    beep.pause();
+    beep.currentTime = 0;
+    beep.play().catch(()=>{});
+  } catch(e){}
+}
 
 /* Helpers */
 function todayKey() {
@@ -112,18 +122,23 @@ window.addEventListener("DOMContentLoaded", () => {
   bulkInput = document.getElementById("bulkInput");
   scanList  = document.getElementById("scanList");
   beep      = document.getElementById("beep");
-  beep.volume = 0.35;
+
+  beep.volume = 0.45;
+
+  // 🔓 audio unlock (important for Chrome)
+  document.body.addEventListener("click", () => {
+    beep.play().then(()=>beep.pause()).catch(()=>{});
+  }, { once:true });
 
   const searchInput = document.getElementById("searchInput");
 
-  listenForScansAndPods();
   scanInput.focus();
 
   /* Scanner-safe Enter */
   scanInput.addEventListener("keyup", e => {
     if (e.key !== "Enter") return;
     const now = Date.now();
-    if (now - lastScanTime < 300) return;
+    if (now - lastScanTime < 250) return;
     lastScanTime = now;
     e.preventDefault();
     saveScan();
@@ -142,35 +157,29 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-/* 🔥 LISTENER — TODAY SCANS + ALL PODS (SAFE MERGE) */
+/* 🔥 LISTENER */
 async function listenForScansAndPods() {
   const scansRef = ref(db, "scans");
   const podsRef = ref(db, "pods");
 
-  // 1️⃣ Get all scans
   const scansSnap = await get(scansRef);
   const scans = [];
   scansSnap.forEach(c => {
     const val = c.val();
-    // Only today
     if (val.timestamp >= startOfTodayTs()) scans.push(val);
   });
 
-  // 2️⃣ Get all PODs
   const podsSnap = await get(podsRef);
   const pods = {};
   podsSnap.forEach(p => {
     const val = p.val();
     if (!val.waybill) return;
-    // Clean waybill string (trim + remove .0 from Excel)
     const waybill = String(val.waybill).trim().replace(/\.0$/, "");
-    pods[waybill] = { ...val, waybill }; // overwrite cleaned waybill
+    pods[waybill] = { ...val, waybill };
   });
 
-  // 3️⃣ Merge scans + PODs
   const combined = [];
 
-  // ✅ First, add all scans
   scans.forEach(s => {
     const waybill = String(s.waybill).trim().replace(/\.0$/, "");
     combined.push({
@@ -178,13 +187,14 @@ async function listenForScansAndPods() {
       customer: s.customer,
       reason: s.reason,
       timestamp: s.timestamp,
-      pod: pods[waybill] || null // attach POD if exists
+      pod: pods[waybill] || null
     });
   });
 
-  // ✅ Then, add PODs that were NOT scanned today
   Object.values(pods).forEach(p => {
-    const existsInScans = scans.some(s => String(s.waybill).trim().replace(/\.0$/, "") === p.waybill);
+    const existsInScans = scans.some(s =>
+      String(s.waybill).trim().replace(/\.0$/, "") === p.waybill
+    );
     if (!existsInScans) {
       combined.push({
         waybill: p.waybill,
@@ -196,23 +206,21 @@ async function listenForScansAndPods() {
     }
   });
 
-  // 4️⃣ Sort newest first
   combined.sort((a, b) => b.timestamp - a.timestamp);
-
-  currentData = combined; // for search/filter
+  currentData = combined;
   renderList(currentData);
-
-  // 🔍 Debug tip: check if your waybill is in combined
-  console.log("Check waybill 888646527112:", combined.find(d => d.waybill === "888646527112"));
 }
 
-/* RENDER LIST */
+/* RENDER */
 function renderList(arr) {
   scanList.innerHTML = "";
   if (!arr.length) return scanList.innerHTML = "<i>No scans or PODs</i>";
 
   arr.slice(0,200).forEach(d => {
-    const podText = d.pod ? `<br><span style="color:green;"><b>POD:</b> Signed by ${d.pod.signedBy} — ${d.pod.date || ""} ${d.pod.time || ""}</span>` : "";
+    const podText = d.pod
+      ? `<br><span style="color:green;"><b>POD:</b> Signed by ${d.pod.signedBy} — ${d.pod.date || ""} ${d.pod.time || ""}</span>`
+      : "";
+
     const div = document.createElement("div");
     div.className = "list-item";
     div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}${podText}`;
@@ -230,7 +238,7 @@ window.filterSearch = () => {
   ));
 };
 
-/* SINGLE SCAN */
+/* ✅ SINGLE SCAN WITH STRONG CLICK */
 window.saveScan = async () => {
   const waybill = scanInput.value.trim();
   if (!customer.value || !reason.value || !waybill) return scanInput.focus();
@@ -244,15 +252,15 @@ window.saveScan = async () => {
     timestamp: Date.now()
   });
 
-  beep.currentTime = 0;
-  beep.play();
+  playBeep(); // 🔊 reliable click
   document.body.classList.add("flash");
   setTimeout(()=>document.body.classList.remove("flash"),150);
+
   scanInput.value = "";
   scanInput.focus();
 };
 
-/* BULK SCANS */
+/* BULK */
 window.saveBulkScans = async () => {
   const text = bulkInput.value.trim();
   if (!customer.value || !reason.value || !text) return alert("Select customer, reason and paste waybills");
@@ -276,55 +284,7 @@ window.saveBulkScans = async () => {
 
   await update(ref(db), updates);
   bulkInput.value = "";
-  beep.play();
-};
-
-/* BULK POD IMPORT */
-window.importPODBulk = async () => {
-  const text = document.getElementById("bulkPOD").value.trim();
-  if (!text) return alert("Paste POD data first!");
-
-  const lines = text.split(/\r?\n/);
-  const updates = {};
-
-  lines.forEach(line=>{
-    if (line.toLowerCase().includes("tracking")) return;
-    const parts = line.split(/\t/).map(p=>p.trim());
-    if(parts.length<4) return;
-    let [waybillRaw, podDateRaw, podTimeRaw, signedBy] = parts;
-    const waybill = String(waybillRaw).trim().replace(/\s+/g,"").replace(/\.0$/,"");
-    if(!waybill) return;
-    let podTimestamp = Date.now();
-    if(podDateRaw){
-      const [dd,mm,yyyy] = podDateRaw.split("/").map(Number);
-      let hh=0,min=0,sec=0;
-      if(podTimeRaw) [hh,min,sec]=podTimeRaw.split(":").map(Number);
-      podTimestamp = new Date(yyyy,mm-1,dd,hh,min,sec).getTime();
-    }
-    updates[`pods/${waybill}`] = {waybill,signedBy,date:podDateRaw,time:podTimeRaw,status:"Delivered",importedAt:Date.now(),podTimestamp};
-  });
-
-  if(!Object.keys(updates).length) return alert("No valid PODs found!");
-  await update(ref(db), updates);
-  alert("POD import complete ✅");
-  document.getElementById("bulkPOD").value = "";
-};
-
-/* IMPORT POD EXCEL */
-window.importPOD = () => {
-  const fileInput = document.getElementById("podFile");
-  if(!fileInput.files.length) return alert("Select an Excel file!");
-
-  const reader = new FileReader();
-  reader.onload = e => {
-    const data = new Uint8Array(e.target.result);
-    const workbook = XLSX.read(data,{type:'array'});
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const csv = XLSX.utils.sheet_to_csv(sheet);
-    document.getElementById("bulkPOD").value = csv;
-    alert("Excel loaded into POD paste area ✅");
-  };
-  reader.readAsArrayBuffer(fileInput.files[0]);
+  playBeep();
 };
 </script>
 </head>
@@ -356,6 +316,8 @@ window.importPOD = () => {
   <option>Bad address</option>
   <option>Missing paperwork</option>
   <option>Misroute</option>
+  <option>Refused</option>
+  <option>Returned to Sender</option>
   <option>Will be attempted on commitment date</option>
   <option>Future delivery</option>
 </select>
@@ -366,22 +328,11 @@ window.importPOD = () => {
 <label>Bulk Waybill Paste</label>
 <textarea id="bulkInput" placeholder="One waybill per line"></textarea>
 
-<label>Bulk POD Paste</label>
-<textarea id="bulkPOD" placeholder="Paste PODs here: Tracking No TAB POD Date TAB POD Time TAB Recipient, one per line"></textarea>
-<button onclick="importPODBulk()">Import POD</button>
-<button onclick="saveBulkScans()">Bulk Upload</button>
-
 <h3>Search</h3>
 <input id="searchInput" placeholder="Search…" onkeyup="filterSearch()">
 
 <h3>Scans (Today)</h3>
 <div id="scanList"><i>Loading…</i></div>
-
-<hr>
-
-<h3>Import POD Excel</h3>
-<input type="file" id="podFile" accept=".xls,.xlsx">
-<button onclick="importPOD()">Import POD</button>
 
 <br><center><b>Built by Mpho Mahlaba</b></center>
 
