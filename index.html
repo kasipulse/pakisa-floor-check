@@ -146,7 +146,7 @@ footer {
     <footer>
       © 2026 Pakisa Logistics Express (Pty) Ltd<br>
       Built by Mpho Mahlaba<br>
-      Version 1.13
+      Version 1.14
     </footer>
 
   </div>
@@ -163,12 +163,12 @@ var firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* Helper: normalize waybill string (trim + remove Excel .0) */
+/* normalize waybill */
 function normalizeWaybill(str) {
   return String(str || '').trim().replace(/\.0$/, '');
 }
 
-/* 🔍 Search Waybill (Scans + POD merged) */
+/* 🔍 Search Waybill */
 function searchWaybill() {
   const input = normalizeWaybill(document.getElementById("waybillInput").value);
   const resultDiv = document.getElementById("waybillResult");
@@ -179,8 +179,13 @@ function searchWaybill() {
     return;
   }
 
-  const scansRef = db.ref("scans").orderByChild("waybill").equalTo(input).once("value");
-  const podsRef  = db.ref("pods").orderByChild("waybill").equalTo(input).once("value");
+  const scansRef = db.ref("scans")
+    .orderByChild("waybill")
+    .equalTo(input)
+    .once("value");
+
+  /* ✅ FAST pod lookup by key */
+  const podsRef = db.ref("pods/" + input).once("value");
 
   Promise.all([scansRef, podsRef])
     .then(([scanSnap, podSnap]) => {
@@ -190,20 +195,28 @@ function searchWaybill() {
         return;
       }
 
-      const scan = scanSnap.exists() ? Object.values(scanSnap.val())[0] : null;
-      const pod  = podSnap.exists() ? Object.values(podSnap.val())[0] : null;
+      /* ✅ get NEWEST scan */
+      let scan = null;
+      if (scanSnap.exists()) {
+        const scans = Object.values(scanSnap.val());
+        scans.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+        scan = scans[0];
+      }
+
+      const pod = podSnap.exists() ? podSnap.val() : null;
 
       const div = document.createElement("div");
       div.className = "result";
       div.innerHTML = `
         <strong>Waybill:</strong> ${input}<br>
         ${scan ? `
-          <strong>Customer:</strong> ${scan.customer}<br>
-          <strong>Reason:</strong> ${scan.reason}<br>
-          <strong>Scanned Date:</strong> ${scan.date}<br>
-          <strong>Scanned Time:</strong> ${new Date(scan.timestamp).toLocaleTimeString()}<br>
+          <strong>Customer:</strong> ${scan.customer || "N/A"}<br>
+          <strong>Reason:</strong> ${scan.reason || "N/A"}<br>
+          <strong>Scanned Date:</strong> ${scan.date || "N/A"}<br>
+          <strong>Scanned Time:</strong> ${scan.timestamp ? new Date(scan.timestamp).toLocaleTimeString() : "N/A"}<br>
         ` : ""}
         ${pod ? `
+          <hr style="margin:8px 0;">
           <strong>Status:</strong> ${pod.status || "Delivered"}<br>
           <strong>Signed By:</strong> ${pod.signedBy || "N/A"}<br>
           <strong>POD Date:</strong> ${pod.date || "N/A"}<br>
@@ -214,12 +227,12 @@ function searchWaybill() {
       resultDiv.appendChild(div);
     })
     .catch(err => {
-      resultDiv.innerHTML = "<span style='color:red'>Error fetching waybill.</span>";
       console.error(err);
+      resultDiv.innerHTML = "<span style='color:red'>Error fetching waybill.</span>";
     });
 }
 
-/* Optional: auto-normalize input on blur or paste */
+/* auto-normalize */
 document.getElementById("waybillInput").addEventListener("blur", e => {
   e.target.value = normalizeWaybill(e.target.value);
 });
