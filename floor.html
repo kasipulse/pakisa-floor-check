@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pakisa Floor Check v2.2</title>
+<title>Pakisa Floor Check v2.3</title>
 
 <style>
 body {
@@ -11,7 +11,6 @@ body {
   padding:20px;
   background:#fff;
 }
-
 select, input, textarea, button {
   width:100%;
   padding:12px;
@@ -19,14 +18,8 @@ select, input, textarea, button {
   font-size:16px;
   box-sizing:border-box;
 }
-
 select { touch-action: manipulation; }
-
-textarea {
-  min-height:120px;
-  resize:vertical;
-}
-
+textarea { min-height:120px; resize:vertical; }
 button {
   background:#0a2b52;
   color:#fff;
@@ -34,14 +27,12 @@ button {
   border-radius:8px;
   cursor:pointer;
 }
-
 .list-item {
   padding:10px;
   background:#f2f2f2;
   margin:6px 0;
   border-radius:8px;
 }
-
 .flash {
   background:#2ecc71 !important;
   transition: background 0.2s;
@@ -53,7 +44,10 @@ button {
   <source src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3" type="audio/mpeg">
 </audio>
 
+<!-- XLSX -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- JsBarcode -->
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 
 <script type="module">
 const companyId = localStorage.getItem("companyId");
@@ -75,12 +69,26 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
+/* COMPANY INFO */
+const companyInfo = {
+  name: "Pakisa Logistics Express Pty Ltd",
+  logo: "https://res.cloudinary.com/dwxgkbuln/image/upload/v1771237505/pakisa_logistics_express_pty_ltd_logo-removebg-preview_gr7h0r.png",
+  address: "10 Burry Koean Street, Jet Park, Boksburg 1459, South Africa",
+  phone: "011 397 1061"
+};
+
+/* CUSTOMER ADDRESSES */
+const customerAddresses = {
+  "Fedex Express": { address: "1-7 Romeo Street, Hughes, Boksburg, Johannesburg GT 1446, ZA\nBuilding 6, Eastport Boulevard, Eastport Logistics Park, Glen Marais, 1619", phone: "080 006 4567" },
+  "First Freight Couriers": { address: "4 Struwig Street, Witfield, Boksburg, 1459", phone: "+27 11 387 7000" },
+  "AJM": { address: "19 Malcolm Moodie Cres, Jet Park, Boksburg, 1459", phone: "" },
+  "Brima Logistics": { address: "5 Marlin Road, Jet Park, Boksburg, Gauteng, 1459", phone: "011 552 8230" },
+  "Seabourne Logistics": { address: "", phone: "" }
+};
+
 onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    window.location.href = "login.html";
-  } else {
-    listenForScansAndPods();
-  }
+  if (!user) window.location.href = "login.html";
+  else listenForScansAndPods();
 });
 
 /* DOM */
@@ -89,29 +97,20 @@ let currentData = [];
 
 /* 🔊 RELIABLE PLAY */
 function playBeep() {
-  try {
-    beep.pause();
-    beep.currentTime = 0;
-    beep.play().catch(()=>{});
-  } catch(e){}
+  try { beep.pause(); beep.currentTime=0; beep.play().catch(()=>{}); } catch(e){}
 }
 
 /* Helpers */
 function todayKey() {
-  const d = new Date();
+  const d=new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-
-function startOfTodayTs() {
-  const d = new Date();
-  d.setHours(0,0,0,0);
-  return d.getTime();
-}
+function startOfTodayTs() { const d=new Date(); d.setHours(0,0,0,0); return d.getTime(); }
 
 /* Scanner debounce */
-let lastScanTime = 0;
+let lastScanTime=0;
 
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", ()=>{
   customer  = document.getElementById("customer");
   reason    = document.getElementById("reason");
   scanInput = document.getElementById("scanInput");
@@ -120,277 +119,152 @@ window.addEventListener("DOMContentLoaded", () => {
   beep      = document.getElementById("beep");
   bulkPOD   = document.getElementById("bulkPOD");
 
-  beep.volume = 0.45;
-
-  // 🔓 unlock audio
-  document.body.addEventListener("click", () => {
-    beep.play().then(()=>beep.pause()).catch(()=>{});
-  }, { once:true });
+  beep.volume=0.45;
+  document.body.addEventListener("click",()=>{ beep.play().then(()=>beep.pause()).catch(()=>{}); },{ once:true });
 
   const searchInput = document.getElementById("searchInput");
-
   scanInput.focus();
 
-  /* Scanner-safe Enter */
-  scanInput.addEventListener("keyup", e => {
-    if (e.key !== "Enter") return;
-    const now = Date.now();
-    if (now - lastScanTime < 250) return;
-    lastScanTime = now;
+  scanInput.addEventListener("keyup", e=>{
+    if(e.key!=="Enter") return;
+    const now=Date.now();
+    if(now-lastScanTime<250) return;
+    lastScanTime=now;
     e.preventDefault();
     saveScan();
   });
 
-  /* Search safe */
-  searchInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      scanInput.focus();
-    }
-  });
-
-  searchInput.addEventListener("blur", () => {
-    setTimeout(() => scanInput.focus(), 50);
-  });
+  searchInput.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); scanInput.focus(); }});
+  searchInput.addEventListener("blur", ()=>{ setTimeout(()=>scanInput.focus(),50); });
 });
 
 /* 🔥 LISTENER */
 async function listenForScansAndPods() {
-  const scansRef = ref(db, "scans");
-  const podsRef = ref(db, "pods");
+  const scansRef = ref(db,"scans");
+  const podsRef = ref(db,"pods");
 
   const scansSnap = await get(scansRef);
   const scans = [];
-  scansSnap.forEach(c => {
-    const val = c.val();
-    if (val.timestamp >= startOfTodayTs()) scans.push(val);
-  });
+  scansSnap.forEach(c=>{ const val=c.val(); if(val.timestamp>=startOfTodayTs()) scans.push(val); });
 
   const podsSnap = await get(podsRef);
-  const pods = {};
-  podsSnap.forEach(p => {
-    const val = p.val();
-    if (!val.waybill) return;
-    const waybill = String(val.waybill).trim().replace(/\.0$/, "");
-    pods[waybill] = { ...val, waybill };
-  });
+  const pods={};
+  podsSnap.forEach(p=>{ const val=p.val(); if(!val.waybill) return; const waybill=String(val.waybill).trim().replace(/\.0$/,""); pods[waybill]={...val,waybill}; });
 
-  const combined = [];
-
-  scans.forEach(s => {
-    const waybill = String(s.waybill).trim().replace(/\.0$/, "");
-    combined.push({
-      waybill,
-      customer: s.customer,
-      reason: s.reason,
-      timestamp: s.timestamp,
-      pod: pods[waybill] || null
-    });
-  });
-
-  Object.values(pods).forEach(p => {
-    const existsInScans = scans.some(s =>
-      String(s.waybill).trim().replace(/\.0$/, "") === p.waybill
-    );
-    if (!existsInScans) {
-      combined.push({
-        waybill: p.waybill,
-        customer: "N/A",
-        reason: "Not scanned yet",
-        timestamp: p.importedAt || 0,
-        pod: p
-      });
-    }
-  });
-
-  combined.sort((a, b) => b.timestamp - a.timestamp);
-  currentData = combined;
+  const combined=[];
+  scans.forEach(s=>{ const waybill=String(s.waybill).trim().replace(/\.0$/,""); combined.push({waybill,customer:s.customer,reason:s.reason,timestamp:s.timestamp,pod:pods[waybill]||null}); });
+  Object.values(pods).forEach(p=>{ const existsInScans=scans.some(s=>String(s.waybill).trim().replace(/\.0$/,"")===p.waybill); if(!existsInScans) combined.push({waybill:p.waybill,customer:"N/A",reason:"Not scanned yet",timestamp:p.importedAt||0,pod:p}); });
+  combined.sort((a,b)=>b.timestamp-a.timestamp);
+  currentData=combined;
   renderList(currentData);
 }
 
 /* RENDER */
-function renderList(arr) {
-  scanList.innerHTML = "";
-  if (!arr.length) return scanList.innerHTML = "<i>No scans or PODs</i>";
-
-  arr.slice(0,200).forEach(d => {
-    const podText = d.pod
-      ? `<br><span style="color:green;"><b>POD:</b> Signed by ${d.pod.signedBy} — ${d.pod.date || ""} ${d.pod.time || ""}</span>`
-      : "";
-
-    const div = document.createElement("div");
-    div.className = "list-item";
-    div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}${podText}`;
+function renderList(arr){
+  scanList.innerHTML="";
+  if(!arr.length) return scanList.innerHTML="<i>No scans or PODs</i>";
+  arr.slice(0,200).forEach(d=>{
+    const podText=d.pod ? `<br><span style="color:green;"><b>POD:</b> Signed by ${d.pod.signedBy} — ${d.pod.date||""} ${d.pod.time||""}</span>` : "";
+    const div=document.createElement("div");
+    div.className="list-item";
+    div.innerHTML=`<b>${d.waybill}</b><br>${d.customer} — ${d.reason}${podText}`;
     scanList.appendChild(div);
   });
 }
 
 /* SEARCH */
-window.filterSearch = () => {
-  const t = document.getElementById("searchInput").value.toLowerCase();
-  renderList(currentData.filter(d =>
-    d.waybill.toLowerCase().includes(t) ||
-    d.customer.toLowerCase().includes(t) ||
-    d.reason.toLowerCase().includes(t)
-  ));
-};
+window.filterSearch=()=>{ const t=document.getElementById("searchInput").value.toLowerCase(); renderList(currentData.filter(d=>d.waybill.toLowerCase().includes(t) || d.customer.toLowerCase().includes(t) || d.reason.toLowerCase().includes(t))); };
 
 /* SINGLE SCAN */
-window.saveScan = async () => {
-  const waybill = scanInput.value.trim();
-  if (!customer.value || !reason.value || !waybill) return scanInput.focus();
+window.saveScan=async()=>{
+  const waybill=scanInput.value.trim();
+  if(!customer.value || !reason.value || !waybill) return scanInput.focus();
 
   await push(ref(db,"scans"),{
-    companyId,
-    companyName,
-    customer: customer.value,
-    reason: reason.value,
-    waybill,
-    date: todayKey(),
-    timestamp: Date.now()
+    companyId, companyName, customer:customer.value, reason:reason.value,
+    waybill, date:todayKey(), timestamp:Date.now()
   });
 
   playBeep();
   document.body.classList.add("flash");
   setTimeout(()=>document.body.classList.remove("flash"),150);
 
-  scanInput.value = "";
+  scanInput.value="";
   scanInput.focus();
 };
 
 /* BULK SCANS */
-window.saveBulkScans = async () => {
-  const text = bulkInput.value.trim();
-  if (!customer.value || !reason.value || !text)
-    return alert("Select customer, reason and paste waybills");
-
-  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>=8);
-  if (!lines.length) return alert("No valid waybills");
-
-  const updates = {};
-  const baseRef = ref(db,"scans");
-
-  lines.forEach(waybill=>{
-    const key = push(baseRef).key;
-    updates[`scans/${key}`] = {
-      companyId,
-      companyName,
-      customer: customer.value,
-      reason: reason.value,
-      waybill,
-      date: todayKey(),
-      timestamp: Date.now()
-    };
-  });
-
-  await update(ref(db), updates);
-  bulkInput.value = "";
-  playBeep();
+window.saveBulkScans=async()=>{
+  const text=bulkInput.value.trim();
+  if(!customer.value || !reason.value || !text) return alert("Select customer, reason and paste waybills");
+  const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>=8);
+  if(!lines.length) return alert("No valid waybills");
+  const updates={};
+  const baseRef=ref(db,"scans");
+  lines.forEach(waybill=>{ const key=push(baseRef).key; updates[`scans/${key}`]={companyId,companyName,customer:customer.value,reason:reason.value,waybill,date:todayKey(),timestamp:Date.now()}; });
+  await update(ref(db),updates);
+  bulkInput.value=""; playBeep();
 };
 
 /* ============================= */
-/* ✅ BULK POD IMPORT */
+/* ✅ RETURN NOTE GENERATOR with Barcode & Customer Address */
 /* ============================= */
-window.importPODBulk = async () => {
-  const text = bulkPOD.value.trim();
-  if (!text) return alert("Paste POD data first!");
-
-  const lines = text.split(/\r?\n/);
-  const updates = {};
-
-  lines.forEach(line => {
-    if (line.toLowerCase().includes("tracking")) return;
-
-    const parts = line.split(/\t/).map(p => p.trim());
-    if (parts.length < 4) return;
-
-    let [waybillRaw, podDateRaw, podTimeRaw, signedBy] = parts;
-
-    const waybill = String(waybillRaw).trim().replace(/\s+/g,"").replace(/\.0$/,"");
-    if (!waybill) return;
-
-    let podTimestamp = Date.now();
-
-    if (podDateRaw) {
-      const [dd,mm,yyyy] = podDateRaw.split("/").map(Number);
-      let hh=0,min=0,sec=0;
-      if (podTimeRaw) [hh,min,sec] = podTimeRaw.split(":").map(Number);
-      podTimestamp = new Date(yyyy,mm-1,dd,hh,min,sec).getTime();
-    }
-
-    updates[`pods/${waybill}`] = {
-      waybill,
-      signedBy,
-      date: podDateRaw,
-      time: podTimeRaw,
-      status: "Delivered",
-      importedAt: Date.now(),
-      podTimestamp
-    };
-  });
-
-  if (!Object.keys(updates).length) return alert("No valid PODs found!");
-
-  await update(ref(db), updates);
-  alert("POD import complete ✅");
-  bulkPOD.value = "";
-};
-
-/* POD EXCEL */
-window.importPOD = () => {
-  const fileInput = document.getElementById("podFile");
-  if (!fileInput.files.length) return alert("Select an Excel file!");
-
-  const reader = new FileReader();
-
-  reader.onload = e => {
-    const data = new Uint8Array(e.target.result);
-    const workbook = XLSX.read(data,{type:'array'});
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const csv = XLSX.utils.sheet_to_csv(sheet);
-    bulkPOD.value = csv;
-    alert("Excel loaded into POD paste area ✅");
-  };
-
-  reader.readAsArrayBuffer(fileInput.files[0]);
-};
-
-/* ============================= */
-/* ✅ RETURN NOTE GENERATOR */
-/* ============================= */
-window.generateReturnNote = () => {
-  const customer = document.getElementById("returnCustomer").value;
-  const reason = document.getElementById("returnReason").value;
+window.generateReturnNote = (waybill="") => {
+  const customerSel = document.getElementById("returnCustomer").value;
+  const reasonSel = document.getElementById("returnReason").value;
   const newAddress = document.getElementById("returnAddress").value;
-
-  if (!customer || !reason) return alert("Select customer and reason.");
+  if(!customerSel || !reasonSel) return alert("Select customer and reason.");
 
   const now = new Date();
   const dateStr = now.toLocaleDateString();
   const timeStr = now.toLocaleTimeString();
 
+  const custInfo = customerAddresses[customerSel] || { address:"", phone:"" };
+
   const html = `
-    <html>
-      <head>
-        <title>Return Note</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding:20px; }
-          h2 { text-align:center; color:#072760; }
-          .note { border:2px solid #072760; padding:16px; margin-top:20px; border-radius:12px; }
-          .note p { margin:6px 0; font-size:16px; }
-        </style>
-      </head>
-      <body>
+  <html>
+    <head>
+      <title>Return Note</title>
+      <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+      <style>
+        body { font-family: Arial,sans-serif; padding:20px; }
+        .header { text-align:center; margin-bottom:12px; }
+        .header img { width:160px; }
+        .addresses { display:flex; justify-content:space-between; margin-bottom:12px; }
+        .address-box { width:48%; border:1px solid #072760; padding:12px; border-radius:6px; font-size:14px; }
+        .note { border:2px solid #072760; padding:12px; border-radius:8px; margin-top:12px; font-size:14px; }
+        .barcode { text-align:center; margin-top:8px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <img src="${companyInfo.logo}" alt="Company Logo">
         <h2>Return Note</h2>
-        <div class="note">
-          <p><strong>Customer:</strong> ${customer}</p>
-          <p><strong>Reason:</strong> ${reason}</p>
-          ${reason === "Change of Address" && newAddress ? `<p><strong>New Address:</strong> ${newAddress}</p>` : ""}
-          <p><strong>Date:</strong> ${dateStr}</p>
-          <p><strong>Time:</strong> ${timeStr}</p>
+      </div>
+      <div class="addresses">
+        <div class="address-box">
+          <strong>From:</strong><br>
+          ${companyInfo.name}<br>${companyInfo.address}<br>Tel: ${companyInfo.phone}
         </div>
-      </body>
-    </html>
+        <div class="address-box">
+          <strong>To:</strong><br>
+          ${customerSel}<br>${custInfo.address}<br>${custInfo.phone ? "Tel: "+custInfo.phone : ""}
+        </div>
+      </div>
+      <div class="note">
+        <p><strong>Reason:</strong> ${reasonSel}</p>
+        ${reasonSel==="Change of Address" && newAddress ? `<p><strong>New Address:</strong> ${newAddress}</p>` : ""}
+        <p><strong>Date:</strong> ${dateStr}</p>
+        <p><strong>Time:</strong> ${timeStr}</p>
+      </div>
+      ${waybill ? `<div class="barcode"><svg id="waybillBarcode"></svg><div style="font-size:12px;">${waybill}</div></div>` : ""}
+      <script>
+        if("${waybill}"){
+          JsBarcode("#waybillBarcode","${waybill}",{format:"CODE128",width:1.5,height:40,displayValue:false});
+        }
+      </script>
+    </body>
+  </html>
   `;
 
   const w = window.open("", "_blank");
@@ -403,9 +277,8 @@ window.generateReturnNote = () => {
 </head>
 
 <body>
-
 <center>
-<img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160">
+<img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1771237505/pakisa_logistics_express_pty_ltd_logo-removebg-preview_gr7h0r.png" width="160">
 </center>
 
 <h2>Floor Check</h2>
@@ -482,9 +355,8 @@ window.generateReturnNote = () => {
 
 <label>New Address (if applicable)</label>
 <textarea id="returnAddress" placeholder="Enter new address if reason is Change of Address"></textarea>
-<button onclick="generateReturnNote()">Print Return Note</button>
+<button onclick="generateReturnNote(document.getElementById('scanInput').value)">Print Return Note</button>
 
 <br><center><b>Built by Mpho Mahlaba</b></center>
-
 </body>
 </html>
