@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pakisa Floor Check v2.1</title>
+<title>Pakisa Floor Check v2.2</title>
 
 <style>
 body {
@@ -354,6 +354,51 @@ window.importPOD = () => {
 
   reader.readAsArrayBuffer(fileInput.files[0]);
 };
+
+/* ============================= */
+/* ✅ RETURN NOTE GENERATOR */
+/* ============================= */
+window.generateReturnNote = () => {
+  const customer = document.getElementById("returnCustomer").value;
+  const reason = document.getElementById("returnReason").value;
+  const newAddress = document.getElementById("returnAddress").value;
+
+  if (!customer || !reason) return alert("Select customer and reason.");
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString();
+  const timeStr = now.toLocaleTimeString();
+
+  const html = `
+    <html>
+      <head>
+        <title>Return Note</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding:20px; }
+          h2 { text-align:center; color:#072760; }
+          .note { border:2px solid #072760; padding:16px; margin-top:20px; border-radius:12px; }
+          .note p { margin:6px 0; font-size:16px; }
+        </style>
+      </head>
+      <body>
+        <h2>Return Note</h2>
+        <div class="note">
+          <p><strong>Customer:</strong> ${customer}</p>
+          <p><strong>Reason:</strong> ${reason}</p>
+          ${reason === "Change of Address" && newAddress ? `<p><strong>New Address:</strong> ${newAddress}</p>` : ""}
+          <p><strong>Date:</strong> ${dateStr}</p>
+          <p><strong>Time:</strong> ${timeStr}</p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const w = window.open("", "_blank");
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  w.print();
+};
 </script>
 </head>
 
@@ -412,6 +457,32 @@ window.importPOD = () => {
 <h3>Import POD Excel</h3>
 <input type="file" id="podFile" accept=".xls,.xlsx">
 <button onclick="importPOD()">Import POD</button>
+
+<hr>
+
+<h3>Generate Return Note</h3>
+<label>Customer</label>
+<select id="returnCustomer">
+  <option value="">Select Customer</option>
+  <option>First Freight Couriers</option>
+  <option>Fedex Express</option>
+  <option>AJM</option>
+  <option>Brima Logistics</option>
+  <option>Seabourne Logistics</option>
+</select>
+
+<label>Reason for Return</label>
+<select id="returnReason">
+  <option value="">Select Reason</option>
+  <option>Attention UTL</option>
+  <option>Change of Address</option>
+  <option>Refused by Customer</option>
+  <option>Returned to Sender</option>
+</select>
+
+<label>New Address (if applicable)</label>
+<textarea id="returnAddress" placeholder="Enter new address if reason is Change of Address"></textarea>
+<button onclick="generateReturnNote()">Print Return Note</button>
 
 <br><center><b>Built by Mpho Mahlaba</b></center>
 
