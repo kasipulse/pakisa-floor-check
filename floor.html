@@ -341,9 +341,38 @@ window.generateReturnNote = () => {
   const customer = document.getElementById("returnCustomer").value;
   const reason = document.getElementById("returnReason").value;
   const newAddress = document.getElementById("returnAddress").value;
-  const waybill = scanInput.value.trim(); // current scanned waybill
+  const waybill = scanInput.value.trim();
 
   if (!customer || !reason) return alert("Select customer and reason.");
+  if (!waybill) return alert("Scan the waybill first.");
+
+  /* 📍 CUSTOMER ADDRESS BOOK */
+  const addressBook = {
+    "Fedex Express":
+`1-7 Romeo Street, Hughes, Boksburg, 1446
+Building 6, Eastport Boulevard,
+Eastport Logistics Park, Glen Marais, 1619
+Tel: 080 006 4567`,
+
+    "First Freight Couriers":
+`4 Struwig Street, Witfield, Boksburg, 1459
+Tel: +27 11 387 7000
+Email: sales@firstfreight.co.za`,
+
+    "AJM":
+`19 Malcolm Moodie Cres,
+Jet Park, Boksburg, 1459`,
+
+    "Brima Logistics":
+`5 Marlin Road,
+Jet Park, Boksburg, 1459
+Tel: 011 552 8230`,
+
+    "Seabourne Logistics":
+`Address not loaded`
+  };
+
+  const customerAddress = addressBook[customer] || "Address not loaded";
 
   const now = new Date();
   const dateStr = now.toLocaleDateString();
@@ -352,29 +381,115 @@ window.generateReturnNote = () => {
   const html = `
 <html>
 <head>
-  <title>Return Note</title>
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; padding:20px; }
-    h2 { text-align:center; color:#072760; }
-    .note { border:2px solid #072760; padding:16px; margin-top:20px; border-radius:12px; }
-    .note p { margin:6px 0; font-size:16px; }
-    svg { margin-top:10px; }
-  </style>
+<title>Return Note</title>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+
+<style>
+body { font-family: Arial, sans-serif; padding:20px; }
+
+.header {
+  text-align:center;
+  border-bottom:2px solid #072760;
+  padding-bottom:10px;
+  margin-bottom:15px;
+}
+
+.logo { width:170px; }
+
+.grid {
+  display:flex;
+  justify-content:space-between;
+  gap:20px;
+}
+
+.box {
+  width:48%;
+  border:2px solid #072760;
+  border-radius:12px;
+  padding:12px;
+  font-size:14px;
+}
+
+.title {
+  font-weight:bold;
+  color:#072760;
+  margin-bottom:6px;
+}
+
+.reason-box {
+  border:2px dashed #072760;
+  border-radius:12px;
+  padding:14px;
+  margin-top:16px;
+  text-align:center;
+  font-size:18px;
+  font-weight:bold;
+}
+
+.barcode {
+  text-align:center;
+  margin-top:14px;
+}
+
+.footer {
+  text-align:center;
+  margin-top:10px;
+  font-size:13px;
+}
+</style>
 </head>
+
 <body>
-  <h2>Return Note</h2>
-  <div class="note">
-    <p><strong>Customer:</strong> ${customer}</p>
-    <p><strong>Reason:</strong> ${reason}</p>
-    ${reason === "Change of Address" && newAddress ? `<p><strong>New Address:</strong> ${newAddress}</p>` : ""}
-    ${waybill ? `<p><strong>Waybill:</strong> ${waybill}</p><svg id="barcode"></svg>` : ""}
-    <p><strong>Date:</strong> ${dateStr}</p>
-    <p><strong>Time:</strong> ${timeStr}</p>
+
+<div class="header">
+  <img class="logo" src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1771237505/pakisa_logistics_express_pty_ltd_logo-removebg-preview_gr7h0r.png">
+  <h2>RETURN NOTE</h2>
+  <div>Waybill: <b>${waybill}</b></div>
+</div>
+
+<div class="grid">
+  <div class="box">
+    <div class="title">FROM (Pakisa)</div>
+    10 Burry Koean Street<br>
+    Jet Park, Boksburg, 1459<br>
+    South Africa<br>
+    Tel: 011 397 1061
   </div>
-  <script>
-    if ("${waybill}") JsBarcode("#barcode", "${waybill}", {format:"CODE128", width:2, height:40});
-  </script>
+
+  <div class="box">
+    <div class="title">TO (${customer})</div>
+    ${customerAddress.replace(/\n/g,"<br>")}
+  </div>
+</div>
+
+<div class="reason-box">
+  ${reason}
+  ${reason === "Change of Address" && newAddress
+    ? `<div style="margin-top:8px;font-size:14px;font-weight:normal;">
+         New Address: ${newAddress}
+       </div>`
+    : ""}
+</div>
+
+<div class="barcode">
+  <svg id="barcode"></svg>
+</div>
+
+<div class="footer">
+  Date: ${dateStr} &nbsp;&nbsp; Time: ${timeStr}
+</div>
+
+<script>
+JsBarcode("#barcode","${waybill}",{
+  format:"CODE128",
+  width:2,
+  height:55,
+  displayValue:true
+});
+
+window.onload = () => window.print();
+</script>
+
 </body>
 </html>
 `;
@@ -382,8 +497,6 @@ window.generateReturnNote = () => {
   const w = window.open("", "_blank");
   w.document.write(html);
   w.document.close();
-  w.focus();
-  w.print();
 };
 </script>
 </head>
