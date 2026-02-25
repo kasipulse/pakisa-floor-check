@@ -80,7 +80,11 @@ let currentData = [];
 
 /* 🔊 RELIABLE PLAY */
 function playBeep() {
-  try { beep.pause(); beep.currentTime = 0; beep.play().catch(()=>{}); } catch(e){}
+  try {
+    beep.pause();
+    beep.currentTime = 0;
+    beep.play().catch(()=>{});
+  } catch(e){}
 }
 
 /* Helpers */
@@ -88,6 +92,7 @@ function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+
 function startOfTodayTs() {
   const d = new Date();
   d.setHours(0,0,0,0);
@@ -108,7 +113,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
   beep.volume = 0.45;
 
-  // 🔓 unlock audio
   document.body.addEventListener("click", () => {
     beep.play().then(()=>beep.pause()).catch(()=>{});
   }, { once:true });
@@ -116,7 +120,6 @@ window.addEventListener("DOMContentLoaded", () => {
   const searchInput = document.getElementById("searchInput");
   scanInput.focus();
 
-  /* Scanner-safe Enter */
   scanInput.addEventListener("keyup", e => {
     if (e.key !== "Enter") return;
     const now = Date.now();
@@ -126,7 +129,6 @@ window.addEventListener("DOMContentLoaded", () => {
     saveScan();
   });
 
-  /* Search safe */
   searchInput.addEventListener("keydown", e => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -161,6 +163,7 @@ async function listenForScansAndPods() {
   });
 
   const combined = [];
+
   scans.forEach(s => {
     const waybill = String(s.waybill).trim().replace(/\.0$/, "");
     combined.push({
@@ -176,6 +179,7 @@ async function listenForScansAndPods() {
     const existsInScans = scans.some(s =>
       String(s.waybill).trim().replace(/\.0$/, "") === p.waybill
     );
+
     if (!existsInScans) {
       combined.push({
         waybill: p.waybill,
@@ -195,7 +199,10 @@ async function listenForScansAndPods() {
 /* RENDER */
 function renderList(arr) {
   scanList.innerHTML = "";
-  if (!arr.length) return scanList.innerHTML = "<i>No scans or PODs</i>";
+  if (!arr.length) {
+    scanList.innerHTML = "<i>No scans or PODs</i>";
+    return;
+  }
 
   arr.slice(0,200).forEach(d => {
     const podText = d.pod
@@ -316,188 +323,6 @@ window.importPODBulk = async () => {
   alert("POD import complete ✅");
   bulkPOD.value = "";
 };
-
-/* POD EXCEL */
-window.importPOD = () => {
-  const fileInput = document.getElementById("podFile");
-  if (!fileInput.files.length) return alert("Select an Excel file!");
-
-  const reader = new FileReader();
-  reader.onload = e => {
-    const data = new Uint8Array(e.target.result);
-    const workbook = XLSX.read(data,{type:'array'});
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const csv = XLSX.utils.sheet_to_csv(sheet);
-    bulkPOD.value = csv;
-    alert("Excel loaded into POD paste area ✅");
-  };
-  reader.readAsArrayBuffer(fileInput.files[0]);
-};
-
-/* ============================= */
-/* ✅ RETURN NOTE GENERATOR WITH BARCODE */
-/* ============================= */
-window.generateReturnNote = () => {
-  const customer = document.getElementById("returnCustomer").value;
-  const reason = document.getElementById("returnReason").value;
-  const newAddress = document.getElementById("returnAddress").value;
-  const waybill = scanInput.value.trim();
-
-  if (!customer || !reason) return alert("Select customer and reason.");
-  if (!waybill) return alert("Scan the waybill first.");
-
-  /* 📍 CUSTOMER ADDRESS BOOK */
-  const addressBook = {
-    "Fedex Express":
-`1-7 Romeo Street, Hughes, Boksburg, 1446
-Building 6, Eastport Boulevard,
-Eastport Logistics Park, Glen Marais, 1619
-Tel: 080 006 4567`,
-
-    "First Freight Couriers":
-`4 Struwig Street, Witfield, Boksburg, 1459
-Tel: +27 11 387 7000
-Email: sales@firstfreight.co.za`,
-
-    "AJM":
-`19 Malcolm Moodie Cres,
-Jet Park, Boksburg, 1459`,
-
-    "Brima Logistics":
-`5 Marlin Road,
-Jet Park, Boksburg, 1459
-Tel: 011 552 8230`,
-
-    "Seabourne Logistics":
-`Address not loaded`
-  };
-
-  const customerAddress = addressBook[customer] || "Address not loaded";
-
-  const now = new Date();
-  const dateStr = now.toLocaleDateString();
-  const timeStr = now.toLocaleTimeString();
-
-  const html = `
-<html>
-<head>
-<title>Return Note</title>
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-
-<style>
-body { font-family: Arial, sans-serif; padding:20px; }
-
-.header {
-  text-align:center;
-  border-bottom:2px solid #072760;
-  padding-bottom:10px;
-  margin-bottom:15px;
-}
-
-.logo { width:170px; }
-
-.grid {
-  display:flex;
-  justify-content:space-between;
-  gap:20px;
-}
-
-.box {
-  width:48%;
-  border:2px solid #072760;
-  border-radius:12px;
-  padding:12px;
-  font-size:14px;
-}
-
-.title {
-  font-weight:bold;
-  color:#072760;
-  margin-bottom:6px;
-}
-
-.reason-box {
-  border:2px dashed #072760;
-  border-radius:12px;
-  padding:14px;
-  margin-top:16px;
-  text-align:center;
-  font-size:18px;
-  font-weight:bold;
-}
-
-.barcode {
-  text-align:center;
-  margin-top:14px;
-}
-
-.footer {
-  text-align:center;
-  margin-top:10px;
-  font-size:13px;
-}
-</style>
-</head>
-
-<body>
-
-<div class="header">
-  <img class="logo" src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1771237505/pakisa_logistics_express_pty_ltd_logo-removebg-preview_gr7h0r.png">
-  <h2>RETURN NOTE</h2>
-  <div>Waybill: <b>${waybill}</b></div>
-</div>
-
-<div class="grid">
-  <div class="box">
-    <div class="title">FROM (Pakisa)</div>
-    10 Burry Koean Street<br>
-    Jet Park, Boksburg, 1459<br>
-    South Africa<br>
-    Tel: 011 397 1061
-  </div>
-
-  <div class="box">
-    <div class="title">TO (${customer})</div>
-    ${customerAddress.replace(/\n/g,"<br>")}
-  </div>
-</div>
-
-<div class="reason-box">
-  ${reason}
-  ${reason === "Change of Address" && newAddress
-    ? `<div style="margin-top:8px;font-size:14px;font-weight:normal;">
-         New Address: ${newAddress}
-       </div>`
-    : ""}
-</div>
-
-<div class="barcode">
-  <svg id="barcode"></svg>
-</div>
-
-<div class="footer">
-  Date: ${dateStr} &nbsp;&nbsp; Time: ${timeStr}
-</div>
-
-<script>
-JsBarcode("#barcode","${waybill}",{
-  format:"CODE128",
-  width:2,
-  height:55,
-  displayValue:true
-});
-
-window.onload = () => window.print();
-</script>
-
-</body>
-</html>
-`;
-
-  const w = window.open("", "_blank");
-  w.document.write(html);
-  w.document.close();
-};
 </script>
 </head>
 
@@ -550,39 +375,6 @@ window.onload = () => window.print();
 <h3>Scans (Today)</h3>
 <div id="scanList"><i>Loading…</i></div>
 
-<hr>
-
-<h3>Import POD Excel</h3>
-<input type="file" id="podFile" accept=".xls,.xlsx">
-<button onclick="importPOD()">Import POD</button>
-
-<hr>
-
-<h3>Generate Return Note</h3>
-<label>Customer</label>
-<select id="returnCustomer">
-  <option value="">Select Customer</option>
-  <option>First Freight Couriers</option>
-  <option>Fedex Express</option>
-  <option>AJM</option>
-  <option>Brima Logistics</option>
-  <option>Seabourne Logistics</option>
-</select>
-
-<label>Reason for Return</label>
-<select id="returnReason">
-  <option value="">Select Reason</option>
-  <option>Attention UTL</option>
-  <option>Change of Address</option>
-  <option>Refused by Customer</option>
-  <option>Returned to Sender</option>
-</select>
-
-<label>New Address (if applicable)</label>
-<textarea id="returnAddress" placeholder="Enter new address if reason is Change of Address"></textarea>
-<button onclick="generateReturnNote()">Print Return Note</button>
-
 <br><center><b>Built by Mpho Mahlaba</b></center>
-
 </body>
 </html>
