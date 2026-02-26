@@ -66,7 +66,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-/* ✅ RTS PRINT FUNCTION */
+/* ================= RTS LABEL ================= */
 function printRTSLabel(waybill, customerName) {
   const now = new Date();
   const dateStr = now.toLocaleDateString();
@@ -74,44 +74,119 @@ function printRTSLabel(waybill, customerName) {
 
   const html = `
   <html>
-    <head>
-      <title>RTS Note</title>
-      <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-      <style>
-        body { font-family: Arial; padding:20px; }
-        .box {
-          border:2px solid #0a2b52;
-          border-radius:12px;
-          padding:16px;
-          text-align:center;
-        }
-        h2 { color:#0a2b52; margin-bottom:10px; }
-        .waybill {
-          font-size:22px;
-          font-weight:bold;
-          margin:10px 0;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="box">
-        <h2>RETURN TO SENDER</h2>
-        <div><b>Customer:</b> ${customerName}</div>
-        <div class="waybill">${waybill}</div>
-        <svg id="barcode"></svg>
-        <div style="margin-top:10px;">${dateStr} ${timeStr}</div>
+  <head>
+    <title>RTS Note</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+
+    <style>
+      @page {
+        size: 100mm 150mm;
+        margin: 6mm;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        margin:0;
+        padding:0;
+      }
+
+      .label {
+        border:2px solid #0a2b52;
+        border-radius:10px;
+        padding:12px;
+      }
+
+      .header {
+        text-align:center;
+        font-weight:bold;
+        font-size:18px;
+        color:#0a2b52;
+        margin-bottom:6px;
+      }
+
+      .addr-box {
+        border:1px solid #333;
+        padding:8px;
+        margin:6px 0;
+        font-size:13px;
+        min-height:60px;
+      }
+
+      .waybill {
+        font-size:20px;
+        font-weight:bold;
+        text-align:center;
+        margin:6px 0;
+      }
+
+      .fold-line {
+        border-top:2px dashed #999;
+        margin:10px 0;
+        text-align:center;
+        font-size:11px;
+        color:#777;
+      }
+
+      .coa {
+        margin-top:8px;
+        font-size:12px;
+        border-top:1px solid #ccc;
+        padding-top:4px;
+      }
+
+      .footer {
+        font-size:11px;
+        text-align:center;
+        margin-top:6px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="label">
+
+      <div class="header">RETURN TO SENDER</div>
+
+      <div class="addr-box">
+        <b>FROM:</b><br>
+        Pakisa Logistics Express<br>
+        Johannesburg Depot<br>
+        Tel: 011 397 1151
       </div>
 
-      <script>
-        JsBarcode("#barcode","${waybill}",{
-          format:"CODE128",
-          width:2,
-          height:50,
-          displayValue:false
-        });
-        window.print();
-      </script>
-    </body>
+      <div class="addr-box">
+        <b>TO (Customer):</b><br>
+        ${customerName}<br>
+        <b>ATTENTION:</b> UTL
+      </div>
+
+      <div class="waybill">${waybill}</div>
+      <svg id="barcode"></svg>
+
+      <div class="footer">
+        ${dateStr} ${timeStr}
+      </div>
+
+      <div class="fold-line">✂ FOLD HERE</div>
+
+      <div class="coa">
+        <b>Change of Address:</b><br>
+        _________________________________<br>
+        _________________________________
+      </div>
+
+    </div>
+
+    <script>
+      JsBarcode("#barcode","${waybill}",{
+        format:"CODE128",
+        width:2,
+        height:50,
+        displayValue:false
+      });
+      window.print();
+    </script>
+  </body>
   </html>
   `;
 
@@ -119,20 +194,18 @@ function printRTSLabel(waybill, customerName) {
   w.document.write(html);
   w.document.close();
 }
+/* ================================================= */
 
 onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    window.location.href = "login.html";
-  } else {
-    listenForScansAndPods();
-  }
+  if (!user) window.location.href = "login.html";
+  else listenForScansAndPods();
 });
 
 /* DOM */
 let customer, reason, scanInput, bulkInput, scanList, beep, bulkPOD;
 let currentData = [];
 
-/* 🔊 RELIABLE PLAY */
+/* SOUND */
 function playBeep() {
   try {
     beep.pause();
@@ -141,19 +214,18 @@ function playBeep() {
   } catch(e){}
 }
 
-/* Helpers */
+/* HELPERS */
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-
 function startOfTodayTs() {
   const d = new Date();
   d.setHours(0,0,0,0);
   return d.getTime();
 }
 
-/* Scanner debounce */
+/* SCANNER */
 let lastScanTime = 0;
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -166,12 +238,6 @@ window.addEventListener("DOMContentLoaded", () => {
   bulkPOD   = document.getElementById("bulkPOD");
 
   beep.volume = 0.45;
-
-  document.body.addEventListener("click", () => {
-    beep.play().then(()=>beep.pause()).catch(()=>{});
-  }, { once:true });
-
-  const searchInput = document.getElementById("searchInput");
   scanInput.focus();
 
   scanInput.addEventListener("keyup", e => {
@@ -179,184 +245,134 @@ window.addEventListener("DOMContentLoaded", () => {
     const now = Date.now();
     if (now - lastScanTime < 250) return;
     lastScanTime = now;
-    e.preventDefault();
     saveScan();
-  });
-
-  searchInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      scanInput.focus();
-    }
-  });
-
-  searchInput.addEventListener("blur", () => {
-    setTimeout(() => scanInput.focus(), 50);
   });
 });
 
-/* 🔥 LISTENER */
+/* LISTENER */
 async function listenForScansAndPods() {
-  const scansRef = ref(db, "scans");
-  const podsRef = ref(db, "pods");
-
-  const scansSnap = await get(scansRef);
-  const scans = [];
-  scansSnap.forEach(c => {
-    const val = c.val();
-    if (val.timestamp >= startOfTodayTs()) scans.push(val);
+  const scansSnap = await get(ref(db,"scans"));
+  const arr = [];
+  scansSnap.forEach(c=>{
+    const v=c.val();
+    if(v.timestamp>=startOfTodayTs()) arr.push(v);
   });
-
-  const podsSnap = await get(podsRef);
-  const pods = {};
-  podsSnap.forEach(p => {
-    const val = p.val();
-    if (!val.waybill) return;
-    const waybill = String(val.waybill).trim().replace(/\.0$/, "");
-    pods[waybill] = { ...val, waybill };
-  });
-
-  const combined = [];
-
-  scans.forEach(s => {
-    const waybill = String(s.waybill).trim().replace(/\.0$/, "");
-    combined.push({
-      waybill,
-      customer: s.customer,
-      reason: s.reason,
-      timestamp: s.timestamp,
-      pod: pods[waybill] || null
-    });
-  });
-
-  combined.sort((a, b) => b.timestamp - a.timestamp);
-  currentData = combined;
-  renderList(currentData);
+  arr.sort((a,b)=>b.timestamp-a.timestamp);
+  currentData=arr;
+  renderList(arr);
 }
 
 /* RENDER */
 function renderList(arr) {
-  scanList.innerHTML = "";
-  if (!arr.length) {
-    scanList.innerHTML = "<i>No scans or PODs</i>";
-    return;
-  }
-
-  arr.slice(0,200).forEach(d => {
-    const podText = d.pod
-      ? `<br><span style="color:green;"><b>POD:</b> Signed by ${d.pod.signedBy} — ${d.pod.date || ""} ${d.pod.time || ""}</span>`
-      : "";
-
-    const div = document.createElement("div");
-    div.className = "list-item";
-    div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}${podText}`;
+  scanList.innerHTML="";
+  if(!arr.length){scanList.innerHTML="<i>No scans</i>";return;}
+  arr.slice(0,200).forEach(d=>{
+    const div=document.createElement("div");
+    div.className="list-item";
+    div.innerHTML=`<b>${d.waybill}</b><br>${d.customer} — ${d.reason}`;
     scanList.appendChild(div);
   });
 }
 
 /* SEARCH */
-window.filterSearch = () => {
-  const t = document.getElementById("searchInput").value.toLowerCase();
-  renderList(currentData.filter(d =>
+window.filterSearch=()=>{
+  const t=document.getElementById("searchInput").value.toLowerCase();
+  renderList(currentData.filter(d=>
     d.waybill.toLowerCase().includes(t) ||
     d.customer.toLowerCase().includes(t) ||
     d.reason.toLowerCase().includes(t)
   ));
 };
 
-/* ✅ SINGLE SCAN (WITH RTS TRIGGER) */
-window.saveScan = async () => {
-  const waybill = scanInput.value.trim();
-  if (!customer.value || !reason.value || !waybill) return scanInput.focus();
+/* SAVE SCAN */
+window.saveScan=async()=>{
+  const waybill=scanInput.value.trim();
+  if(!customer.value||!reason.value||!waybill) return;
 
   await push(ref(db,"scans"),{
     companyId,
     companyName,
-    customer: customer.value,
-    reason: reason.value,
+    customer:customer.value,
+    reason:reason.value,
     waybill,
-    date: todayKey(),
-    timestamp: Date.now()
+    date:todayKey(),
+    timestamp:Date.now()
   });
 
   playBeep();
 
-  /* 🔥 AUTO RTS */
-  if (reason.value === "Returned to Sender") {
-    setTimeout(() => {
-      printRTSLabel(waybill, customer.value);
-    }, 300);
+  if(reason.value==="Returned to Sender"){
+    setTimeout(()=>printRTSLabel(waybill,customer.value),300);
   }
 
-  document.body.classList.add("flash");
-  setTimeout(()=>document.body.classList.remove("flash"),150);
-
-  scanInput.value = "";
+  scanInput.value="";
   scanInput.focus();
 };
 
 /* BULK SCANS */
-window.saveBulkScans = async () => {
-  const text = bulkInput.value.trim();
-  if (!customer.value || !reason.value || !text)
-    return alert("Select customer, reason and paste waybills");
+window.saveBulkScans=async()=>{
+  const text=bulkInput.value.trim();
+  if(!customer.value||!reason.value||!text) return;
 
-  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>=8);
-  if (!lines.length) return alert("No valid waybills");
+  const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>=8);
+  const updates={};
+  const baseRef=ref(db,"scans");
 
-  const updates = {};
-  const baseRef = ref(db,"scans");
-
-  lines.forEach(waybill=>{
-    const key = push(baseRef).key;
-    updates[`scans/${key}`] = {
+  lines.forEach(w=>{
+    const key=push(baseRef).key;
+    updates[`scans/${key}`]={
       companyId,
       companyName,
-      customer: customer.value,
-      reason: reason.value,
-      waybill,
-      date: todayKey(),
-      timestamp: Date.now()
+      customer:customer.value,
+      reason:reason.value,
+      waybill:w,
+      date:todayKey(),
+      timestamp:Date.now()
     };
   });
 
-  await update(ref(db), updates);
-  bulkInput.value = "";
+  await update(ref(db),updates);
+  bulkInput.value="";
   playBeep();
+};
+
+/* FIXED EMPTY POD IMPORT (prevents errors) */
+window.importPODBulk=()=>{
+  alert("POD bulk import coming next 😉");
 };
 </script>
 </head>
 
 <body>
 <center>
-  <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160">
+<img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160">
 </center>
 
 <h2>Floor Check</h2>
 
 <label>Customer</label>
 <select id="customer">
-  <option value="">Select Customer</option>
-  <option>First Freight Couriers</option>
-  <option>Fedex Express</option>
-  <option>AJM</option>
-  <option>Brima Logistics</option>
-  <option>Seabourne Logistics</option>
+<option value="">Select Customer</option>
+<option>First Freight Couriers</option>
+<option>Fedex Express</option>
+<option>AJM</option>
+<option>Brima Logistics</option>
+<option>Seabourne Logistics</option>
 </select>
 
 <label>Reason</label>
 <select id="reason">
-  <option value="">Select Reason</option>
-  <option>Out for delivery</option>
-  <option>Nobody home</option>
-  <option>Incorrect phone number</option>
-  <option>Bad address</option>
-  <option>Missing paperwork</option>
-  <option>Misroute</option>
-  <option>Refused</option>
-  <option>Returned to Sender</option>
-  <option>Will be attempted on commitment date</option>
-  <option>Future delivery</option>
+<option value="">Select Reason</option>
+<option>Out for delivery</option>
+<option>Nobody home</option>
+<option>Incorrect phone number</option>
+<option>Bad address</option>
+<option>Missing paperwork</option>
+<option>Misroute</option>
+<option>Refused</option>
+<option>Returned to Sender</option>
+<option>Will be attempted on commitment date</option>
+<option>Future delivery</option>
 </select>
 
 <label>Scan Waybill</label>
