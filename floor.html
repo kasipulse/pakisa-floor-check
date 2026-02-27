@@ -19,10 +19,7 @@ button { background:#0a2b52; color:#fff; border:none; border-radius:8px; cursor:
   <source src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3" type="audio/mpeg">
 </audio>
 
-<!-- XLSX -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<!-- JsBarcode -->
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 
 <script type="module">
 const companyId = localStorage.getItem("companyId");
@@ -62,6 +59,7 @@ function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+
 function startOfTodayTs() {
   const d = new Date();
   d.setHours(0,0,0,0);
@@ -232,13 +230,11 @@ window.importPOD = () => {
   reader.readAsArrayBuffer(fileInput.files[0]);
 };
 
-/* RETURN NOTE GENERATOR WITH BARCODE */
+/* RETURN NOTE GENERATOR */
 window.generateReturnNote = () => {
   const customer = document.getElementById("returnCustomer").value;
   const reason = document.getElementById("returnReason").value;
   const newAddress = document.getElementById("returnAddress").value;
-  const waybill = document.getElementById("returnWaybill").value || "N/A";
-
   if (!customer || !reason) return alert("Select customer and reason.");
   const now = new Date();
   const dateStr = now.toLocaleDateString();
@@ -253,7 +249,6 @@ body { font-family: Arial, sans-serif; padding:20px; }
 h2 { text-align:center; color:#072760; }
 .note { border:2px solid #072760; padding:16px; margin-top:20px; border-radius:12px; }
 .note p { margin:6px 0; font-size:16px; }
-#barcode { display:block; margin:20px auto; }
 </style>
 </head>
 <body>
@@ -262,14 +257,9 @@ h2 { text-align:center; color:#072760; }
 <p><strong>Customer:</strong> ${customer}</p>
 <p><strong>Reason:</strong> ${reason}</p>
 ${reason === "Change of Address" && newAddress ? `<p><strong>New Address:</strong> ${newAddress}</p>` : ""}
-<p><strong>Waybill:</strong> ${waybill}</p>
-<svg id="barcode"></svg>
 <p><strong>Date:</strong> ${dateStr}</p>
 <p><strong>Time:</strong> ${timeStr}</p>
 </div>
-<script>
-JsBarcode("#barcode", "${waybill}", {format:"CODE128", width:2, height:50, displayValue:true});
-</script>
 </body>
 </html>
 `;
@@ -281,12 +271,14 @@ JsBarcode("#barcode", "${waybill}", {format:"CODE128", width:2, height:50, displ
 };
 </script>
 </head>
+
 <body>
 <center>
 <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160">
 </center>
 
 <h2>Floor Check</h2>
+
 <label>Customer</label>
 <select id="customer">
   <option value="">Select Customer</option>
@@ -359,10 +351,6 @@ JsBarcode("#barcode", "${waybill}", {format:"CODE128", width:2, height:50, displ
 
 <label>New Address (if applicable)</label>
 <textarea id="returnAddress" placeholder="Enter new address if reason is Change of Address"></textarea>
-
-<label>Waybill Number</label>
-<input id="returnWaybill" placeholder="Enter waybill number" autocomplete="off">
-
 <button onclick="generateReturnNote()">Print Return Note</button>
 
 <br><center><b>Built by Mpho Mahlaba</b></center>
