@@ -1,14 +1,11 @@
 {
   "name": "pakisa-floor-functions",
-  "description": "Firebase functions for Pakisa Floor site",
+  "description": "Firebase functions for Pakisa Floor",
   "engines": {
     "node": "22"
   },
   "dependencies": {
-    "firebase-admin": "^12.0.0",
-    "firebase-functions": "^4.3.0"
-  },
-  "scripts": {
-    "lint": "eslint ."
+    "firebase-admin": "^11.11.0",
+    "firebase-functions": "^4.6.0"
   }
 }
