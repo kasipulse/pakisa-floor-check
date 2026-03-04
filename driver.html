@@ -3,83 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pakisa Driver - POD Entry</title>
+    <title>Pakisa Driver Portal</title>
     <style>
         :root {
             --royal-blue: #002366;
             --gold: #D4AF37;
             --white: #ffffff;
             --light-gray: #f4f4f4;
+            --dark-blue: #001a4d;
         }
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            padding: 0; margin: 0; background: var(--white); color: #333;
+            padding: 0; margin: 0; background: var(--royal-blue); color: #333;
             display: flex; flex-direction: column; min-height: 100vh;
         }
         .header {
-            text-align: center; padding: 15px; background: var(--white);
-            border-bottom: 3px solid var(--gold);
+            text-align: center; padding: 20px 15px; background: var(--white);
+            border-bottom: 4px solid var(--gold);
         }
-        .logo { 
-            max-width: 220px; /* Adjusted for the new logo aspect ratio */
-            height: auto; 
-            margin-bottom: 5px; 
-        }
-        .company-name {
-            color: var(--royal-blue); font-weight: bold; font-size: 1.2rem;
-            margin: 0; text-transform: uppercase; letter-spacing: 1px;
-        }
+        .logo { max-width: 220px; height: auto; }
+        
         .container { padding: 15px; flex: 1; }
+        
+        /* Royal Blue themed cards */
         .card { 
-            background: var(--white); padding: 20px; border-radius: 8px; 
-            border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+            background: var(--white); padding: 20px; border-radius: 12px; 
+            border: 1px solid rgba(255,255,255,0.1); 
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2); 
             margin-bottom: 20px; 
         }
+        
         h2 { 
-            color: var(--royal-blue); font-size: 1.1rem; margin-top: 0;
-            border-bottom: 1px solid var(--gold); padding-bottom: 8px;
+            color: var(--royal-blue); font-size: 1.2rem; margin-top: 0;
+            border-bottom: 2px solid var(--gold); padding-bottom: 8px;
+            text-transform: uppercase; letter-spacing: 1px;
         }
-        label { font-weight: bold; display: block; margin-top: 12px; font-size: 0.85rem; color: var(--royal-blue); }
+
+        label { font-weight: bold; display: block; margin-top: 15px; font-size: 0.85rem; color: var(--royal-blue); }
+        
         input { 
-            width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ccc; 
-            border-radius: 4px; box-sizing: border-box; font-size: 1rem;
+            width: 100%; padding: 14px; margin-top: 5px; border: 2px solid #eee; 
+            border-radius: 8px; box-sizing: border-box; font-size: 1rem;
+            transition: border-color 0.3s;
         }
         input:focus { outline: none; border-color: var(--gold); }
+
+        /* Waybill List Styling */
         .wb-item { 
-            background: var(--light-gray); padding: 12px; margin: 8px 0; 
-            border-radius: 4px; cursor: pointer; display: flex; 
-            justify-content: space-between; border-left: 4px solid var(--royal-blue);
+            background: var(--light-gray); padding: 15px; margin: 10px 0; 
+            border-radius: 8px; cursor: pointer; display: flex; 
+            justify-content: space-between; align-items: center;
+            border-left: 6px solid var(--royal-blue);
+            font-weight: bold; font-size: 1.1rem;
+            transition: transform 0.2s;
         }
+        .wb-item:active { transform: scale(0.98); background: #e0e0e0; }
+        .wb-acc { color: var(--gold); font-size: 0.85rem; }
+
+        /* Buttons */
         button { 
-            width: 100%; padding: 15px; background: var(--royal-blue); 
-            color: var(--white); border: none; border-radius: 4px; 
-            font-weight: bold; margin-top: 20px; cursor: pointer; text-transform: uppercase;
+            width: 100%; padding: 16px; background: var(--royal-blue); 
+            color: var(--white); border: none; border-radius: 8px; 
+            font-weight: bold; margin-top: 20px; cursor: pointer; 
+            text-transform: uppercase; font-size: 1rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
         }
+        button:active { background: var(--dark-blue); }
+        .btn-secondary { background: #6c757d; margin-top: 10px; box-shadow: none; }
+
         .footer {
-            text-align: center; padding: 20px; font-size: 0.75rem;
-            color: #777; background: var(--light-gray); border-top: 1px solid #ddd;
-            line-height: 1.5;
+            text-align: center; padding: 25px; font-size: 0.8rem;
+            color: rgba(255,255,255,0.8); background: var(--dark-blue);
+            border-top: 2px solid var(--gold);
         }
-        #trackingStatus { font-size: 0.7rem; color: #28a745; margin-top: 8px; display: none; font-weight: bold; }
+        .switch-btn { 
+            background: none; border: 1px solid var(--gold); color: var(--gold); 
+            padding: 5px 10px; width: auto; font-size: 0.7rem; margin-top: 10px; 
+        }
+
+        #trackingStatus { 
+            font-size: 0.75rem; color: #28a745; margin-top: 10px; 
+            display: none; font-weight: bold; text-align: center;
+        }
+        .welcome-text { color: var(--royal-blue); font-weight: bold; margin-bottom: 10px; display: block; }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1771237505/pakisa_logistics_express_pty_ltd_logo-removebg-preview_gr7h0r.png" alt="Pakisa Logistics Express" class="logo">
-        <p class="company-name">Driver Portal</p>
+        <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1771237505/pakisa_logistics_express_pty_ltd_logo-removebg-preview_gr7h0r.png" alt="Pakisa Logo" class="logo">
     </div>
 
     <div class="container">
         <div class="card" id="loginCard">
-            <h2>Driver Login</h2>
-            <input type="text" id="driverSearch" placeholder="Enter your full name" oninput="loadTrips()">
-            <div id="trackingStatus">● Live Tracking Active</div>
+            <h2>Driver Access</h2>
+            <div id="loginFields">
+                <input type="text" id="driverSearch" placeholder="Enter your full name" oninput="loadTrips()">
+            </div>
+            <div id="activeDriverDisplay" style="display:none;">
+                <span class="welcome-text" id="welcomeMsg"></span>
+                <div id="trackingStatus">● LIVE GPS TRACKING ACTIVE</div>
+            </div>
         </div>
 
         <div id="tripContainer" class="card" style="display:none;">
-            <h2>Your Assigned Waybills</h2>
-            <p style="font-size: 0.8rem; color: #666;">Select a waybill to capture POD</p>
+            <h2>Your Deliveries</h2>
+            <p style="font-size: 0.8rem; color: #666; margin-bottom: 15px;">Tap a waybill to complete POD</p>
             <div id="waybillList"></div>
         </div>
 
@@ -90,42 +119,60 @@
             <label>Recipient Name *</label>
             <input type="text" id="p5_recipient" placeholder="Who is receiving the parcel?">
 
-            <label>ID Number</label>
-            <input type="text" id="p8_id" placeholder="ID or Passport Number">
+            <label>ID / Passport Number</label>
+            <input type="text" id="p8_id" placeholder="Optional">
 
             <label>Cell Number</label>
-            <input type="text" id="p9_cell" placeholder="Receiver contact number">
+            <input type="text" id="p9_cell" placeholder="Optional">
 
             <label>Delivery Details</label>
-            <input type="text" id="p6_details" placeholder="e.g. Received by security">
+            <input type="text" id="p6_details" placeholder="e.g. Left with reception">
 
             <label>Discrepancy</label>
-            <input type="text" id="p7_disc" placeholder="e.g. Seal broken / None">
+            <input type="text" id="p7_disc" placeholder="e.g. Packaging damaged">
 
-            <button onclick="submitPOD()">Submit Proof of Delivery</button>
-            <button style="background:#6c757d; margin-top:10px;" onclick="cancelPOD()">Back to Waybills</button>
+            <button onclick="submitPOD()">Confirm Delivery</button>
+            <button class="btn-secondary" onclick="cancelPOD()">Back to List</button>
         </div>
     </div>
 
     <div class="footer">
         &copy; 2026 Pakisa Logistics Express (Pty) Ltd<br>
-        Designed by Mpho Mahlaba
+        Designed by Mpho Mahlaba<br>
+        <button class="switch-btn" onclick="logoutDriver()">Switch Driver Account</button>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <script>
-        // FIREBASE INITIALIZATION
         const firebaseConfig = { databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let lastLat = 0;
-        let lastLng = 0;
-        let trackingStarted = false;
+        let lastLat = 0, lastLng = 0, trackingStarted = false;
 
-        // SILENT TRACKING ENGINE
+        // ON STARTUP: Check if driver is already "Logged In"
+        window.onload = () => {
+            const savedName = localStorage.getItem('pakisa_driver_name');
+            if (savedName) {
+                document.getElementById('driverSearch').value = savedName;
+                showLoggedInUI(savedName);
+                loadTrips();
+            }
+        };
+
+        function showLoggedInUI(name) {
+            document.getElementById('loginFields').style.display = "none";
+            document.getElementById('activeDriverDisplay').style.display = "block";
+            document.getElementById('welcomeMsg').innerText = "Driver: " + name;
+        }
+
+        function logoutDriver() {
+            localStorage.removeItem('pakisa_driver_name');
+            location.reload();
+        }
+
         function startSilentTracking(driverId) {
             if (trackingStarted || !navigator.geolocation) return;
             trackingStarted = true;
@@ -135,8 +182,6 @@
                 (pos) => {
                     lastLat = pos.coords.latitude;
                     lastLng = pos.coords.longitude;
-
-                    // Updates the 'drivers_live' node for Admin monitoring
                     db.ref('drivers_live/' + driverId).set({
                         driverId: driverId,
                         lat: lastLat,
@@ -145,18 +190,22 @@
                         updatedAt: firebase.database.ServerValue.TIMESTAMP
                     });
                 },
-                (err) => console.warn("GPS Access Error:", err.message),
-                { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+                null, { enableHighAccuracy: true }
             );
         }
 
-        // LOAD TRIPS BASED ON DRIVER NAME
-        function loadTrips() {
+        async function loadTrips() {
             const name = document.getElementById('driverSearch').value.trim();
             if (name.length < 3) return;
 
-            // Start tracking as soon as name is entered
+            localStorage.setItem('pakisa_driver_name', name);
+            showLoggedInUI(name);
             startSilentTracking(name);
+
+            // Fetch completed PODs to filter the list
+            const podSnap = await db.ref('pods').once('value');
+            const completed = [];
+            podSnap.forEach(c => completed.push(c.val()["1_waybill"]));
 
             db.ref('tripsheets').orderByChild('driver').equalTo(name).on('value', snap => {
                 const list = document.getElementById('waybillList');
@@ -166,13 +215,15 @@
                 snap.forEach(trip => {
                     const data = trip.val();
                     if (data.status === "active" && data.waybills) {
-                        hasTrips = true;
                         data.waybills.forEach(wb => {
-                            const div = document.createElement('div');
-                            div.className = "wb-item";
-                            div.innerHTML = `<span>${wb}</span> <span style="color:#D4AF37; font-weight:bold;">${data.companyId}</span>`;
-                            div.onclick = () => openPOD(wb, data.companyId);
-                            list.appendChild(div);
+                            if (!completed.includes(wb)) {
+                                hasTrips = true;
+                                const div = document.createElement('div');
+                                div.className = "wb-item";
+                                div.innerHTML = `<span>${wb}</span> <span class="wb-acc">${data.companyId}</span>`;
+                                div.onclick = () => openPOD(wb, data.companyId);
+                                list.appendChild(div);
+                            }
                         });
                     }
                 });
@@ -188,14 +239,13 @@
             window.scrollTo(0,0);
         }
 
-        // SUBMIT POD WITH COORDINATES (9-COLUMN FORMAT)
         function submitPOD() {
             const wb = document.getElementById('activeWb').innerText.replace("Waybill: ", "");
             const acc = document.getElementById('currentAcc').value;
             const recipient = document.getElementById('p5_recipient').value;
             const now = new Date();
 
-            if (!recipient) return alert("Please enter the Recipient Name.");
+            if (!recipient) return alert("Recipient name is required!");
 
             const podData = {
                 "1_waybill": wb,
@@ -207,15 +257,23 @@
                 "7_discrepancy": document.getElementById('p7_disc').value || "",
                 "8_id_number": document.getElementById('p8_id').value || "",
                 "9_cell_number": document.getElementById('p9_cell').value || "",
-                "delivery_lat": lastLat, // Geographic proof
-                "delivery_lng": lastLng, // Geographic proof
+                "delivery_lat": lastLat,
+                "delivery_lng": lastLng,
                 "timestamp": firebase.database.ServerValue.TIMESTAMP
             };
 
             db.ref('pods').push(podData).then(() => {
-                alert("POD saved and location stamped.");
-                location.reload(); 
-            }).catch(err => alert("Submission error: " + err.message));
+                alert("POD Captured Successfully!");
+                // Clear form
+                document.getElementById('podForm').style.display = "none";
+                document.getElementById('p5_recipient').value = "";
+                document.getElementById('p8_id').value = "";
+                document.getElementById('p9_cell').value = "";
+                document.getElementById('p6_details').value = "";
+                document.getElementById('p7_disc').value = "";
+                // Refresh list automatically
+                loadTrips();
+            });
         }
 
         function cancelPOD() {
