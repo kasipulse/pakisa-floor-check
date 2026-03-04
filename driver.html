@@ -17,12 +17,16 @@
             display: flex; flex-direction: column; min-height: 100vh;
         }
         .header {
-            text-align: center; padding: 20px 15px; background: var(--white);
+            text-align: center; padding: 15px; background: var(--white);
             border-bottom: 3px solid var(--gold);
         }
-        .logo { max-width: 150px; height: auto; margin-bottom: 10px; }
+        .logo { 
+            max-width: 220px; /* Adjusted for the new logo aspect ratio */
+            height: auto; 
+            margin-bottom: 5px; 
+        }
         .company-name {
-            color: var(--royal-blue); font-weight: bold; font-size: 1.4rem;
+            color: var(--royal-blue); font-weight: bold; font-size: 1.2rem;
             margin: 0; text-transform: uppercase; letter-spacing: 1px;
         }
         .container { padding: 15px; flex: 1; }
@@ -40,6 +44,7 @@
             width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ccc; 
             border-radius: 4px; box-sizing: border-box; font-size: 1rem;
         }
+        input:focus { outline: none; border-color: var(--gold); }
         .wb-item { 
             background: var(--light-gray); padding: 12px; margin: 8px 0; 
             border-radius: 4px; cursor: pointer; display: flex; 
@@ -53,26 +58,28 @@
         .footer {
             text-align: center; padding: 20px; font-size: 0.75rem;
             color: #777; background: var(--light-gray); border-top: 1px solid #ddd;
+            line-height: 1.5;
         }
-        #trackingStatus { font-size: 0.7rem; color: #28a745; margin-top: 5px; display: none; }
+        #trackingStatus { font-size: 0.7rem; color: #28a745; margin-top: 8px; display: none; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1772435702/IMG_3665_peq1ua.jpg" alt="Pakisa Logo" class="logo">
-        <p class="company-name">Pakisa Logistics Express</p>
+        <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1771237505/pakisa_logistics_express_pty_ltd_logo-removebg-preview_gr7h0r.png" alt="Pakisa Logistics Express" class="logo">
+        <p class="company-name">Driver Portal</p>
     </div>
 
     <div class="container">
         <div class="card" id="loginCard">
             <h2>Driver Login</h2>
-            <input type="text" id="driverSearch" placeholder="Enter your name" oninput="loadTrips()">
-            <div id="trackingStatus">Active Tracking Enabled</div>
+            <input type="text" id="driverSearch" placeholder="Enter your full name" oninput="loadTrips()">
+            <div id="trackingStatus">● Live Tracking Active</div>
         </div>
 
         <div id="tripContainer" class="card" style="display:none;">
-            <h2>Assigned Waybills</h2>
+            <h2>Your Assigned Waybills</h2>
+            <p style="font-size: 0.8rem; color: #666;">Select a waybill to capture POD</p>
             <div id="waybillList"></div>
         </div>
 
@@ -81,27 +88,27 @@
             <input type="hidden" id="currentAcc">
 
             <label>Recipient Name *</label>
-            <input type="text" id="p5_recipient" placeholder="Full name of receiver">
+            <input type="text" id="p5_recipient" placeholder="Who is receiving the parcel?">
 
             <label>ID Number</label>
-            <input type="text" id="p8_id" placeholder="National ID or Passport">
+            <input type="text" id="p8_id" placeholder="ID or Passport Number">
 
             <label>Cell Number</label>
-            <input type="text" id="p9_cell" placeholder="Contact number">
+            <input type="text" id="p9_cell" placeholder="Receiver contact number">
 
             <label>Delivery Details</label>
-            <input type="text" id="p6_details" placeholder="e.g. Left at reception">
+            <input type="text" id="p6_details" placeholder="e.g. Received by security">
 
             <label>Discrepancy</label>
-            <input type="text" id="p7_disc" placeholder="e.g. Packaging torn">
+            <input type="text" id="p7_disc" placeholder="e.g. Seal broken / None">
 
             <button onclick="submitPOD()">Submit Proof of Delivery</button>
-            <button style="background:#6c757d; margin-top:10px;" onclick="cancelPOD()">Return to List</button>
+            <button style="background:#6c757d; margin-top:10px;" onclick="cancelPOD()">Back to Waybills</button>
         </div>
     </div>
 
     <div class="footer">
-        &copy; 2024 Pakisa Logistics Express<br>
+        &copy; 2026 Pakisa Logistics Express (Pty) Ltd<br>
         Designed by Mpho Mahlaba
     </div>
 
@@ -109,7 +116,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <script>
-        // CONFIG
+        // FIREBASE INITIALIZATION
         const firebaseConfig = { databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
@@ -118,7 +125,7 @@
         let lastLng = 0;
         let trackingStarted = false;
 
-        // 1. SILENT TRACKING LOGIC
+        // SILENT TRACKING ENGINE
         function startSilentTracking(driverId) {
             if (trackingStarted || !navigator.geolocation) return;
             trackingStarted = true;
@@ -129,6 +136,7 @@
                     lastLat = pos.coords.latitude;
                     lastLng = pos.coords.longitude;
 
+                    // Updates the 'drivers_live' node for Admin monitoring
                     db.ref('drivers_live/' + driverId).set({
                         driverId: driverId,
                         lat: lastLat,
@@ -137,16 +145,17 @@
                         updatedAt: firebase.database.ServerValue.TIMESTAMP
                     });
                 },
-                (err) => console.warn("Location error:", err.message),
-                { enableHighAccuracy: true, maximumAge: 10000 }
+                (err) => console.warn("GPS Access Error:", err.message),
+                { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
             );
         }
 
-        // 2. LOAD TRIPS & TRIGGER TRACKING
+        // LOAD TRIPS BASED ON DRIVER NAME
         function loadTrips() {
             const name = document.getElementById('driverSearch').value.trim();
             if (name.length < 3) return;
 
+            // Start tracking as soon as name is entered
             startSilentTracking(name);
 
             db.ref('tripsheets').orderByChild('driver').equalTo(name).on('value', snap => {
@@ -161,7 +170,7 @@
                         data.waybills.forEach(wb => {
                             const div = document.createElement('div');
                             div.className = "wb-item";
-                            div.innerHTML = `<span>${wb}</span> <span style="color:#777; font-size:0.8rem;">${data.companyId}</span>`;
+                            div.innerHTML = `<span>${wb}</span> <span style="color:#D4AF37; font-weight:bold;">${data.companyId}</span>`;
                             div.onclick = () => openPOD(wb, data.companyId);
                             list.appendChild(div);
                         });
@@ -179,14 +188,14 @@
             window.scrollTo(0,0);
         }
 
-        // 3. SUBMIT POD WITH LOCATION STAMP
+        // SUBMIT POD WITH COORDINATES (9-COLUMN FORMAT)
         function submitPOD() {
             const wb = document.getElementById('activeWb').innerText.replace("Waybill: ", "");
             const acc = document.getElementById('currentAcc').value;
             const recipient = document.getElementById('p5_recipient').value;
             const now = new Date();
 
-            if (!recipient) return alert("Recipient name is required.");
+            if (!recipient) return alert("Please enter the Recipient Name.");
 
             const podData = {
                 "1_waybill": wb,
@@ -198,15 +207,15 @@
                 "7_discrepancy": document.getElementById('p7_disc').value || "",
                 "8_id_number": document.getElementById('p8_id').value || "",
                 "9_cell_number": document.getElementById('p9_cell').value || "",
-                "delivery_lat": lastLat,
-                "delivery_lng": lastLng,
+                "delivery_lat": lastLat, // Geographic proof
+                "delivery_lng": lastLng, // Geographic proof
                 "timestamp": firebase.database.ServerValue.TIMESTAMP
             };
 
             db.ref('pods').push(podData).then(() => {
-                alert("Success: POD recorded.");
+                alert("POD saved and location stamped.");
                 location.reload(); 
-            }).catch(err => alert("Error: " + err.message));
+            }).catch(err => alert("Submission error: " + err.message));
         }
 
         function cancelPOD() {
