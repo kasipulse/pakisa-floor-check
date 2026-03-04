@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin - Dispatch & Export</title>
+    </head>
+<body>
+    <h2>Assign New Driver Trip</h2>
+    
+    <label for="driverName">Driver Name:</label>
+    <input type="text" id="driverName" placeholder="e.g. Thabo">
+
+    <label for="companySelect">Select Company:</label>
+    <select id="companySelect"></select>
+
+    <label for="waybillList">Waybills (one per line):</label>
+    <textarea id="waybillList" rows="5"></textarea>
+
+    <button onclick="handleDispatch()">Create Tripsheet</button>
+
+    <hr>
+
+    <h2>Parcel Perfect Export</h2>
+    <button onclick="downloadParcelPerfectReport()" style="background: green; color: white;">
+        Download POD Export (9-Column CSV)
+    </button>
+
+    <script>
+        // 1. LOAD COMPANIES INTO DROPDOWN
+        const loadCompanies = () => {
+            const select = document.getElementById('companySelect');
+            firebase.database().ref('companies').once('value', (snapshot) => {
+                snapshot.forEach((child) => {
+                    const opt = document.createElement('option');
+                    opt.value = child.key; // e.g. "FEDEX"
+                    opt.textContent = child.val().company || child.key;
+                    select.appendChild(opt);
+                });
+            });
+        };
+
+        // 2. CREATE TRIPSHEET
+        const handleDispatch = () => {
+            const driver = document.getElementById('driverName').value;
+            const companyKey = document.getElementById('companySelect').value;
+            const companyName = document.getElementById('companySelect').options[document.getElementById('companySelect').selectedIndex].text;
+            const rawWbs = document.getElementById('waybillList').value;
+            const wbs = rawWbs.split('\n').map(w => w.trim()).filter(w => w !== "");
+
+            if(!driver || wbs.length === 0) return alert("Fill in driver and waybills!");
+
+            firebase.database().ref('tripsheets').push({
+                driver: driver,
+                companyId: companyKey,
+                companyName: companyName,
+                status: "active",
+                waybills: wbs,
+                timestamp: Date.now()
+            }).then(() => {
+                alert("Trip assigned!");
+                document.getElementById('waybillList').value = "";
+            });
+        };
+
+        // 3. EXPORT PODs (9-Column Format)
+        const downloadParcelPerfectReport = () => {
+            firebase.database().ref('pods').once('value', (snapshot) => {
+                let csv = "Waybill,Acc Number,POD Date,POD Time,Recipient,Details,Discrepancy,ID number,Cell number\n";
+                snapshot.forEach((child) => {
+                    const v = child.val();
+                    const row = [
+                        v["1_waybill"], v["2_acc_number"], v["3_pod_date"], v["4_pod_time"],
+                        `"${v["5_recipient"]}"`, `"${v["6_details"] || ''}"`, 
+                        `"${v["7_discrepancy"] || ''}"`, `"${v["8_id_number"] || ''}"`, 
+                        `"${v["9_cell_number"] || ''}"`
+                    ].join(",");
+                    csv += row + "\n";
+                });
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ParcelPerfect_PODs.csv`;
+                a.click();
+            });
+        };
+
+        // Initialize
+        window.onload = loadCompanies;
+    </script>
+</body>
+</html>
