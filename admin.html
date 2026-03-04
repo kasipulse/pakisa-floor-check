@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pakisa Admin - Dispatch & POD Export</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; line-height: 1.5; }
+        .box { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
+        input, select, textarea { width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }
+        .btn-blue { background: #007bff; color: white; }
+        .btn-green { background: #28a745; color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <h3>1. Assign Trip (Dispatcher)</h3>
+        <label for="driverName">Driver Name</label>
+        <input type="text" id="driverName" placeholder="Enter Driver Name">
+
+        <label for="companySelect">Select Client (Acc Number)</label>
+        <select id="companySelect"></select>
+
+        <label for="waybillList">Waybills (Paste list here - one per line)</label>
+        <textarea id="waybillList" rows="6" placeholder="WB001&#10;WB002&#10;WB003"></textarea>
+
+        <button class="btn-blue" onclick="handleDispatch()">Create Tripsheet</button>
+    </div>
+
+    <div class="box">
+        <h3>2. Reporting</h3>
+        <button class="btn-green" onclick="downloadPODReport()">Download Parcel Perfect CSV (9 Columns)</button>
+    </div>
+
+    <script>
+        // --- 1. Load Companies for Dropdown ---
+        function initAdmin() {
+            const select = document.getElementById('companySelect');
+            firebase.database().ref('companies').once('value', (snap) => {
+                snap.forEach((child) => {
+                    const data = child.val();
+                    const opt = document.createElement('option');
+                    opt.value = child.key; // e.g., FEDEX
+                    opt.textContent = `${data.company} (${child.key})`;
+                    select.appendChild(opt);
+                });
+            });
+        }
+
+        // --- 2. Create the Tripsheet Node ---
+        function handleDispatch() {
+            const driver = document.getElementById('driverName').value;
+            const companyKey = document.getElementById('companySelect').value;
+            const companyName = document.getElementById('companySelect').options[document.getElementById('companySelect').selectedIndex].text;
+            const wbs = document.getElementById('waybillList').value.split('\n').filter(w => w.trim() !== "");
+
+            if(!driver || wbs.length === 0) return alert("Please fill in Driver and Waybills.");
+
+            const tripData = {
+                driver: driver,
+                companyId: companyKey,
+                companyName: companyName,
+                status: "active",
+                waybills: wbs,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+
+            firebase.database().ref('tripsheets').push(tripData).then(() => {
+                alert("Tripsheet created! You can now see the 'tripsheets' node in Firebase.");
+                document.getElementById('waybillList').value = "";
+            }).catch(err => alert("Error: Make sure you are logged in! " + err.message));
+        }
+
+        // --- 3. CSV Export Logic (Parcel Perfect Format) ---
+        function downloadPODReport() {
+            firebase.database().ref('pods').once('value', (snap) => {
+                let csv = "Waybill,Acc Number,POD Date,POD Time,Recipient,Details,Discrepancy,ID number,Cell number\n";
+                
+                snap.forEach(child => {
+                    const v = child.val();
+                    const row = [
+                        v["1_waybill"],
+                        v["2_acc_number"],
+                        v["3_pod_date"],
+                        v["4_pod_time"],
+                        `"${v["5_recipient"]}"`,
+                        `"${v["6_details"] || ""}"`,
+                        `"${v["7_discrepancy"] || ""}"`,
+                        `"${v["8_id_number"] || ""}"`,
+                        `"${v["9_cell_number"] || ""}"`
+                    ].join(",");
+                    csv += row + "\n";
+                });
+
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ParcelPerfect_PODs_${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+            });
+        }
+
+        window.onload = initAdmin;
+    </script>
+</body>
+</html>
