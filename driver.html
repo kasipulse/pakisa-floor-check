@@ -5,56 +5,165 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pakisa Driver - POD Entry</title>
     <style>
-        body { font-family: sans-serif; padding: 15px; background: #f8f9fa; }
-        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; }
-        h2 { color: #333; font-size: 1.2rem; }
-        label { font-weight: bold; display: block; margin-top: 10px; font-size: 0.9rem; }
-        input, select { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
-        .wb-item { background: #e9ecef; padding: 10px; margin: 5px 0; border-radius: 5px; cursor: pointer; display: flex; justify-content: space-between; }
-        .wb-item:hover { background: #dee2e6; }
-        button { width: 100%; padding: 15px; background: #28a745; color: white; border: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }
+        :root {
+            --royal-blue: #002366;
+            --gold: #D4AF37;
+            --white: #ffffff;
+            --light-gray: #f4f4f4;
+        }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            padding: 0; 
+            margin: 0; 
+            background: var(--white); 
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 15px;
+            background: var(--white);
+            border-bottom: 3px solid var(--gold);
+        }
+        .logo {
+            max-width: 150px;
+            height: auto;
+            margin-bottom: 10px;
+        }
+        .company-name {
+            color: var(--royal-blue);
+            font-weight: bold;
+            font-size: 1.4rem;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .container {
+            padding: 15px;
+            flex: 1;
+        }
+        .card { 
+            background: var(--white); 
+            padding: 20px; 
+            border-radius: 8px; 
+            border: 1px solid #ddd;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+            margin-bottom: 20px; 
+        }
+        h2 { 
+            color: var(--royal-blue); 
+            font-size: 1.1rem; 
+            margin-top: 0;
+            border-bottom: 1px solid var(--gold);
+            padding-bottom: 8px;
+        }
+        label { font-weight: bold; display: block; margin-top: 12px; font-size: 0.85rem; color: var(--royal-blue); }
+        input, select { 
+            width: 100%; 
+            padding: 12px; 
+            margin-top: 5px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            box-sizing: border-box; 
+            font-size: 1rem;
+        }
+        input:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 5px rgba(212, 175, 55, 0.3);
+        }
+        .wb-item { 
+            background: var(--light-gray); 
+            padding: 12px; 
+            margin: 8px 0; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            display: flex; 
+            justify-content: space-between; 
+            border-left: 4px solid var(--royal-blue);
+            transition: 0.2s;
+        }
+        .wb-item:hover { background: #e9ecef; border-left-color: var(--gold); }
+        
+        button { 
+            width: 100%; 
+            padding: 15px; 
+            background: var(--royal-blue); 
+            color: var(--white); 
+            border: none; 
+            border-radius: 4px; 
+            font-weight: bold; 
+            font-size: 1rem;
+            margin-top: 20px; 
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        button:active { background: #001a4d; }
+        .btn-secondary { background: #6c757d; margin-top: 10px; }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 0.75rem;
+            color: #777;
+            background: var(--light-gray);
+            border-top: 1px solid #ddd;
+        }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h2>🚚 Driver Login</h2>
-        <input type="text" id="driverSearch" placeholder="Enter your name (e.g. Thabo)" oninput="loadTrips()">
+    <div class="header">
+        <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1772435702/IMG_3665_peq1ua.jpg" alt="Pakisa Logo" class="logo">
+        <p class="company-name">Pakisa Logistics Express</p>
     </div>
 
-    <div id="tripContainer" class="card" style="display:none;">
-        <h2>📦 Your Assigned Waybills</h2>
-        <div id="waybillList"></div>
+    <div class="container">
+        <div class="card">
+            <h2>Driver Login</h2>
+            <input type="text" id="driverSearch" placeholder="Enter your name" oninput="loadTrips()">
+        </div>
+
+        <div id="tripContainer" class="card" style="display:none;">
+            <h2>Assigned Waybills</h2>
+            <div id="waybillList"></div>
+        </div>
+
+        <div id="podForm" class="card" style="display:none;">
+            <h2 id="activeWb">Waybill: -</h2>
+            <input type="hidden" id="currentAcc">
+
+            <label>Recipient Name *</label>
+            <input type="text" id="p5_recipient" placeholder="Full name of receiver">
+
+            <label>ID Number</label>
+            <input type="text" id="p8_id" placeholder="National ID or Passport">
+
+            <label>Cell Number</label>
+            <input type="text" id="p9_cell" placeholder="Contact number">
+
+            <label>Delivery Details</label>
+            <input type="text" id="p6_details" placeholder="e.g. Left at reception">
+
+            <label>Discrepancy</label>
+            <input type="text" id="p7_disc" placeholder="e.g. Packaging torn">
+
+            <button onclick="submitPOD()">Submit Proof of Delivery</button>
+            <button class="btn-secondary" onclick="cancelPOD()">Return to List</button>
+        </div>
     </div>
 
-    <div id="podForm" class="card" style="display:none;">
-        <h2 id="activeWb">Waybill: -</h2>
-        <input type="hidden" id="currentAcc">
-
-        <label>Recipient Name *</label>
-        <input type="text" id="p5_recipient" placeholder="Who received it?">
-
-        <label>ID Number (Optional)</label>
-        <input type="text" id="p8_id" placeholder="ID Number">
-
-        <label>Cell Number (Optional)</label>
-        <input type="text" id="p9_cell" placeholder="Cell Number">
-
-        <label>Details / Notes</label>
-        <input type="text" id="p6_details" placeholder="e.g. Left at gate">
-
-        <label>Discrepancy</label>
-        <input type="text" id="p7_disc" placeholder="e.g. Box crushed">
-
-        <button onclick="submitPOD()">Submit Proof of Delivery</button>
-        <button style="background:#6c757d;" onclick="cancelPOD()">Cancel</button>
+    <div class="footer">
+        &copy; 2024 Pakisa Logistics Express<br>
+        Designed by Mpho Mahlaba
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <script>
-        // Use your existing config here
         const firebaseConfig = { databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
@@ -66,20 +175,23 @@
             db.ref('tripsheets').orderByChild('driver').equalTo(name).on('value', snap => {
                 const list = document.getElementById('waybillList');
                 list.innerHTML = "";
-                document.getElementById('tripContainer').style.display = "block";
-
+                const container = document.getElementById('tripContainer');
+                
+                let hasTrips = false;
                 snap.forEach(trip => {
                     const data = trip.val();
-                    if (data.status === "active") {
+                    if (data.status === "active" && data.waybills) {
+                        hasTrips = true;
                         data.waybills.forEach(wb => {
                             const div = document.createElement('div');
                             div.className = "wb-item";
-                            div.innerHTML = `<span>${wb}</span> <span>${data.companyId}</span>`;
+                            div.innerHTML = `<span>${wb}</span> <span style="color:#777; font-size:0.8rem;">${data.companyId}</span>`;
                             div.onclick = () => openPOD(wb, data.companyId);
                             list.appendChild(div);
                         });
                     }
                 });
+                container.style.display = hasTrips ? "block" : "none";
             });
         }
 
@@ -88,19 +200,23 @@
             document.getElementById('currentAcc').value = acc;
             document.getElementById('podForm').style.display = "block";
             document.getElementById('tripContainer').style.display = "none";
+            window.scrollTo(0,0);
         }
 
         function submitPOD() {
             const wb = document.getElementById('activeWb').innerText.replace("Waybill: ", "");
             const acc = document.getElementById('currentAcc').value;
+            const recipient = document.getElementById('p5_recipient').value;
             const now = new Date();
+
+            if (!recipient) return alert("Recipient name is required.");
 
             const podData = {
                 "1_waybill": wb,
                 "2_acc_number": acc,
                 "3_pod_date": now.toISOString().split('T')[0],
                 "4_pod_time": now.toLocaleTimeString('en-ZA', { hour12: false }),
-                "5_recipient": document.getElementById('p5_recipient').value,
+                "5_recipient": recipient,
                 "6_details": document.getElementById('p6_details').value || "",
                 "7_discrepancy": document.getElementById('p7_disc').value || "",
                 "8_id_number": document.getElementById('p8_id').value || "",
@@ -108,12 +224,10 @@
                 "timestamp": firebase.database.ServerValue.TIMESTAMP
             };
 
-            if (!podData["5_recipient"]) return alert("Recipient is required!");
-
             db.ref('pods').push(podData).then(() => {
-                alert("POD Saved successfully!");
+                alert("Success: POD recorded.");
                 location.reload(); 
-            });
+            }).catch(err => alert("Error: " + err.message));
         }
 
         function cancelPOD() {
