@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pakisa Floor System - Driver & Admin</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f4f4f4; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input, select, textarea { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-assign { background: #007bff; color: white; }
+        .btn-export { background: #28a745; color: white; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>🚚 Admin: Assign Trip</h2>
+        <input type="text" id="driverName" placeholder="Driver Name (e.g. Thabo)">
+        <select id="companySelect"><option value="">Loading Companies...</option></select>
+        <textarea id="wbList" rows="5" placeholder="Paste Waybills here (one per line)"></textarea>
+        <button class="btn-assign" onclick="createTrip()">Assign Trip to Driver</button>
+    </div>
+
+    <div class="card">
+        <h2>📊 Report: Parcel Perfect Export</h2>
+        <button class="btn-export" onclick="exportCSV()">Download 9-Column POD Report</button>
+    </div>
+
+    <script>
+        // PASTE YOUR FIREBASE CONFIG HERE
+        const firebaseConfig = {
+            databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/",
+            // Add your apiKey, authDomain, etc. from your existing project
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Load companies from your existing node
+        db.ref('companies').on('value', (snap) => {
+            const select = document.getElementById('companySelect');
+            select.innerHTML = '<option value="">Select Account</option>';
+            snap.forEach(child => {
+                const opt = document.createElement('option');
+                opt.value = child.key; 
+                opt.textContent = child.val().company;
+                select.appendChild(opt);
+            });
+        });
+
+        // CREATE THE TRIPSHEET NODE
+        function createTrip() {
+            const driver = document.getElementById('driverName').value;
+            const acc = document.getElementById('companySelect').value;
+            const wbs = document.getElementById('wbList').value.split('\n').filter(w => w.trim() !== "");
+
+            if (!driver || !acc || wbs.length === 0) return alert("Missing info!");
+
+            db.ref('tripsheets').push({
+                driver: driver,
+                accNumber: acc,
+                waybills: wbs,
+                status: "active",
+                timestamp: Date.now()
+            }).then(() => {
+                alert("Trip Created! The 'tripsheets' node is now visible.");
+                document.getElementById('wbList').value = "";
+            });
+        }
+
+        // EXPORT TO 9-COLUMN CSV (Based on your image)
+        function exportCSV() {
+            db.ref('pods').once('value', (snap) => {
+                let csv = "Waybill,Acc Number,POD Date,POD Time,Recipient,Details,Discrepancy,ID number,Cell number\n";
+                snap.forEach(child => {
+                    const v = child.val();
+                    const row = [
+                        v["1_waybill"], v["2_acc_number"], v["3_pod_date"], v["4_pod_time"],
+                        `"${v["5_recipient"]}"`, `"${v["6_details"] || ""}"`, 
+                        `"${v["7_discrepancy"] || ""}"`, `"${v["8_id_number"] || ""}"`, 
+                        `"${v["9_cell_number"] || ""}"`
+                    ].join(",");
+                    csv += row + "\n";
+                });
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = "ParcelPerfect_Upload.csv"; a.click();
+            });
+        }
+    </script>
+</body>
+</html>
