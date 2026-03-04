@@ -1,151 +1,125 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pakisa Driver Tracker</title>
-
-<style>
-body {
-  font-family: Arial, sans-serif;
-  background:#ffffff;
-  padding:20px;
-  text-align:center;
-}
-
-.card {
-  max-width:420px;
-  margin:auto;
-  padding:25px;
-  border-radius:16px;
-  background:#f7f9fc;
-  box-shadow:0 8px 25px rgba(0,0,0,0.08);
-}
-
-h2 {
-  margin-top:10px;
-  color:#0a2b52;
-}
-
-button {
-  width:100%;
-  padding:14px;
-  margin-top:15px;
-  font-size:16px;
-  border:none;
-  border-radius:10px;
-  background:#0a2b52;
-  color:white;
-  cursor:pointer;
-}
-
-.status {
-  margin-top:15px;
-  font-size:14px;
-  color:#2ecc71;
-  font-weight:bold;
-}
-
-.small {
-  font-size:12px;
-  color:#666;
-  margin-top:8px;
-}
-</style>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-/* 🔥 YOUR FIREBASE */
-const firebaseConfig = {
-  apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
-  authDomain: "pakisa-floor.firebaseapp.com",
-  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/",
-  projectId: "pakisa-floor"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-/* 🔑 DRIVER ID (auto or stored) */
-let driverId = localStorage.getItem("driverId");
-
-if (!driverId) {
-  driverId = "DRV-" + Math.floor(Math.random()*100000);
-  localStorage.setItem("driverId", driverId);
-}
-
-/* 🚀 AUTO TRACKING */
-let watchId = null;
-
-function startTracking() {
-
-  if (!navigator.geolocation) {
-    alert("Location not supported");
-    return;
-  }
-
-  document.getElementById("status").innerText = "Tracking live…";
-
-  watchId = navigator.geolocation.watchPosition(
-    async pos => {
-
-      const data = {
-        driverId,
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-        accuracy: pos.coords.accuracy,
-        updatedAt: Date.now()
-      };
-
-      await set(ref(db, "drivers_live/" + driverId), data);
-
-    },
-    err => {
-      document.getElementById("status").innerText = "Location error";
-    },
-    {
-      enableHighAccuracy: true,
-      maximumAge: 10000,
-      timeout: 15000
-    }
-  );
-}
-
-/* auto start when page opens */
-window.addEventListener("DOMContentLoaded", () => {
-  startTracking();
-});
-
-/* manual button (optional reassurance) */
-window.startShift = () => {
-  startTracking();
-};
-</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pakisa Driver - POD Entry</title>
+    <style>
+        body { font-family: sans-serif; padding: 15px; background: #f8f9fa; }
+        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        h2 { color: #333; font-size: 1.2rem; }
+        label { font-weight: bold; display: block; margin-top: 10px; font-size: 0.9rem; }
+        input, select { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        .wb-item { background: #e9ecef; padding: 10px; margin: 5px 0; border-radius: 5px; cursor: pointer; display: flex; justify-content: space-between; }
+        .wb-item:hover { background: #dee2e6; }
+        button { width: 100%; padding: 15px; background: #28a745; color: white; border: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }
+    </style>
 </head>
-
 <body>
 
-<div class="card">
+    <div class="card">
+        <h2>🚚 Driver Login</h2>
+        <input type="text" id="driverSearch" placeholder="Enter your name (e.g. Thabo)" oninput="loadTrips()">
+    </div>
 
-  <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1771237505/pakisa_logistics_express_pty_ltd_logo-removebg-preview_gr7h0r.png"
-       width="160"
-       style="margin-bottom:15px;">
+    <div id="tripContainer" class="card" style="display:none;">
+        <h2>📦 Your Assigned Waybills</h2>
+        <div id="waybillList"></div>
+    </div>
 
-  <h2>Driver Tracker</h2>
+    <div id="podForm" class="card" style="display:none;">
+        <h2 id="activeWb">Waybill: -</h2>
+        <input type="hidden" id="currentAcc">
 
-  <button onclick="startShift()">Start Shift</button>
+        <label>Recipient Name *</label>
+        <input type="text" id="p5_recipient" placeholder="Who received it?">
 
-  <div id="status" class="status">
-    Initialising…
-  </div>
+        <label>ID Number (Optional)</label>
+        <input type="text" id="p8_id" placeholder="ID Number">
 
-  <div class="small">
-    Leave this page open during your shift
-  </div>
+        <label>Cell Number (Optional)</label>
+        <input type="text" id="p9_cell" placeholder="Cell Number">
 
-</div>
+        <label>Details / Notes</label>
+        <input type="text" id="p6_details" placeholder="e.g. Left at gate">
 
+        <label>Discrepancy</label>
+        <input type="text" id="p7_disc" placeholder="e.g. Box crushed">
+
+        <button onclick="submitPOD()">Submit Proof of Delivery</button>
+        <button style="background:#6c757d;" onclick="cancelPOD()">Cancel</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <script>
+        // Use your existing config here
+        const firebaseConfig = { databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        function loadTrips() {
+            const name = document.getElementById('driverSearch').value.trim();
+            if (name.length < 3) return;
+
+            db.ref('tripsheets').orderByChild('driver').equalTo(name).on('value', snap => {
+                const list = document.getElementById('waybillList');
+                list.innerHTML = "";
+                document.getElementById('tripContainer').style.display = "block";
+
+                snap.forEach(trip => {
+                    const data = trip.val();
+                    if (data.status === "active") {
+                        data.waybills.forEach(wb => {
+                            const div = document.createElement('div');
+                            div.className = "wb-item";
+                            div.innerHTML = `<span>${wb}</span> <span>${data.companyId}</span>`;
+                            div.onclick = () => openPOD(wb, data.companyId);
+                            list.appendChild(div);
+                        });
+                    }
+                });
+            });
+        }
+
+        function openPOD(wb, acc) {
+            document.getElementById('activeWb').innerText = "Waybill: " + wb;
+            document.getElementById('currentAcc').value = acc;
+            document.getElementById('podForm').style.display = "block";
+            document.getElementById('tripContainer').style.display = "none";
+        }
+
+        function submitPOD() {
+            const wb = document.getElementById('activeWb').innerText.replace("Waybill: ", "");
+            const acc = document.getElementById('currentAcc').value;
+            const now = new Date();
+
+            const podData = {
+                "1_waybill": wb,
+                "2_acc_number": acc,
+                "3_pod_date": now.toISOString().split('T')[0],
+                "4_pod_time": now.toLocaleTimeString('en-ZA', { hour12: false }),
+                "5_recipient": document.getElementById('p5_recipient').value,
+                "6_details": document.getElementById('p6_details').value || "",
+                "7_discrepancy": document.getElementById('p7_disc').value || "",
+                "8_id_number": document.getElementById('p8_id').value || "",
+                "9_cell_number": document.getElementById('p9_cell').value || "",
+                "timestamp": firebase.database.ServerValue.TIMESTAMP
+            };
+
+            if (!podData["5_recipient"]) return alert("Recipient is required!");
+
+            db.ref('pods').push(podData).then(() => {
+                alert("POD Saved successfully!");
+                location.reload(); 
+            });
+        }
+
+        function cancelPOD() {
+            document.getElementById('podForm').style.display = "none";
+            document.getElementById('tripContainer').style.display = "block";
+        }
+    </script>
 </body>
 </html>
