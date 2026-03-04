@@ -13,104 +13,48 @@
         }
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            padding: 0; 
-            margin: 0; 
-            background: var(--white); 
-            color: #333;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
+            padding: 0; margin: 0; background: var(--white); color: #333;
+            display: flex; flex-direction: column; min-height: 100vh;
         }
         .header {
-            text-align: center;
-            padding: 20px 15px;
-            background: var(--white);
+            text-align: center; padding: 20px 15px; background: var(--white);
             border-bottom: 3px solid var(--gold);
         }
-        .logo {
-            max-width: 150px;
-            height: auto;
-            margin-bottom: 10px;
-        }
+        .logo { max-width: 150px; height: auto; margin-bottom: 10px; }
         .company-name {
-            color: var(--royal-blue);
-            font-weight: bold;
-            font-size: 1.4rem;
-            margin: 0;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            color: var(--royal-blue); font-weight: bold; font-size: 1.4rem;
+            margin: 0; text-transform: uppercase; letter-spacing: 1px;
         }
-        .container {
-            padding: 15px;
-            flex: 1;
-        }
+        .container { padding: 15px; flex: 1; }
         .card { 
-            background: var(--white); 
-            padding: 20px; 
-            border-radius: 8px; 
-            border: 1px solid #ddd;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+            background: var(--white); padding: 20px; border-radius: 8px; 
+            border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
             margin-bottom: 20px; 
         }
         h2 { 
-            color: var(--royal-blue); 
-            font-size: 1.1rem; 
-            margin-top: 0;
-            border-bottom: 1px solid var(--gold);
-            padding-bottom: 8px;
+            color: var(--royal-blue); font-size: 1.1rem; margin-top: 0;
+            border-bottom: 1px solid var(--gold); padding-bottom: 8px;
         }
         label { font-weight: bold; display: block; margin-top: 12px; font-size: 0.85rem; color: var(--royal-blue); }
-        input, select { 
-            width: 100%; 
-            padding: 12px; 
-            margin-top: 5px; 
-            border: 1px solid #ccc; 
-            border-radius: 4px; 
-            box-sizing: border-box; 
-            font-size: 1rem;
-        }
-        input:focus {
-            outline: none;
-            border-color: var(--gold);
-            box-shadow: 0 0 5px rgba(212, 175, 55, 0.3);
+        input { 
+            width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ccc; 
+            border-radius: 4px; box-sizing: border-box; font-size: 1rem;
         }
         .wb-item { 
-            background: var(--light-gray); 
-            padding: 12px; 
-            margin: 8px 0; 
-            border-radius: 4px; 
-            cursor: pointer; 
-            display: flex; 
-            justify-content: space-between; 
-            border-left: 4px solid var(--royal-blue);
-            transition: 0.2s;
+            background: var(--light-gray); padding: 12px; margin: 8px 0; 
+            border-radius: 4px; cursor: pointer; display: flex; 
+            justify-content: space-between; border-left: 4px solid var(--royal-blue);
         }
-        .wb-item:hover { background: #e9ecef; border-left-color: var(--gold); }
-        
         button { 
-            width: 100%; 
-            padding: 15px; 
-            background: var(--royal-blue); 
-            color: var(--white); 
-            border: none; 
-            border-radius: 4px; 
-            font-weight: bold; 
-            font-size: 1rem;
-            margin-top: 20px; 
-            cursor: pointer;
-            text-transform: uppercase;
+            width: 100%; padding: 15px; background: var(--royal-blue); 
+            color: var(--white); border: none; border-radius: 4px; 
+            font-weight: bold; margin-top: 20px; cursor: pointer; text-transform: uppercase;
         }
-        button:active { background: #001a4d; }
-        .btn-secondary { background: #6c757d; margin-top: 10px; }
-
         .footer {
-            text-align: center;
-            padding: 20px;
-            font-size: 0.75rem;
-            color: #777;
-            background: var(--light-gray);
-            border-top: 1px solid #ddd;
+            text-align: center; padding: 20px; font-size: 0.75rem;
+            color: #777; background: var(--light-gray); border-top: 1px solid #ddd;
         }
+        #trackingStatus { font-size: 0.7rem; color: #28a745; margin-top: 5px; display: none; }
     </style>
 </head>
 <body>
@@ -121,9 +65,10 @@
     </div>
 
     <div class="container">
-        <div class="card">
+        <div class="card" id="loginCard">
             <h2>Driver Login</h2>
             <input type="text" id="driverSearch" placeholder="Enter your name" oninput="loadTrips()">
+            <div id="trackingStatus">Active Tracking Enabled</div>
         </div>
 
         <div id="tripContainer" class="card" style="display:none;">
@@ -151,7 +96,7 @@
             <input type="text" id="p7_disc" placeholder="e.g. Packaging torn">
 
             <button onclick="submitPOD()">Submit Proof of Delivery</button>
-            <button class="btn-secondary" onclick="cancelPOD()">Return to List</button>
+            <button style="background:#6c757d; margin-top:10px;" onclick="cancelPOD()">Return to List</button>
         </div>
     </div>
 
@@ -164,20 +109,51 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <script>
+        // CONFIG
         const firebaseConfig = { databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        let lastLat = 0;
+        let lastLng = 0;
+        let trackingStarted = false;
+
+        // 1. SILENT TRACKING LOGIC
+        function startSilentTracking(driverId) {
+            if (trackingStarted || !navigator.geolocation) return;
+            trackingStarted = true;
+            document.getElementById('trackingStatus').style.display = "block";
+
+            navigator.geolocation.watchPosition(
+                (pos) => {
+                    lastLat = pos.coords.latitude;
+                    lastLng = pos.coords.longitude;
+
+                    db.ref('drivers_live/' + driverId).set({
+                        driverId: driverId,
+                        lat: lastLat,
+                        lng: lastLng,
+                        accuracy: pos.coords.accuracy,
+                        updatedAt: firebase.database.ServerValue.TIMESTAMP
+                    });
+                },
+                (err) => console.warn("Location error:", err.message),
+                { enableHighAccuracy: true, maximumAge: 10000 }
+            );
+        }
+
+        // 2. LOAD TRIPS & TRIGGER TRACKING
         function loadTrips() {
             const name = document.getElementById('driverSearch').value.trim();
             if (name.length < 3) return;
 
+            startSilentTracking(name);
+
             db.ref('tripsheets').orderByChild('driver').equalTo(name).on('value', snap => {
                 const list = document.getElementById('waybillList');
                 list.innerHTML = "";
-                const container = document.getElementById('tripContainer');
-                
                 let hasTrips = false;
+
                 snap.forEach(trip => {
                     const data = trip.val();
                     if (data.status === "active" && data.waybills) {
@@ -191,7 +167,7 @@
                         });
                     }
                 });
-                container.style.display = hasTrips ? "block" : "none";
+                document.getElementById('tripContainer').style.display = hasTrips ? "block" : "none";
             });
         }
 
@@ -203,6 +179,7 @@
             window.scrollTo(0,0);
         }
 
+        // 3. SUBMIT POD WITH LOCATION STAMP
         function submitPOD() {
             const wb = document.getElementById('activeWb').innerText.replace("Waybill: ", "");
             const acc = document.getElementById('currentAcc').value;
@@ -221,6 +198,8 @@
                 "7_discrepancy": document.getElementById('p7_disc').value || "",
                 "8_id_number": document.getElementById('p8_id').value || "",
                 "9_cell_number": document.getElementById('p9_cell').value || "",
+                "delivery_lat": lastLat,
+                "delivery_lng": lastLng,
                 "timestamp": firebase.database.ServerValue.TIMESTAMP
             };
 
