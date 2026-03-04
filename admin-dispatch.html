@@ -39,28 +39,39 @@
         };
 
         // 2. CREATE TRIPSHEET
-        const handleDispatch = () => {
-            const driver = document.getElementById('driverName').value;
-            const companyKey = document.getElementById('companySelect').value;
-            const companyName = document.getElementById('companySelect').options[document.getElementById('companySelect').selectedIndex].text;
-            const rawWbs = document.getElementById('waybillList').value;
-            const wbs = rawWbs.split('\n').map(w => w.trim()).filter(w => w !== "");
+       const handleDispatch = () => {
+    const driver = document.getElementById('driverName').value;
+    const select = document.getElementById('companySelect');
+    
+    // Check if a company is actually selected
+    if (select.selectedIndex === -1 || select.value === "") {
+        return alert("Please wait for companies to load and select one.");
+    }
 
-            if(!driver || wbs.length === 0) return alert("Fill in driver and waybills!");
+    const companyKey = select.value;
+    const companyName = select.options[select.selectedIndex].text;
+    const rawWbs = document.getElementById('waybillList').value;
+    const wbs = rawWbs.split('\n').map(w => w.trim()).filter(w => w !== "");
 
-            firebase.database().ref('tripsheets').push({
-                driver: driver,
-                companyId: companyKey,
-                companyName: companyName,
-                status: "active",
-                waybills: wbs,
-                timestamp: Date.now()
-            }).then(() => {
-                alert("Trip assigned!");
-                document.getElementById('waybillList').value = "";
-            });
-        };
+    if(!driver || wbs.length === 0) return alert("Fill in driver and waybills!");
 
+    // This creates the 'tripsheets' node
+    firebase.database().ref('tripsheets').push({
+        driver: driver,
+        companyId: companyKey,
+        companyName: companyName,
+        status: "active",
+        waybills: wbs,
+        timestamp: Date.now()
+    }).then(() => {
+        alert("Trip assigned! Check Firebase now—the node should be there.");
+        document.getElementById('waybillList').value = "";
+    }).catch(err => {
+        console.error("Firebase Error:", err);
+        alert("Failed to save: " + err.message);
+    });
+};
+        
         // 3. EXPORT PODs (9-Column Format)
         const downloadParcelPerfectReport = () => {
             firebase.database().ref('pods').once('value', (snapshot) => {
