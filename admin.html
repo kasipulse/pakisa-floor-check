@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pakisa Admin - Dispatch & POD Export</title>
+
     <style>
         body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; line-height: 1.5; }
         .box { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
@@ -12,11 +13,33 @@
         .btn-blue { background: #007bff; color: white; }
         .btn-green { background: #28a745; color: white; }
     </style>
+
+    <!-- ✅ Firebase Compat SDK (REQUIRED) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+    <!-- ✅ Firebase Init -->
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+            authDomain: "pakisa-floor.firebaseapp.com",
+            databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com",
+            projectId: "pakisa-floor",
+            storageBucket: "pakisa-floor.firebasestorage.app",
+            messagingSenderId: "1003516506618",
+            appId: "1:1003516506618:web:777d702f93616b6e323443",
+            measurementId: "G-JBZ8DYW49B"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+    </script>
 </head>
+
 <body>
 
     <div class="box">
         <h3>1. Assign Trip (Dispatcher)</h3>
+
         <label for="driverName">Driver Name</label>
         <input type="text" id="driverName" placeholder="Enter Driver Name">
 
@@ -38,25 +61,40 @@
         // --- 1. Load Companies for Dropdown ---
         function initAdmin() {
             const select = document.getElementById('companySelect');
+
             firebase.database().ref('companies').once('value', (snap) => {
+                select.innerHTML = '<option value="">-- Select Client --</option>';
+
                 snap.forEach((child) => {
                     const data = child.val();
                     const opt = document.createElement('option');
-                    opt.value = child.key; // e.g., FEDEX
+                    opt.value = child.key;
                     opt.textContent = `${data.company} (${child.key})`;
                     select.appendChild(opt);
                 });
+            }).catch(err => {
+                console.error(err);
+                alert("Error loading companies. Check database rules.");
             });
         }
 
         // --- 2. Create the Tripsheet Node ---
         function handleDispatch() {
-            const driver = document.getElementById('driverName').value;
-            const companyKey = document.getElementById('companySelect').value;
-            const companyName = document.getElementById('companySelect').options[document.getElementById('companySelect').selectedIndex].text;
-            const wbs = document.getElementById('waybillList').value.split('\n').filter(w => w.trim() !== "");
+            const driver = document.getElementById('driverName').value.trim();
+            const companySelect = document.getElementById('companySelect');
+            const companyKey = companySelect.value;
+            const companyName = companySelect.options[companySelect.selectedIndex]?.text || "";
 
-            if(!driver || wbs.length === 0) return alert("Please fill in Driver and Waybills.");
+            const wbs = document.getElementById('waybillList')
+                .value
+                .split('\n')
+                .map(w => w.trim())
+                .filter(w => w !== "");
+
+            if (!driver || !companyKey || wbs.length === 0) {
+                alert("Please fill in Driver, Client and Waybills.");
+                return;
+            }
 
             const tripData = {
                 driver: driver,
@@ -67,30 +105,37 @@
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             };
 
-            firebase.database().ref('tripsheets').push(tripData).then(() => {
-                alert("Tripsheet created! You can now see the 'tripsheets' node in Firebase.");
-                document.getElementById('waybillList').value = "";
-            }).catch(err => alert("Error: Make sure you are logged in! " + err.message));
+            firebase.database().ref('tripsheets').push(tripData)
+                .then(() => {
+                    alert("✅ Tripsheet created!");
+                    document.getElementById('waybillList').value = "";
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert("❌ Error writing to Firebase. Check rules.");
+                });
         }
 
         // --- 3. CSV Export Logic (Parcel Perfect Format) ---
         function downloadPODReport() {
             firebase.database().ref('pods').once('value', (snap) => {
                 let csv = "Waybill,Acc Number,POD Date,POD Time,Recipient,Details,Discrepancy,ID number,Cell number\n";
-                
+
                 snap.forEach(child => {
                     const v = child.val();
+
                     const row = [
-                        v["1_waybill"],
-                        v["2_acc_number"],
-                        v["3_pod_date"],
-                        v["4_pod_time"],
-                        `"${v["5_recipient"]}"`,
+                        v["1_waybill"] || "",
+                        v["2_acc_number"] || "",
+                        v["3_pod_date"] || "",
+                        v["4_pod_time"] || "",
+                        `"${v["5_recipient"] || ""}"`,
                         `"${v["6_details"] || ""}"`,
                         `"${v["7_discrepancy"] || ""}"`,
                         `"${v["8_id_number"] || ""}"`,
                         `"${v["9_cell_number"] || ""}"`
                     ].join(",");
+
                     csv += row + "\n";
                 });
 
@@ -100,10 +145,14 @@
                 a.href = url;
                 a.download = `ParcelPerfect_PODs_${new Date().toISOString().split('T')[0]}.csv`;
                 a.click();
+            }).catch(err => {
+                console.error(err);
+                alert("Error exporting PODs.");
             });
         }
 
         window.onload = initAdmin;
     </script>
+
 </body>
 </html>
