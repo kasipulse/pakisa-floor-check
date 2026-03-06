@@ -24,6 +24,7 @@ input, button{
 }
 
 /* ===== A4 GRID ===== */
+
 #printArea{
   display:grid;
   grid-template-columns: repeat(2, 1fr);
@@ -50,9 +51,10 @@ input, button{
 
 .tracking{
   text-align:center;
-  font-size:18px;
+  font-size:22px;
   font-weight:bold;
   margin:4px 0;
+  letter-spacing:1px;
 }
 
 .barcode{
@@ -66,28 +68,40 @@ input, button{
 }
 
 @media print{
-  body * { visibility:hidden; }
-  #printArea, #printArea * { visibility:visible; }
+
+  body *{
+    visibility:hidden;
+  }
+
+  #printArea,
+  #printArea *{
+    visibility:visible;
+  }
+
   #printArea{
     position:absolute;
     left:0;
     top:0;
     width:210mm;
   }
+
 }
 </style>
 </head>
+
 <body>
 
 <div class="controls">
-  <h2>Pakisa A4 Label Generator</h2>
 
-  <input id="waybill" placeholder="Waybill">
-  <input id="destination" placeholder="Destination">
-  <input id="qty" type="number" placeholder="Quantity">
+<h2>Pakisa A4 Label Generator</h2>
 
-  <button onclick="generate()">Generate Labels</button>
-  <button onclick="window.print()">Print</button>
+<input id="waybill" placeholder="Waybill (example IN268025)">
+<input id="destination" placeholder="Destination">
+<input id="qty" type="number" placeholder="Quantity">
+
+<button onclick="generate()">Generate Labels</button>
+<button onclick="window.print()">Print</button>
+
 </div>
 
 <div id="printArea"></div>
@@ -95,32 +109,41 @@ input, button{
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 
 <script>
+
 function pad(num){
-  return String(num).padStart(3,'0');
+  return String(num).padStart(4,'0');
 }
 
 function generate(){
+
   const waybill = document.getElementById('waybill').value.trim();
   const dest = document.getElementById('destination').value.trim();
   const qty = parseInt(document.getElementById('qty').value);
 
   const area = document.getElementById('printArea');
+
   area.innerHTML = '';
 
   if(!waybill || !dest || !qty){
+
     alert('Please fill all fields');
+
     return;
+
   }
 
   for(let i=1;i<=qty;i++){
 
     const piece = pad(i);
-    const tracking = waybill + '-' + piece;
+
+    const tracking = waybill + piece;
 
     const div = document.createElement('div');
+
     div.className = 'label';
 
     div.innerHTML = `
+
       <div class="logo">
         <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1771237505/pakisa_logistics_express_pty_ltd_logo-removebg-preview_gr7h0r.png">
       </div>
@@ -132,22 +155,35 @@ function generate(){
       </div>
 
       <div class="field"><b>WAYBILL:</b> ${waybill}</div>
+
       <div class="field"><b>DEST:</b> ${dest}</div>
-      <div class="field"><b>PEACE:</b> ${piece} OF ${pad(qty)}</div>
+
+      <div class="field"><b>PEACE:</b> ${i} OF ${qty}</div>
+
     `;
 
     area.appendChild(div);
 
     setTimeout(()=>{
+
       JsBarcode(`#bc${i}`, tracking, {
+
         format:"CODE128",
+
         width:2,
+
         height:40,
+
         displayValue:false
+
       });
+
     },0);
+
   }
+
 }
+
 </script>
 
 </body>
