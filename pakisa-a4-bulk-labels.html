@@ -95,7 +95,7 @@ input, button{
 
 <h2>Pakisa A4 Label Generator</h2>
 
-<input id="waybill" placeholder="Waybill (example IN268025)">
+<input id="waybill" placeholder="Waybill">
 <input id="destination" placeholder="Destination">
 <input id="qty" type="number" placeholder="Quantity">
 
@@ -169,11 +169,8 @@ function generate(){
       JsBarcode(`#bc${i}`, tracking, {
 
         format:"CODE128",
-
         width:2,
-
         height:40,
-
         displayValue:false
 
       });
