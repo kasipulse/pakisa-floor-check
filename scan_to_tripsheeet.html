@@ -3,10 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pakisa Floor Delivery | POD Manager</title>
+<title>Pakisa Floor | Traditional Theme</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap');
-
   :root {
     --pakisa-navy: #002147;
     --pakisa-orange: #f5a623;
@@ -19,16 +22,15 @@
     --red: #e74c3c;
     --radius: 8px;
   }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text-main); font-family: 'Barlow', sans-serif; min-height: 100vh; }
+  body { background: var(--bg); color: var(--text-main); font-family: 'Barlow', sans-serif; }
 
-  /* NAVIGATION */
-  .nav { background: var(--pakisa-navy); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 65px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+  /* NAV */
+  .nav { background: var(--pakisa-navy); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 65px; position: sticky; top: 0; z-index: 100; }
   .nav-logo { font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 800; color: #fff; text-transform: uppercase; }
   .nav-logo span { color: var(--pakisa-orange); }
   .nav-tabs { display: flex; gap: 8px; }
-  .nav-tab { background: rgba(255,255,255,0.05); border: none; color: #cbd5e0; font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 600; padding: 8px 16px; cursor: pointer; border-radius: 4px; transition: 0.2s; text-transform: uppercase; }
+  .nav-tab { background: rgba(255,255,255,0.1); border: none; color: #fff; font-family: 'Barlow Condensed', sans-serif; padding: 8px 16px; cursor: pointer; border-radius: 4px; text-transform: uppercase; font-size: 14px; }
   .nav-tab.active { background: var(--pakisa-orange); color: var(--pakisa-navy); }
 
   /* LAYOUT */
@@ -37,24 +39,18 @@
   h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 32px; color: var(--pakisa-navy); }
   .sub { color: var(--text-muted); margin-bottom: 24px; }
 
-  /* CARDS & FORMS */
+  /* CARDS */
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
   label { font-size: 11px; font-weight: 700; color: var(--pakisa-navy); text-transform: uppercase; margin-bottom: 6px; display: block; }
-  input, select { width: 100%; background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 15px; outline: none; }
+  input, select { width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 15px; margin-bottom: 15px; outline: none; }
   
-  /* BUTTONS */
-  .btn { padding: 12px 20px; border-radius: 6px; font-weight: 700; font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; cursor: pointer; border: none; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+  .btn { padding: 12px 20px; border-radius: 6px; font-weight: 700; font-family: 'Barlow Condensed', sans-serif; text-transform: uppercase; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 8px; }
   .btn-primary { background: var(--pakisa-navy); color: #fff; }
   .btn-accent { background: var(--pakisa-orange); color: var(--pakisa-navy); }
   .btn-success { background: var(--green); color: #fff; }
-  .btn-danger { background: var(--red); color: #fff; }
 
-  /* DRIVER LIST */
-  .parcel-card { border-left: 5px solid var(--border); padding: 20px; margin-bottom: 12px; background: white; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
-  .parcel-card.Delivered { border-left-color: var(--green); }
-  .parcel-card.Pending { border-left-color: var(--pakisa-orange); }
+  .parcel-card { border-left: 5px solid var(--pakisa-orange); padding: 20px; margin-bottom: 12px; background: white; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
 
-  /* TOAST */
   #toast { position: fixed; bottom: 20px; right: 20px; padding: 15px 25px; background: var(--pakisa-navy); color: white; border-radius: 4px; transform: translateY(100px); transition: 0.3s; z-index: 1000; }
   #toast.show { transform: translateY(0); }
 </style>
@@ -65,71 +61,59 @@
   <div class="nav-logo">PAK<span>ISA</span> FLOOR</div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('admin')">Admin Scan</button>
-    <button class="nav-tab" onclick="showPage('driver')">Driver Login</button>
-    <button class="nav-tab" onclick="showPage('export')">Export POD</button>
+    <button class="nav-tab" onclick="showPage('driver')">Driver View</button>
+    <button class="nav-tab" onclick="showPage('export')">Export CSV</button>
   </div>
 </nav>
 
 <div id="page-admin" class="page active">
   <h2>Admin Dispatch</h2>
-  <p class="sub">Assign waybills to drivers for delivery.</p>
+  <p class="sub">Assign waybills to drivers (Live Tracking)</p>
   <div class="card">
     <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 15px; align-items: end;">
       <div>
-        <label>Waybill Barcode</label>
-        <input type="text" id="waybillIn" placeholder="Scan waybill here..." autofocus>
+        <label>Waybill</label>
+        <input type="text" id="wbIn" placeholder="Scan barcode..." autofocus>
       </div>
       <div>
-        <label>Customer Account</label>
+        <label>Customer</label>
         <select id="accIn">
           <option value="ACT01">ACT01 - ACT Logistics</option>
-          <option value="TES001">TES001 - TEST CUSTOMER</option>
           <option value="FED001">FED001 - FedEx Express SA</option>
-          <option value="PPIMA">PPIMA - PPIMAGER</option>
-          <option value="FFC001">FFC001 - First Freight Couriers</option>
           <option value="JUL001">JUL001 - JULIPO Couriers</option>
-          <option value="RBSN01">RBSN01 - R.B.S.N COURIERS</option>
-          <option value="BRI001">BRI001 - BRIMA Logistics</option>
-          <option value="SEA01">SEA01 - SEABOURNE Inxpress</option>
-          <option value="AJM001">AJM001 - AJM Couriers</option>
-          <option value="S&R001">S&R001 - Send and Receive</option>
+          <option value="FFC001">FFC001 - First Freight</option>
+          <option value="PPIMA">PPIMA - PPIMAGER</option>
         </select>
       </div>
       <div>
-        <label>Assign Driver</label>
-        <select id="driverIn">
-          <option>Charles Rapelang</option><option>Frans</option><option>Happy</option><option>JONATHAN</option>
-          <option>Jess</option><option>Mthandeni</option><option>Mubi</option><option>Ndlovu</option>
-          <option>Nkosi M</option><option>PAK SCANNER</option><option>PAK WAREHOUSE1</option><option>Phaki</option>
-          <option>Shadrack Mathibela</option><option>Sphelo</option><option>Sydwell</option><option>Tebogo M</option>
-          <option>Thabang</option><option>Thulani</option><option>Training</option><option>Tumelo</option>
+        <label>Driver</label>
+        <select id="drvIn">
+          <option>Charles Rapelang</option><option>Frans</option><option>Happy</option>
+          <option>Mthandeni</option><option>Sphelo</option><option>Thulani</option>
         </select>
       </div>
-      <button class="btn btn-accent" onclick="addScan()">+ Assign</button>
+      <button class="btn btn-accent" onclick="dispatchParcel()">Assign</button>
     </div>
   </div>
-  <div id="adminList"></div>
+  <div id="adminLog"></div>
 </div>
 
 <div id="page-driver" class="page">
-  <div id="driver-login">
-    <div class="card" style="max-width: 400px; margin: 60px auto; text-align: center;">
+  <div id="drv-login">
+    <div class="card" style="max-width: 400px; margin: 50px auto; text-align: center;">
       <h2 style="margin-bottom: 20px;">Driver Login</h2>
-      <select id="driverNameSelect" style="margin-bottom: 20px;">
-        <option value="">-- Choose Your Name --</option>
-        <option>Charles Rapelang</option><option>Frans</option><option>Happy</option><option>JONATHAN</option>
-        <option>Jess</option><option>Mthandeni</option><option>Mubi</option><option>Ndlovu</option>
-        <option>Nkosi M</option><option>PAK SCANNER</option><option>PAK WAREHOUSE1</option><option>Phaki</option>
-        <option>Shadrack Mathibela</option><option>Sphelo</option><option>Sydwell</option><option>Tebogo M</option>
-        <option>Thabang</option><option>Thulani</option><option>Training</option><option>Tumelo</option>
+      <select id="driverSelect" style="margin-bottom: 20px;">
+        <option value="">-- Select Your Name --</option>
+        <option>Charles Rapelang</option><option>Frans</option><option>Happy</option>
+        <option>Mthandeni</option><option>Sphelo</option><option>Thulani</option>
       </select>
-      <button class="btn btn-primary" style="width:100%" onclick="loginDriver()">View My Parcels</button>
+      <button class="btn btn-primary" style="width:100%" onclick="loginDriver()">My Trip Sheet</button>
     </div>
   </div>
-  <div id="driver-app" style="display:none;">
+  <div id="drv-app" style="display:none;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
       <h2 id="currentDriverDisplay">Driver</h2>
-      <button class="btn btn-danger" onclick="location.reload()">Logout</button>
+      <button class="btn btn-primary" onclick="location.reload()">Logout</button>
     </div>
     <div id="driverParcelList"></div>
   </div>
@@ -137,147 +121,151 @@
 
 <div id="page-export" class="page">
   <h2>Parcel Perfect Export</h2>
-  <p class="sub">Download the spreadsheet to import into Parcel Perfect.</p>
   <div class="card">
-    <button class="btn btn-success" onclick="exportToCSV()">Download POD Import File (CSV)</button>
-    <div style="margin-top:20px; font-size:13px; color:var(--text-muted); line-height:1.6;">
-        <b>Export Format (9 Columns):</b><br>
-        1. Waybill | 2. Acc Number | 3. POD Date | 4. POD Time | 5. Recipient | 6. Details | 7. Discrepancy | 8. ID Number | 9. Cell Number
-    </div>
+    <button class="btn btn-success" onclick="exportToCSV()">Download POD Spreadsheet</button>
+    <button class="btn btn-primary" style="margin-left:10px" onclick="clearLiveFloor()">Clear Live Floor</button>
   </div>
 </div>
 
 <div id="toast">Message</div>
 
 <script>
-    let parcels = JSON.parse(localStorage.getItem('pakisa_db') || '[]');
+// FIREBASE INITIALIZATION
+const firebaseConfig = {
+  apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+  authDomain: "pakisa-floor.firebaseapp.com",
+  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com",
+  projectId: "pakisa-floor",
+  storageBucket: "pakisa-floor.firebasestorage.app",
+  messagingSenderId: "1003516506618",
+  appId: "1:1003516506618:web:777d702f93616b6e323443"
+};
 
-    function save() {
-        localStorage.setItem('pakisa_db', JSON.stringify(parcels));
-        renderAdmin();
-    }
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-    function showPage(id) {
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-        document.getElementById('page-' + id).classList.add('active');
-        event.target.classList.add('active');
-    }
+// NAVIGATION
+function showPage(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('page-' + id).classList.add('active');
+}
 
-    function addScan() {
-        const wb = document.getElementById('waybillIn').value.trim();
-        const acc = document.getElementById('accIn').value;
-        const drv = document.getElementById('driverIn').value;
-        if(!wb) return;
-        parcels.push({ waybill: wb, accNo: acc, driver: drv, status: 'Pending', podDate: '', podTime: '', recipient: '', details: '', discrepancy: '', idNum: '', cellNum: '' });
-        document.getElementById('waybillIn').value = '';
-        document.getElementById('waybillIn').focus();
-        showToast("Waybill Assigned to " + drv);
-        save();
-    }
+// ADMIN DISPATCH
+function dispatchParcel() {
+    const wb = document.getElementById('wbIn').value.trim();
+    const acc = document.getElementById('accIn').value;
+    const drv = document.getElementById('drvIn').value;
+    if(!wb) return;
 
-    function renderAdmin() {
-        let html = `<div class="card"><h3>Active Scans</h3><table style="width:100%; margin-top:15px; border-collapse:collapse;">
-                    <thead style="background:#f8fafc;"><tr><th style="padding:10px; text-align:left;">Waybill</th><th>Acc</th><th>Driver</th><th>Status</th><th>Action</th></tr></thead><tbody>`;
-        parcels.forEach((p, index) => {
-            html += `<tr style="border-bottom:1px solid #eee;">
-                <td style="padding:10px;"><b>${p.waybill}</b></td>
-                <td>${p.accNo}</td>
-                <td>${p.driver}</td>
-                <td><span style="color:${p.status==='Delivered'?'green':'#f5a623'}; font-weight:bold;">${p.status}</span></td>
-                <td><button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteParcel(${index})">Delete</button></td>
-            </tr>`;
-        });
-        html += `</tbody></table></div>`;
-        document.getElementById('adminList').innerHTML = html;
-    }
+    const data = {
+        waybill: wb,
+        companyId: acc,
+        customer: acc,
+        driver: drv,
+        status: "Pending",
+        reason: "Out for delivery",
+        timestamp: Date.now(),
+        date: new Date().toISOString().split('T')[0]
+    };
 
-    function deleteParcel(i) {
-        if(confirm("Remove this waybill?")) { parcels.splice(i, 1); save(); }
-    }
+    // Update both nodes
+    db.ref('scans').push(data);
+    db.ref('floor_scans/' + wb).set(data);
 
-    let activeDriver = "";
-    function loginDriver() {
-        activeDriver = document.getElementById('driverNameSelect').value;
-        if(!activeDriver) return;
-        document.getElementById('driver-login').style.display = 'none';
-        document.getElementById('driver-app').style.display = 'block';
-        document.getElementById('currentDriverDisplay').innerText = activeDriver;
-        renderDriverParcels();
-    }
+    document.getElementById('wbIn').value = '';
+    document.getElementById('wbIn').focus();
+    showToast("Assigned: " + wb);
+}
 
-    function renderDriverParcels() {
-        const myParcels = parcels.filter(p => p.driver === activeDriver);
+// DRIVER LOGIC
+let activeDriver = "";
+function loginDriver() {
+    activeDriver = document.getElementById('driverSelect').value;
+    if(!activeDriver) return;
+    document.getElementById('drv-login').style.display = 'none';
+    document.getElementById('drv-app').style.display = 'block';
+    document.getElementById('currentDriverDisplay').innerText = activeDriver;
+    
+    db.ref('floor_scans').on('value', snap => {
+        const parcels = snap.val();
         let html = "";
-        myParcels.forEach(p => {
-            html += `<div class="parcel-card ${p.status}">
-                <div>
-                    <div style="font-weight:800; font-size:20px;">${p.waybill}</div>
-                    <div style="font-size:12px; color:gray;">Customer: ${p.accNo}</div>
-                    <input type="text" placeholder="Add Quick Address/Details..." value="${p.details || ''}" 
-                           onchange="updateDetails('${p.waybill}', this.value)" 
-                           style="margin-top:10px; font-size:13px;">
-                </div>
-                <div>
-                    ${p.status === 'Pending' ? 
-                    `<button class="btn btn-success" onclick="markDelivered('${p.waybill}')">Complete POD</button>` : 
-                    `<div style="color:green; font-weight:bold;">✅ ${p.recipient}</div>`}
-                </div>
-            </div>`;
-        });
-        document.getElementById('driverParcelList').innerHTML = html || "No parcels assigned to you today.";
-    }
+        for(let id in parcels) {
+            let p = parcels[id];
+            if(p.driver === activeDriver && p.status === "Pending") {
+                html += `
+                <div class="parcel-card">
+                    <div>
+                        <div style="font-weight:800; font-size:20px;">${p.waybill}</div>
+                        <div style="color:gray; font-size:12px;">Acc: ${p.customer}</div>
+                    </div>
+                    <button class="btn btn-success" onclick="capturePOD('${p.waybill}', '${p.customer}')">Capture POD</button>
+                </div>`;
+            }
+        }
+        document.getElementById('driverParcelList').innerHTML = html || "No parcels assigned.";
+    });
+}
 
-    function updateDetails(wb, val) {
-        const p = parcels.find(x => x.waybill === wb);
-        if(p) p.details = val;
-        save();
-    }
+function capturePOD(wb, acc) {
+    const name = prompt("Signed by:");
+    if(!name) return;
+    const now = new Date();
+    const ts = Date.now();
 
-    function markDelivered(wb) {
-        const sign = prompt("Who signed for this parcel?");
-        if(!sign) return;
-        const p = parcels.find(x => x.waybill === wb);
-        const now = new Date();
-        p.status = "Delivered";
-        p.recipient = sign;
-        p.podDate = now.toLocaleDateString('en-GB'); // DD/MM/YYYY
-        p.podTime = now.toLocaleTimeString('en-GB');
-        save();
-        renderDriverParcels();
-        showToast("POD Captured");
-    }
+    const podData = {
+        waybill: wb,
+        accNo: acc,
+        signedBy: name,
+        status: "Delivered",
+        date: now.toLocaleDateString('en-GB'),
+        time: now.toLocaleTimeString('en-GB'),
+        podTimestamp: ts,
+        importedAt: ts,
+        details: "Delivered JHB"
+    };
 
-    function exportToCSV() {
-        const delivered = parcels.filter(p => p.status === 'Delivered');
-        if(delivered.length === 0) return alert("No delivered parcels to export.");
-        
-        // Match the 9 column order from the image
+    db.ref('pods/' + wb).set(podData);
+    db.ref('floor_scans/' + wb).update({ status: "Delivered" });
+    showToast("POD Saved");
+}
+
+// EXPORT TO PP (9 Columns)
+function exportToCSV() {
+    db.ref('pods').once('value', snap => {
+        const data = snap.val();
+        if(!data) return alert("No PODs to export");
+
         let csv = "Waybill,Acc number,POD Date,POD Time,Recipient,Details,Discrepancy,ID number,Cell number\n";
-        delivered.forEach(p => {
-            csv += `"${p.waybill}","${p.accNo}","${p.podDate}","${p.podTime}","${p.recipient}","${p.details || ''}","${p.discrepancy || ''}","${p.idNum || ''}","${p.cellNum || ''}"\n`;
-        });
-
+        for(let id in data) {
+            let p = data[id];
+            csv += `"${p.waybill}","${p.accNo}","${p.date}","${p.time}","${p.signedBy}","${p.details}",,, \n`;
+        }
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Pakisa_POD_Import_${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = `Pakisa_POD_Import.csv`;
         a.click();
+    });
+}
+
+function clearLiveFloor() {
+    if(confirm("Clear today's live floor list? (Doesn't delete PODs)")) {
+        db.ref('floor_scans').remove();
+        location.reload();
     }
+}
 
-    function showToast(msg) {
-        const t = document.getElementById('toast');
-        t.innerText = msg;
-        t.classList.add('show');
-        setTimeout(() => t.classList.remove('show'), 3000);
-    }
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerText = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
 
-    // Enter key to add parcel
-    document.getElementById('waybillIn').addEventListener('keypress', (e) => { if(e.key === 'Enter') addScan(); });
+document.getElementById('wbIn').addEventListener('keypress', (e) => { if(e.key === 'Enter') dispatchParcel(); });
 
-    renderAdmin();
 </script>
-
 </body>
 </html>
