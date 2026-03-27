@@ -69,7 +69,7 @@
 <div id="page-admin" class="page active">
   <h2>Admin Dispatch</h2>
   <div class="card">
-    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 15px; align-items: end;">
+    <div style="display: grid; grid-template-columns: 2fr 1.2fr 1.2fr auto; gap: 15px; align-items: end;">
       <div>
         <label>Waybill Barcode</label>
         <input type="text" id="wbIn" placeholder="Scan here..." autofocus>
@@ -77,10 +77,16 @@
       <div>
         <label>Customer</label>
         <select id="accIn">
-          <option value="FED001">FED001 - FedEx Express SA</option>
+          <option value="ACT01">ACT01 - ACT Logistics (Pty) Ltd</option>
+          <option value="TES001">TES001 - TEST CUSTOMER</option>
+          <option value="FED001">FED001 - FedEx Express SA (Pty) Ltd</option>
+          <option value="PPIMA">PPIMA - PPIMAGER</option>
+          <option value="FFC001">FFC001 - First Freight Couriers</option>
           <option value="JUL001">JUL001 - JULIPO Couriers</option>
-          <option value="ACT01">ACT01 - ACT Logistics</option>
-          <option value="FFC001">FFC001 - First Freight</option>
+          <option value="RBSN01">RBSN01 - R.B.S.N COURIERS CC</option>
+          <option value="BRI001">BRI001 - BRIMA Logistics (Pty) Ltd</option>
+          <option value="SEA01">SEA01 - SEABOURNE Inxpress (Pty) Ltd</option>
+          <option value="AJM001">AJM001 - AJM Couriers</option>
           <option value="S&R001">S&R001 - Send and Receive</option>
         </select>
       </div>
@@ -88,14 +94,17 @@
         <label>Driver</label>
         <select id="drvIn">
           <option>Charles Rapelang</option><option>Frans</option><option>Happy</option>
-          <option>Mthandeni</option><option>Sphelo</option><option>Thulani</option>
-          <option>Sydwell</option><option>Tebogo M</option>
+          <option>JONATHAN</option><option>Jess</option><option>Mthandeni</option>
+          <option>Mubi</option><option>Ndlovu</option><option>Nkosi M</option>
+          <option>PAK SCANNER</option><option>PAK WAREHOUSE1</option><option>Phaki</option>
+          <option>Shadrack Mathibela</option><option>Sphelo</option><option>Sydwell</option>
+          <option>Tebogo M</option><option>Thabang</option><option>Thulani</option>
+          <option>Training</option><option>Tumelo</option>
         </select>
       </div>
       <button class="btn btn-accent" onclick="dispatchParcel()">Assign</button>
     </div>
   </div>
-  <div id="adminTable"></div>
 </div>
 
 <div id="page-driver" class="page">
@@ -105,7 +114,12 @@
       <select id="driverSelect" style="margin: 20px 0;">
         <option value="">-- Choose Name --</option>
         <option>Charles Rapelang</option><option>Frans</option><option>Happy</option>
-        <option>Mthandeni</option><option>Sphelo</option><option>Thulani</option>
+        <option>JONATHAN</option><option>Jess</option><option>Mthandeni</option>
+        <option>Mubi</option><option>Ndlovu</option><option>Nkosi M</option>
+        <option>PAK SCANNER</option><option>PAK WAREHOUSE1</option><option>Phaki</option>
+        <option>Shadrack Mathibela</option><option>Sphelo</option><option>Sydwell</option>
+        <option>Tebogo M</option><option>Thabang</option><option>Thulani</option>
+        <option>Training</option><option>Tumelo</option>
       </select>
       <button class="btn btn-primary" style="width:100%" onclick="loginDriver()">Enter My Trip</button>
     </div>
@@ -127,7 +141,6 @@
 <div id="toast">Message</div>
 
 <script>
-// --- FIREBASE CONFIG ---
 const firebaseConfig = {
   apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
   authDomain: "pakisa-floor.firebaseapp.com",
@@ -141,8 +154,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// --- THE CONSOLE INITIALIZER (AUTO-RUN) ---
-// This ensures nodes exist in your empty database
 db.ref('/').update({
     "scans": db.ref('scans').push().key ? {} : { "init": "base" },
     "floor_scans": { "init": "active" },
@@ -155,7 +166,6 @@ function showPage(id) {
     document.getElementById('page-' + id).classList.add('active');
 }
 
-// ADMIN DISPATCH
 function dispatchParcel() {
     const wb = document.getElementById('wbIn').value.trim();
     const acc = document.getElementById('accIn').value;
@@ -173,7 +183,6 @@ function dispatchParcel() {
         date: new Date().toISOString().split('T')[0]
     };
 
-    // Push to your tracking 'scans' and set in live 'floor_scans'
     db.ref('scans').push(data);
     db.ref('floor_scans/' + wb).set(data);
 
@@ -182,7 +191,6 @@ function dispatchParcel() {
     showToast("Assigned: " + wb);
 }
 
-// DRIVER LOGIC
 let activeDriver = "";
 function loginDriver() {
     activeDriver = document.getElementById('driverSelect').value;
@@ -238,7 +246,9 @@ function exportPODs() {
     db.ref('pods').once('value', snap => {
         const data = snap.val();
         if(!data) return alert("No PODs to export");
-        let csv = "Waybill,Acc number,POD Date,POD Time,Recipient,Details,Discrepancy,ID number,Cell number\n";
+        
+        // COLUMN SEQUENCE: Waybill, Acc number, POD Date, POD Time, Recipient, Details, Discrepency, ID number, Cell number
+        let csv = "Waybill,Acc number,POD Date,POD Time,Recipient,Details,Discrepency,ID number,Cell number\n";
         for(let id in data) {
             let p = data[id];
             csv += `"${p.waybill}","${p.accNo}","${p.date}","${p.time}","${p.signedBy}","${p.details}",,, \n`;
@@ -246,7 +256,7 @@ function exportPODs() {
         const blob = new Blob([csv], { type: 'text/csv' });
         const a = document.createElement('a');
         a.href = window.URL.createObjectURL(blob);
-        a.download = `Pakisa_PP_Import.csv`;
+        a.download = `Pakisa_PP_Import_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}.csv`;
         a.click();
     });
 }
