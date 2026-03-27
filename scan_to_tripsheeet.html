@@ -3,13 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pakisa Floor | Traditional Theme</title>
+<title>Pakisa Floor | Scan to Tripsheet</title>
 
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap');
+
   :root {
     --pakisa-navy: #002147;
     --pakisa-orange: #f5a623;
@@ -17,29 +18,27 @@
     --surface: #ffffff;
     --border: #d1d9e6;
     --text-main: #1a202c;
-    --text-muted: #718096;
     --green: #27ae60;
     --red: #e74c3c;
     --radius: 8px;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text-main); font-family: 'Barlow', sans-serif; }
 
-  /* NAV */
-  .nav { background: var(--pakisa-navy); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 65px; position: sticky; top: 0; z-index: 100; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text-main); font-family: 'Barlow', sans-serif; min-height: 100vh; }
+
+  /* ─── NAV ─── */
+  .nav { background: var(--pakisa-navy); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 65px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
   .nav-logo { font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 800; color: #fff; text-transform: uppercase; }
   .nav-logo span { color: var(--pakisa-orange); }
   .nav-tabs { display: flex; gap: 8px; }
-  .nav-tab { background: rgba(255,255,255,0.1); border: none; color: #fff; font-family: 'Barlow Condensed', sans-serif; padding: 8px 16px; cursor: pointer; border-radius: 4px; text-transform: uppercase; font-size: 14px; }
+  .nav-tab { background: rgba(255,255,255,0.1); border: none; color: #fff; font-family: 'Barlow Condensed', sans-serif; padding: 8px 16px; cursor: pointer; border-radius: 4px; font-size: 14px; text-transform: uppercase; }
   .nav-tab.active { background: var(--pakisa-orange); color: var(--pakisa-navy); }
 
-  /* LAYOUT */
+  /* ─── PAGES ─── */
   .page { display: none; padding: 24px; max-width: 1100px; margin: 0 auto; }
   .page.active { display: block; }
-  h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 32px; color: var(--pakisa-navy); }
-  .sub { color: var(--text-muted); margin-bottom: 24px; }
 
-  /* CARDS */
+  /* ─── CARDS & FORMS ─── */
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
   label { font-size: 11px; font-weight: 700; color: var(--pakisa-navy); text-transform: uppercase; margin-bottom: 6px; display: block; }
   input, select { width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 15px; margin-bottom: 15px; outline: none; }
@@ -49,6 +48,7 @@
   .btn-accent { background: var(--pakisa-orange); color: var(--pakisa-navy); }
   .btn-success { background: var(--green); color: #fff; }
 
+  /* ─── DRIVER VIEW ─── */
   .parcel-card { border-left: 5px solid var(--pakisa-orange); padding: 20px; margin-bottom: 12px; background: white; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
 
   #toast { position: fixed; bottom: 20px; right: 20px; padding: 15px 25px; background: var(--pakisa-navy); color: white; border-radius: 4px; transform: translateY(100px); transition: 0.3s; z-index: 1000; }
@@ -61,28 +61,27 @@
   <div class="nav-logo">PAK<span>ISA</span> FLOOR</div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('admin')">Admin Scan</button>
-    <button class="nav-tab" onclick="showPage('driver')">Driver View</button>
-    <button class="nav-tab" onclick="showPage('export')">Export CSV</button>
+    <button class="nav-tab" onclick="showPage('driver')">Driver Trip</button>
+    <button class="nav-tab" onclick="showPage('export')">PP Export</button>
   </div>
 </nav>
 
 <div id="page-admin" class="page active">
   <h2>Admin Dispatch</h2>
-  <p class="sub">Assign waybills to drivers (Live Tracking)</p>
   <div class="card">
     <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 15px; align-items: end;">
       <div>
-        <label>Waybill</label>
-        <input type="text" id="wbIn" placeholder="Scan barcode..." autofocus>
+        <label>Waybill Barcode</label>
+        <input type="text" id="wbIn" placeholder="Scan here..." autofocus>
       </div>
       <div>
         <label>Customer</label>
         <select id="accIn">
-          <option value="ACT01">ACT01 - ACT Logistics</option>
           <option value="FED001">FED001 - FedEx Express SA</option>
           <option value="JUL001">JUL001 - JULIPO Couriers</option>
+          <option value="ACT01">ACT01 - ACT Logistics</option>
           <option value="FFC001">FFC001 - First Freight</option>
-          <option value="PPIMA">PPIMA - PPIMAGER</option>
+          <option value="S&R001">S&R001 - Send and Receive</option>
         </select>
       </div>
       <div>
@@ -90,47 +89,45 @@
         <select id="drvIn">
           <option>Charles Rapelang</option><option>Frans</option><option>Happy</option>
           <option>Mthandeni</option><option>Sphelo</option><option>Thulani</option>
+          <option>Sydwell</option><option>Tebogo M</option>
         </select>
       </div>
       <button class="btn btn-accent" onclick="dispatchParcel()">Assign</button>
     </div>
   </div>
-  <div id="adminLog"></div>
+  <div id="adminTable"></div>
 </div>
 
 <div id="page-driver" class="page">
   <div id="drv-login">
-    <div class="card" style="max-width: 400px; margin: 50px auto; text-align: center;">
-      <h2 style="margin-bottom: 20px;">Driver Login</h2>
-      <select id="driverSelect" style="margin-bottom: 20px;">
-        <option value="">-- Select Your Name --</option>
+    <div class="card" style="max-width: 400px; margin: 40px auto; text-align: center;">
+      <h2>Driver Login</h2>
+      <select id="driverSelect" style="margin: 20px 0;">
+        <option value="">-- Choose Name --</option>
         <option>Charles Rapelang</option><option>Frans</option><option>Happy</option>
         <option>Mthandeni</option><option>Sphelo</option><option>Thulani</option>
       </select>
-      <button class="btn btn-primary" style="width:100%" onclick="loginDriver()">My Trip Sheet</button>
+      <button class="btn btn-primary" style="width:100%" onclick="loginDriver()">Enter My Trip</button>
     </div>
   </div>
   <div id="drv-app" style="display:none;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-      <h2 id="currentDriverDisplay">Driver</h2>
-      <button class="btn btn-primary" onclick="location.reload()">Logout</button>
-    </div>
-    <div id="driverParcelList"></div>
+    <h3 id="drvDisplay" style="margin-bottom:20px;">Driver List</h3>
+    <div id="parcelList"></div>
   </div>
 </div>
 
 <div id="page-export" class="page">
   <h2>Parcel Perfect Export</h2>
   <div class="card">
-    <button class="btn btn-success" onclick="exportToCSV()">Download POD Spreadsheet</button>
-    <button class="btn btn-primary" style="margin-left:10px" onclick="clearLiveFloor()">Clear Live Floor</button>
+    <button class="btn btn-success" onclick="exportPODs()">Download CSV for Import</button>
+    <button class="btn btn-primary" style="margin-left:10px" onclick="clearFloor()">Clear Today's Floor</button>
   </div>
 </div>
 
 <div id="toast">Message</div>
 
 <script>
-// FIREBASE INITIALIZATION
+// --- FIREBASE CONFIG ---
 const firebaseConfig = {
   apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
   authDomain: "pakisa-floor.firebaseapp.com",
@@ -144,7 +141,14 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// NAVIGATION
+// --- THE CONSOLE INITIALIZER (AUTO-RUN) ---
+// This ensures nodes exist in your empty database
+db.ref('/').update({
+    "scans": db.ref('scans').push().key ? {} : { "init": "base" },
+    "floor_scans": { "init": "active" },
+    "pods": { "init": "ready" }
+});
+
 function showPage(id) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -169,7 +173,7 @@ function dispatchParcel() {
         date: new Date().toISOString().split('T')[0]
     };
 
-    // Update both nodes
+    // Push to your tracking 'scans' and set in live 'floor_scans'
     db.ref('scans').push(data);
     db.ref('floor_scans/' + wb).set(data);
 
@@ -185,35 +189,35 @@ function loginDriver() {
     if(!activeDriver) return;
     document.getElementById('drv-login').style.display = 'none';
     document.getElementById('drv-app').style.display = 'block';
-    document.getElementById('currentDriverDisplay').innerText = activeDriver;
+    document.getElementById('drvDisplay').innerText = activeDriver + "'s Active Parcels";
     
     db.ref('floor_scans').on('value', snap => {
-        const parcels = snap.val();
+        const data = snap.val();
         let html = "";
-        for(let id in parcels) {
-            let p = parcels[id];
+        for(let id in data) {
+            let p = data[id];
             if(p.driver === activeDriver && p.status === "Pending") {
                 html += `
                 <div class="parcel-card">
                     <div>
                         <div style="font-weight:800; font-size:20px;">${p.waybill}</div>
-                        <div style="color:gray; font-size:12px;">Acc: ${p.customer}</div>
+                        <div style="font-size:12px; color:gray;">Acc: ${p.customer}</div>
                     </div>
                     <button class="btn btn-success" onclick="capturePOD('${p.waybill}', '${p.customer}')">Capture POD</button>
                 </div>`;
             }
         }
-        document.getElementById('driverParcelList').innerHTML = html || "No parcels assigned.";
+        document.getElementById('parcelList').innerHTML = html || "No parcels assigned.";
     });
 }
 
 function capturePOD(wb, acc) {
     const name = prompt("Signed by:");
     if(!name) return;
-    const now = new Date();
     const ts = Date.now();
+    const now = new Date();
 
-    const podData = {
+    const pod = {
         waybill: wb,
         accNo: acc,
         signedBy: name,
@@ -225,33 +229,30 @@ function capturePOD(wb, acc) {
         details: "Delivered JHB"
     };
 
-    db.ref('pods/' + wb).set(podData);
+    db.ref('pods/' + wb).set(pod);
     db.ref('floor_scans/' + wb).update({ status: "Delivered" });
-    showToast("POD Saved");
+    showToast("✅ POD Captured");
 }
 
-// EXPORT TO PP (9 Columns)
-function exportToCSV() {
+function exportPODs() {
     db.ref('pods').once('value', snap => {
         const data = snap.val();
         if(!data) return alert("No PODs to export");
-
         let csv = "Waybill,Acc number,POD Date,POD Time,Recipient,Details,Discrepancy,ID number,Cell number\n";
         for(let id in data) {
             let p = data[id];
             csv += `"${p.waybill}","${p.accNo}","${p.date}","${p.time}","${p.signedBy}","${p.details}",,, \n`;
         }
         const blob = new Blob([csv], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url;
-        a.download = `Pakisa_POD_Import.csv`;
+        a.href = window.URL.createObjectURL(blob);
+        a.download = `Pakisa_PP_Import.csv`;
         a.click();
     });
 }
 
-function clearLiveFloor() {
-    if(confirm("Clear today's live floor list? (Doesn't delete PODs)")) {
+function clearFloor() {
+    if(confirm("Empty the live trip list? (History stays in 'scans')")) {
         db.ref('floor_scans').remove();
         location.reload();
     }
@@ -265,7 +266,6 @@ function showToast(msg) {
 }
 
 document.getElementById('wbIn').addEventListener('keypress', (e) => { if(e.key === 'Enter') dispatchParcel(); });
-
 </script>
 </body>
 </html>
