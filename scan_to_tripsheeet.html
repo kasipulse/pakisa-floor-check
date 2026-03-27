@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pakisa Floor Delivery | POD Manager</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap');
+
+  :root {
+    /* TRADITIONAL PAKISA THEME */
+    --pakisa-navy: #002147;
+    --pakisa-orange: #f5a623;
+    --bg: #f4f7f9;
+    --surface: #ffffff;
+    --card: #ffffff;
+    --border: #d1d9e6;
+    --text-main: #1a202c;
+    --text-muted: #718096;
+    --green: #27ae60;
+    --red: #e74c3c;
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text-main);
+    font-family: 'Barlow', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ─── NAV ─── */
+  .nav {
+    background: var(--pakisa-navy);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 65px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+  .nav-logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #fff;
+  }
+  .nav-logo span { color: var(--pakisa-orange); }
+  
+  .nav-tabs { display: flex; gap: 8px; }
+  .nav-tab {
+    background: rgba(255,255,255,0.05);
+    border: none;
+    color: #cbd5e0;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .nav-tab:hover { background: rgba(255,255,255,0.1); color: #fff; }
+  .nav-tab.active { background: var(--pakisa-orange); color: var(--pakisa-navy); }
+
+  /* ─── LAYOUT ─── */
+  .page { display: none; padding: 24px; max-width: 1100px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 32px; color: var(--pakisa-navy); margin-bottom: 4px; }
+  .sub { color: var(--text-muted); margin-bottom: 24px; font-size: 15px; }
+
+  /* ─── COMPONENTS ─── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+  }
+
+  label { font-size: 11px; font-weight: 700; color: var(--pakisa-navy); text-transform: uppercase; margin-bottom: 6px; display: block; }
+  
+  input, select, textarea {
+    width: 100%;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    font-family: inherit;
+    font-size: 15px;
+    outline: none;
+  }
+  input:focus { border-color: var(--pakisa-orange); box-shadow: 0 0 0 2px rgba(245,166,35,0.1); }
+
+  /* ─── BUTTONS ─── */
+  .btn {
+    padding: 12px 20px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-family: 'Barlow Condensed', sans-serif;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    transition: 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-primary { background: var(--pakisa-navy); color: #fff; }
+  .btn-primary:hover { background: #003366; }
+  .btn-accent { background: var(--pakisa-orange); color: var(--pakisa-navy); }
+  .btn-success { background: var(--green); color: #fff; }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+
+  /* ─── TABLE ─── */
+  .table-container { overflow-x: auto; margin-top: 10px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; }
+  th { text-align: left; padding: 12px; background: #f8fafc; color: var(--pakisa-navy); font-size: 12px; border-bottom: 2px solid var(--border); }
+  td { padding: 12px; border-bottom: 1px solid #edf2f7; font-size: 14px; }
+  tr:hover { background: #fdfaf4; }
+
+  /* ─── DRIVER VIEW SPECIFIC ─── */
+  .trip-header {
+    background: var(--pakisa-navy);
+    color: white;
+    padding: 20px;
+    border-radius: var(--radius);
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .parcel-card {
+    border-left: 5px solid var(--border);
+    padding: 15px;
+    margin-bottom: 12px;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .parcel-card.delivered { border-left-color: var(--green); }
+  .parcel-card.failed { border-left-color: var(--red); }
+  .parcel-card.pending { border-left-color: var(--pakisa-orange); }
+
+  /* ─── TOAST ─── */
+  #toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    background: var(--pakisa-navy);
+    color: white;
+    border-radius: 4px;
+    transform: translateY(100px);
+    transition: 0.3s;
+    z-index: 1000;
+  }
+  #toast.show { transform: translateY(0); }
+
+  @media (max-width: 768px) {
+    .nav-tabs { display: none; } /* On mobile, we'd use a burger menu or bottom nav */
+    .scan-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-logo">PAK<span>ISA</span> LOGISTICS</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('admin')">Admin Scan</button>
+    <button class="nav-tab" onclick="showPage('driver')">Driver Login</button>
+    <button class="nav-tab" onclick="showPage('export')">Export POD</button>
+  </div>
+</nav>
+
+<div id="page-admin" class="page active">
+  <h2>Admin Dispatch</h2>
+  <p class="sub">Scan waybills and assign to drivers (Pakisa Floor System)</p>
+
+  <div class="card">
+    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 15px; align-items: end;">
+      <div>
+        <label>Waybill Number</label>
+        <input type="text" id="waybillIn" placeholder="Scan here..." autofocus>
+      </div>
+      <div>
+        <label>Customer Account</label>
+        <select id="accIn">
+          <option value="FED001">FED001 - FedEx SA</option>
+          <option value="JUL001">JUL001 - JULIPO</option>
+          <option value="ACT01">ACT01 - ACT Logistics</option>
+          <option value="FFC001">FFC001 - First Freight</option>
+        </select>
+      </div>
+      <div>
+        <label>Assign Driver</label>
+        <select id="driverIn">
+          <option>Charles Rapelang</option>
+          <option>Thulani</option>
+          <option>Mthandeni</option>
+          <option>Sphelo</option>
+        </select>
+      </div>
+      <button class="btn btn-accent" onclick="addScan()">Assign</button>
+    </div>
+  </div>
+
+  <div id="adminList"></div>
+</div>
+
+<div id="page-driver" class="page">
+  <h2>Driver Trip Sheet</h2>
+  <p class="sub">Select your name to view today's deliveries</p>
+
+  <div class="card" id="driver-login" style="max-width: 400px; margin: 0 auto;">
+    <label>Select Your Name</label>
+    <select id="driverNameSelect" style="margin-bottom: 15px;">
+        <option value="">-- Select Driver --</option>
+        <option>Charles Rapelang</option>
+        <option>Thulani</option>
+        <option>Mthandeni</option>
+        <option>Sphelo</option>
+    </select>
+    <button class="btn btn-primary" style="width:100%" onclick="loginDriver()">Access My Trip</button>
+  </div>
+
+  <div id="driver-app" style="display:none;">
+    <div class="trip-header">
+        <h3 id="currentDriverDisplay">Driver Name</h3>
+        <button class="btn btn-outline" style="color:white; border-color:white" onclick="logoutDriver()">Logout</button>
+    </div>
+    <div id="driverParcelList"></div>
+  </div>
+</div>
+
+<div id="page-export" class="page">
+  <h2>Parcel Perfect Export</h2>
+  <p class="sub">Generate CSV file for POD Import</p>
+  
+  <div class="card">
+    <button class="btn btn-success" onclick="exportToCSV()">Download CSV for Parcel Perfect</button>
+    <p style="margin-top:15px; font-size: 12px; color: var(--text-muted);">
+        Columns: Waybill, Acc Number, Date, Time, Recipient, Details, Discrepancy, ID, Cell
+    </p>
+  </div>
+  
+  <div id="exportPreview"></div>
+</div>
+
+<div id="toast">Message here</div>
+
+<script>
+    // DATA HANDLING
+    let parcels = JSON.parse(localStorage.getItem('pakisa_db') || '[]');
+
+    function save() {
+        localStorage.setItem('pakisa_db', JSON.stringify(parcels));
+        renderAdmin();
+    }
+
+    function showPage(id) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        document.getElementById('page-' + id).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    // ADMIN LOGIC
+    function addScan() {
+        const wb = document.getElementById('waybillIn').value.trim();
+        const acc = document.getElementById('accIn').value;
+        const drv = document.getElementById('driverIn').value;
+
+        if(!wb) return;
+        
+        parcels.push({
+            waybill: wb,
+            accNo: acc,
+            driver: drv,
+            status: 'Pending',
+            podDate: '',
+            podTime: '',
+            recipient: '',
+            address: '' // Driver will fill this
+        });
+
+        document.getElementById('waybillIn').value = '';
+        document.getElementById('waybillIn').focus();
+        showToast("Waybill Assigned");
+        save();
+    }
+
+    function renderAdmin() {
+        let html = `<table><thead><tr><th>Waybill</th><th>Acc</th><th>Driver</th><th>Status</th><th>Action</th></tr></thead><tbody>`;
+        parcels.forEach((p, index) => {
+            html += `<tr>
+                <td>${p.waybill}</td>
+                <td>${p.accNo}</td>
+                <td>${p.driver}</td>
+                <td><b style="color:${p.status==='Delivered'?'green':'orange'}">${p.status}</b></td>
+                <td><button onclick="deleteParcel(${index})">❌</button></td>
+            </tr>`;
+        });
+        html += `</tbody></table>`;
+        document.getElementById('adminList').innerHTML = html;
+    }
+
+    function deleteParcel(i) {
+        parcels.splice(i, 1);
+        save();
+    }
+
+    // DRIVER LOGIC
+    let activeDriver = "";
+    function loginDriver() {
+        activeDriver = document.getElementById('driverNameSelect').value;
+        if(!activeDriver) return;
+        document.getElementById('driver-login').style.display = 'none';
+        document.getElementById('driver-app').style.display = 'block';
+        document.getElementById('currentDriverDisplay').innerText = activeDriver;
+        renderDriverParcels();
+    }
+
+    function logoutDriver() {
+        document.getElementById('driver-login').style.display = 'block';
+        document.getElementById('driver-app').style.display = 'none';
+    }
+
+    function renderDriverParcels() {
+        const myParcels = parcels.filter(p => p.driver === activeDriver);
+        let html = "";
+        myParcels.forEach(p => {
+            html += `
+            <div class="parcel-card ${p.status.toLowerCase()}">
+                <div>
+                    <div style="font-weight:800; font-size:18px">${p.waybill}</div>
+                    <div style="font-size:12px; color:gray">${p.accNo}</div>
+                    <input type="text" placeholder="Add Quick Address/Notes" value="${p.address || ''}" 
+                           onchange="updateAddress('${p.waybill}', this.value)" 
+                           style="margin-top:5px; padding:5px; font-size:12px;">
+                </div>
+                <div>
+                    ${p.status === 'Pending' ? 
+                    `<button class="btn btn-success" onclick="markDelivered('${p.waybill}')">POD</button>` : 
+                    `<span>✅ ${p.recipient}</span>`}
+                </div>
+            </div>`;
+        });
+        document.getElementById('driverParcelList').innerHTML = html || "No parcels assigned.";
+    }
+
+    function updateAddress(wb, val) {
+        const p = parcels.find(x => x.waybill === wb);
+        if(p) p.address = val;
+        save();
+    }
+
+    function markDelivered(wb) {
+        const sign = prompt("Recipient Name:");
+        if(!sign) return;
+        const p = parcels.find(x => x.waybill === wb);
+        const now = new Date();
+        p.status = "Delivered";
+        p.recipient = sign;
+        p.podDate = now.toLocaleDateString('en-GB'); // DD/MM/YYYY
+        p.podTime = now.toLocaleTimeString('en-GB');
+        save();
+        renderDriverParcels();
+    }
+
+    // EXPORT LOGIC
+    function exportToCSV() {
+        const delivered = parcels.filter(p => p.status === 'Delivered');
+        let csv = "Waybill,Acc number,POD Date,POD Time,Recipient,Details,Discrepancy,ID number,Cell number\n";
+        
+        delivered.forEach(p => {
+            csv += `${p.waybill},${p.accNo},${p.podDate},${p.podTime},${p.recipient},${p.address || ''},,, \n`;
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.setAttribute('href', url);
+        a.setAttribute('download', `PAKISA_POD_${new Date().getTime()}.csv`);
+        a.click();
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.innerText = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2000);
+    }
+
+    // Initial Load
+    renderAdmin();
+</script>
+
+</body>
+</html>
