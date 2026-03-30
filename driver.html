@@ -1,285 +1,129 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pakisa Driver Portal</title>
-    <style>
-        :root {
-            --royal-blue: #002366;
-            --gold: #D4AF37;
-            --white: #ffffff;
-            --light-gray: #f4f4f4;
-            --dark-blue: #001a4d;
-        }
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            padding: 0; margin: 0; background: var(--royal-blue); color: #333;
-            display: flex; flex-direction: column; min-height: 100vh;
-        }
-        .header {
-            text-align: center; padding: 20px 15px; background: var(--white);
-            border-bottom: 4px solid var(--gold);
-        }
-        .logo { max-width: 220px; height: auto; }
-        
-        .container { padding: 15px; flex: 1; }
-        
-        /* Royal Blue themed cards */
-        .card { 
-            background: var(--white); padding: 20px; border-radius: 12px; 
-            border: 1px solid rgba(255,255,255,0.1); 
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2); 
-            margin-bottom: 20px; 
-        }
-        
-        h2 { 
-            color: var(--royal-blue); font-size: 1.2rem; margin-top: 0;
-            border-bottom: 2px solid var(--gold); padding-bottom: 8px;
-            text-transform: uppercase; letter-spacing: 1px;
-        }
-
-        label { font-weight: bold; display: block; margin-top: 15px; font-size: 0.85rem; color: var(--royal-blue); }
-        
-        input { 
-            width: 100%; padding: 14px; margin-top: 5px; border: 2px solid #eee; 
-            border-radius: 8px; box-sizing: border-box; font-size: 1rem;
-            transition: border-color 0.3s;
-        }
-        input:focus { outline: none; border-color: var(--gold); }
-
-        /* Waybill List Styling */
-        .wb-item { 
-            background: var(--light-gray); padding: 15px; margin: 10px 0; 
-            border-radius: 8px; cursor: pointer; display: flex; 
-            justify-content: space-between; align-items: center;
-            border-left: 6px solid var(--royal-blue);
-            font-weight: bold; font-size: 1.1rem;
-            transition: transform 0.2s;
-        }
-        .wb-item:active { transform: scale(0.98); background: #e0e0e0; }
-        .wb-acc { color: var(--gold); font-size: 0.85rem; }
-
-        /* Buttons */
-        button { 
-            width: 100%; padding: 16px; background: var(--royal-blue); 
-            color: var(--white); border: none; border-radius: 8px; 
-            font-weight: bold; margin-top: 20px; cursor: pointer; 
-            text-transform: uppercase; font-size: 1rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-        }
-        button:active { background: var(--dark-blue); }
-        .btn-secondary { background: #6c757d; margin-top: 10px; box-shadow: none; }
-
-        .footer {
-            text-align: center; padding: 25px; font-size: 0.8rem;
-            color: rgba(255,255,255,0.8); background: var(--dark-blue);
-            border-top: 2px solid var(--gold);
-        }
-        .switch-btn { 
-            background: none; border: 1px solid var(--gold); color: var(--gold); 
-            padding: 5px 10px; width: auto; font-size: 0.7rem; margin-top: 10px; 
-        }
-
-        #trackingStatus { 
-            font-size: 0.75rem; color: #28a745; margin-top: 10px; 
-            display: none; font-weight: bold; text-align: center;
-        }
-        .welcome-text { color: var(--royal-blue); font-weight: bold; margin-bottom: 10px; display: block; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pakisa Driver Portal</title>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@400;600&display=swap');
+  :root { --navy: #002147; --orange: #f5a623; --bg: #f4f7f9; --green: #27ae60; --red: #e74c3c; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); font-family: 'Barlow', sans-serif; }
+  .header { background: var(--navy); color: white; padding: 20px; text-align: center; position: sticky; top: 0; z-index: 100; }
+  .header span { color: var(--orange); }
+  .container { padding: 15px; max-width: 500px; margin: auto; }
+  .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
+  select, input { width: 100%; padding: 15px; margin-top: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; }
+  .btn { padding: 15px; border-radius: 8px; border: none; font-weight: 700; font-family: 'Barlow Condensed'; text-transform: uppercase; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn-navy { background: var(--navy); color: white; }
+  .btn-green { background: var(--green); color: white; }
+  .btn-red { background: var(--red); color: white; }
+  .parcel-card { border-left: 8px solid var(--orange); }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+</style>
 </head>
 <body>
 
-    <div class="header">
-        <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1771237505/pakisa_logistics_express_pty_ltd_logo-removebg-preview_gr7h0r.png" alt="Pakisa Logo" class="logo">
+<div class="header">
+    <h1 style="font-family:'Barlow Condensed'">PAK<span>ISA</span> DRIVER</h1>
+</div>
+
+<div class="container">
+    <div id="login-view" class="card">
+        <label>Select Your Name</label>
+        <select id="driverSelect">
+            <option value="">-- Choose Name --</option>
+            <option>Charles Rapelang</option><option>Frans</option><option>Happy</option>
+            <option>JONATHAN</option><option>Jess</option><option>Mthandeni</option>
+            <option>Mubi</option><option>Ndlovu</option><option>Nkosi M</option>
+            <option>PAK SCANNER</option><option>PAK WAREHOUSE1</option><option>Phaki</option>
+            <option>Shadrack Mathibela</option><option>Sphelo</option><option>Sydwell</option>
+            <option>Tebogo M</option><option>Thabang</option><option>Thulani</option>
+            <option>Training</option><option>Tumelo</option>
+        </select>
+        <button class="btn btn-navy" style="margin-top: 20px;" onclick="login()">Open My Trip</button>
     </div>
 
-    <div class="container">
-        <div class="card" id="loginCard">
-            <h2>Driver Access</h2>
-            <div id="loginFields">
-                <input type="text" id="driverSearch" placeholder="Enter your full name" oninput="loadTrips()">
-            </div>
-            <div id="activeDriverDisplay" style="display:none;">
-                <span class="welcome-text" id="welcomeMsg"></span>
-                <div id="trackingStatus">● LIVE GPS TRACKING ACTIVE</div>
-            </div>
+    <div id="trip-view" style="display: none;">
+        <div class="stats">
+            <div class="card" style="text-align: center; margin-bottom: 0;"><div id="countP" style="font-size: 24px; font-weight: 800; color: var(--orange);">0</div><small>PENDING</small></div>
+            <div class="card" style="text-align: center; margin-bottom: 0;"><div id="countD" style="font-size: 24px; font-weight: 800; color: var(--green);">0</div><small>DONE</small></div>
         </div>
-
-        <div id="tripContainer" class="card" style="display:none;">
-            <h2>Your Deliveries</h2>
-            <p style="font-size: 0.8rem; color: #666; margin-bottom: 15px;">Tap a waybill to complete POD</p>
-            <div id="waybillList"></div>
-        </div>
-
-        <div id="podForm" class="card" style="display:none;">
-            <h2 id="activeWb">Waybill: -</h2>
-            <input type="hidden" id="currentAcc">
-
-            <label>Recipient Name *</label>
-            <input type="text" id="p5_recipient" placeholder="Who is receiving the parcel?">
-
-            <label>ID / Passport Number</label>
-            <input type="text" id="p8_id" placeholder="Optional">
-
-            <label>Cell Number</label>
-            <input type="text" id="p9_cell" placeholder="Optional">
-
-            <label>Delivery Details</label>
-            <input type="text" id="p6_details" placeholder="e.g. Left with reception">
-
-            <label>Discrepancy</label>
-            <input type="text" id="p7_disc" placeholder="e.g. Packaging damaged">
-
-            <button onclick="submitPOD()">Confirm Delivery</button>
-            <button class="btn-secondary" onclick="cancelPOD()">Back to List</button>
-        </div>
+        <div id="parcelList"></div>
     </div>
+</div>
 
-    <div class="footer">
-        &copy; 2026 Pakisa Logistics Express (Pty) Ltd<br>
-        Designed by Mpho Mahlaba<br>
-        <button class="switch-btn" onclick="logoutDriver()">Switch Driver Account</button>
-    </div>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+  authDomain: "pakisa-floor.firebaseapp.com",
+  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com",
+  projectId: "pakisa-floor",
+  storageBucket: "pakisa-floor.firebasestorage.app",
+  messagingSenderId: "1003516506618",
+  appId: "1:1003516506618:web:777d702f93616b6e323443"
+};
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+let activeDriver = "";
 
-    <script>
-        const firebaseConfig = { databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/" };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+function login() {
+    activeDriver = document.getElementById('driverSelect').value;
+    if(!activeDriver) return;
+    document.getElementById('login-view').style.display = 'none';
+    document.getElementById('trip-view').style.display = 'block';
+    loadParcels();
+}
 
-        let lastLat = 0, lastLng = 0, trackingStarted = false;
-
-        // ON STARTUP: Check if driver is already "Logged In"
-        window.onload = () => {
-            const savedName = localStorage.getItem('pakisa_driver_name');
-            if (savedName) {
-                document.getElementById('driverSearch').value = savedName;
-                showLoggedInUI(savedName);
-                loadTrips();
+function loadParcels() {
+    db.ref('floor_scans').on('value', snap => {
+        const data = snap.val();
+        let html = ""; let pCount = 0; let dCount = 0;
+        for(let id in data) {
+            let p = data[id];
+            if(p.driver === activeDriver) {
+                if(p.status === "Pending") {
+                    pCount++;
+                    html += `
+                    <div class="card parcel-card">
+                        <div style="margin-bottom: 15px;">
+                            <h3 style="font-size:24px; font-weight:800;">${p.waybill}</h3>
+                            <div style="color: #666; font-weight:600;">ACC: ${p.accNo}</div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <button class="btn btn-green" onclick="capturePOD('${p.waybill}', '${p.accNo}')">POD</button>
+                            <button class="btn btn-red" onclick="captureFail('${p.waybill}', '${p.accNo}')">FAIL</button>
+                        </div>
+                    </div>`;
+                } else { dCount++; }
             }
-        };
-
-        function showLoggedInUI(name) {
-            document.getElementById('loginFields').style.display = "none";
-            document.getElementById('activeDriverDisplay').style.display = "block";
-            document.getElementById('welcomeMsg').innerText = "Driver: " + name;
         }
+        document.getElementById('parcelList').innerHTML = html || "<div class='card' style='text-align:center;'>🎉 Trip Finished!</div>";
+        document.getElementById('countP').innerText = pCount;
+        document.getElementById('countD').innerText = dCount;
+    });
+}
 
-        function logoutDriver() {
-            localStorage.removeItem('pakisa_driver_name');
-            location.reload();
-        }
+function capturePOD(wb, acc) {
+    const name = prompt("Recipient Name:");
+    if(!name) return;
+    const now = new Date();
+    const pod = { waybill: wb, accNo: acc, signedBy: name, status: "Delivered", date: now.toLocaleDateString('en-GB'), time: now.toLocaleTimeString('en-GB'), details: "Delivered JHB" };
+    db.ref('pods/' + wb).set(pod);
+    db.ref('floor_scans/' + wb).update({ status: "Delivered" });
+}
 
-        function startSilentTracking(driverId) {
-            if (trackingStarted || !navigator.geolocation) return;
-            trackingStarted = true;
-            document.getElementById('trackingStatus').style.display = "block";
-
-            navigator.geolocation.watchPosition(
-                (pos) => {
-                    lastLat = pos.coords.latitude;
-                    lastLng = pos.coords.longitude;
-                    db.ref('drivers_live/' + driverId).set({
-                        driverId: driverId,
-                        lat: lastLat,
-                        lng: lastLng,
-                        accuracy: pos.coords.accuracy,
-                        updatedAt: firebase.database.ServerValue.TIMESTAMP
-                    });
-                },
-                null, { enableHighAccuracy: true }
-            );
-        }
-
-        async function loadTrips() {
-            const name = document.getElementById('driverSearch').value.trim();
-            if (name.length < 3) return;
-
-            localStorage.setItem('pakisa_driver_name', name);
-            showLoggedInUI(name);
-            startSilentTracking(name);
-
-            // Fetch completed PODs to filter the list
-            const podSnap = await db.ref('pods').once('value');
-            const completed = [];
-            podSnap.forEach(c => completed.push(c.val()["1_waybill"]));
-
-            db.ref('tripsheets').orderByChild('driver').equalTo(name).on('value', snap => {
-                const list = document.getElementById('waybillList');
-                list.innerHTML = "";
-                let hasTrips = false;
-
-                snap.forEach(trip => {
-                    const data = trip.val();
-                    if (data.status === "active" && data.waybills) {
-                        data.waybills.forEach(wb => {
-                            if (!completed.includes(wb)) {
-                                hasTrips = true;
-                                const div = document.createElement('div');
-                                div.className = "wb-item";
-                                div.innerHTML = `<span>${wb}</span> <span class="wb-acc">${data.companyId}</span>`;
-                                div.onclick = () => openPOD(wb, data.companyId);
-                                list.appendChild(div);
-                            }
-                        });
-                    }
-                });
-                document.getElementById('tripContainer').style.display = hasTrips ? "block" : "none";
-            });
-        }
-
-        function openPOD(wb, acc) {
-            document.getElementById('activeWb').innerText = "Waybill: " + wb;
-            document.getElementById('currentAcc').value = acc;
-            document.getElementById('podForm').style.display = "block";
-            document.getElementById('tripContainer').style.display = "none";
-            window.scrollTo(0,0);
-        }
-
-        function submitPOD() {
-            const wb = document.getElementById('activeWb').innerText.replace("Waybill: ", "");
-            const acc = document.getElementById('currentAcc').value;
-            const recipient = document.getElementById('p5_recipient').value;
-            const now = new Date();
-
-            if (!recipient) return alert("Recipient name is required!");
-
-            const podData = {
-                "1_waybill": wb,
-                "2_acc_number": acc,
-                "3_pod_date": now.toISOString().split('T')[0],
-                "4_pod_time": now.toLocaleTimeString('en-ZA', { hour12: false }),
-                "5_recipient": recipient,
-                "6_details": document.getElementById('p6_details').value || "",
-                "7_discrepancy": document.getElementById('p7_disc').value || "",
-                "8_id_number": document.getElementById('p8_id').value || "",
-                "9_cell_number": document.getElementById('p9_cell').value || "",
-                "delivery_lat": lastLat,
-                "delivery_lng": lastLng,
-                "timestamp": firebase.database.ServerValue.TIMESTAMP
-            };
-
-            db.ref('pods').push(podData).then(() => {
-                alert("POD Captured Successfully!");
-                // Clear form
-                document.getElementById('podForm').style.display = "none";
-                document.getElementById('p5_recipient').value = "";
-                document.getElementById('p8_id').value = "";
-                document.getElementById('p9_cell').value = "";
-                document.getElementById('p6_details').value = "";
-                document.getElementById('p7_disc').value = "";
-                // Refresh list automatically
-                loadTrips();
-            });
-        }
-
-        function cancelPOD() {
-            document.getElementById('podForm').style.display = "none";
-            document.getElementById('tripContainer').style.display = "block";
-        }
-    </script>
+function captureFail(wb, acc) {
+    const reason = prompt("Reason for failure:");
+    if(!reason) return;
+    const now = new Date();
+    const pod = { waybill: wb, accNo: acc, signedBy: "FAILED: " + reason, status: "Failed", date: now.toLocaleDateString('en-GB'), time: now.toLocaleTimeString('en-GB'), details: reason };
+    db.ref('pods/' + wb).set(pod);
+    db.ref('floor_scans/' + wb).update({ status: "Failed" });
+}
+</script>
 </body>
 </html>
