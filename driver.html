@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pakisa Driver Portal</title>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@400;600&display=swap');
+  :root { --navy: #002147; --orange: #f5a623; --bg: #f4f7f9; --green: #27ae60; --red: #e74c3c; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); font-family: 'Barlow', sans-serif; }
+  .header { background: var(--navy); color: white; padding: 20px; text-align: center; position: sticky; top: 0; z-index: 100; }
+  .header span { color: var(--orange); }
+  .container { padding: 15px; max-width: 500px; margin: auto; }
+  .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
+  select, input { width: 100%; padding: 15px; margin-top: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; }
+  .btn { padding: 15px; border-radius: 8px; border: none; font-weight: 700; font-family: 'Barlow Condensed'; text-transform: uppercase; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn-navy { background: var(--navy); color: white; }
+  .btn-green { background: var(--green); color: white; }
+  .btn-red { background: var(--red); color: white; }
+  .parcel-card { border-left: 8px solid var(--orange); }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1 style="font-family:'Barlow Condensed'">PAK<span>ISA</span> DRIVER</h1>
+</div>
+
+<div class="container">
+    <div id="login-view" class="card">
+        <label>Select Your Name</label>
+        <select id="driverSelect">
+            <option value="">-- Choose Name --</option>
+            <option>Charles Rapelang</option><option>Frans</option><option>Happy</option>
+            <option>JONATHAN</option><option>Jess</option><option>Mthandeni</option>
+            <option>Mubi</option><option>Ndlovu</option><option>Nkosi M</option>
+            <option>PAK SCANNER</option><option>PAK WAREHOUSE1</option><option>Phaki</option>
+            <option>Shadrack Mathibela</option><option>Sphelo</option><option>Sydwell</option>
+            <option>Tebogo M</option><option>Thabang</option><option>Thulani</option>
+            <option>Training</option><option>Tumelo</option>
+        </select>
+        <button class="btn btn-navy" style="margin-top: 20px;" onclick="login()">Open My Trip</button>
+    </div>
+
+    <div id="trip-view" style="display: none;">
+        <div class="stats">
+            <div class="card" style="text-align: center; margin-bottom: 0;"><div id="countP" style="font-size: 24px; font-weight: 800; color: var(--orange);">0</div><small>PENDING</small></div>
+            <div class="card" style="text-align: center; margin-bottom: 0;"><div id="countD" style="font-size: 24px; font-weight: 800; color: var(--green);">0</div><small>DONE</small></div>
+        </div>
+        <div id="parcelList"></div>
+    </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
+  authDomain: "pakisa-floor.firebaseapp.com",
+  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com",
+  projectId: "pakisa-floor",
+  storageBucket: "pakisa-floor.firebasestorage.app",
+  messagingSenderId: "1003516506618",
+  appId: "1:1003516506618:web:777d702f93616b6e323443"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+let activeDriver = "";
+
+function login() {
+    activeDriver = document.getElementById('driverSelect').value;
+    if(!activeDriver) return;
+    document.getElementById('login-view').style.display = 'none';
+    document.getElementById('trip-view').style.display = 'block';
+    loadParcels();
+}
+
+function loadParcels() {
+    db.ref('floor_scans').on('value', snap => {
+        const data = snap.val();
+        let html = ""; let pCount = 0; let dCount = 0;
+        for(let id in data) {
+            let p = data[id];
+            if(p.driver === activeDriver) {
+                if(p.status === "Pending") {
+                    pCount++;
+                    html += `
+                    <div class="card parcel-card">
+                        <div style="margin-bottom: 15px;">
+                            <h3 style="font-size:24px; font-weight:800;">${p.waybill}</h3>
+                            <div style="color: #666; font-weight:600;">ACC: ${p.accNo}</div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <button class="btn btn-green" onclick="capturePOD('${p.waybill}', '${p.accNo}')">POD</button>
+                            <button class="btn btn-red" onclick="captureFail('${p.waybill}', '${p.accNo}')">FAIL</button>
+                        </div>
+                    </div>`;
+                } else { dCount++; }
+            }
+        }
+        document.getElementById('parcelList').innerHTML = html || "<div class='card' style='text-align:center;'>🎉 Trip Finished!</div>";
+        document.getElementById('countP').innerText = pCount;
+        document.getElementById('countD').innerText = dCount;
+    });
+}
+
+function capturePOD(wb, acc) {
+    const name = prompt("Recipient Name:");
+    if(!name) return;
+    const now = new Date();
+    const pod = { waybill: wb, accNo: acc, signedBy: name, status: "Delivered", date: now.toLocaleDateString('en-GB'), time: now.toLocaleTimeString('en-GB'), details: "Delivered JHB" };
+    db.ref('pods/' + wb).set(pod);
+    db.ref('floor_scans/' + wb).update({ status: "Delivered" });
+}
+
+function captureFail(wb, acc) {
+    const reason = prompt("Reason for failure:");
+    if(!reason) return;
+    const now = new Date();
+    const pod = { waybill: wb, accNo: acc, signedBy: "FAILED: " + reason, status: "Failed", date: now.toLocaleDateString('en-GB'), time: now.toLocaleTimeString('en-GB'), details: reason };
+    db.ref('pods/' + wb).set(pod);
+    db.ref('floor_scans/' + wb).update({ status: "Failed" });
+}
+</script>
+</body>
+</html>
