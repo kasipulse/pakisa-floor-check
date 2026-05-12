@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pakisa Floor Check v2.2</title>
+<title>Pakisa Floor Check v3.0</title>
 <style>
 body { font-family: Arial, sans-serif; padding:20px; background:#fff; }
 select, input, textarea, button { width:100%; padding:12px; margin:8px 0; font-size:16px; box-sizing:border-box; }
-select { touch-action: manipulation; }
 textarea { min-height:120px; resize:vertical; }
 button { background:#0a2b52; color:#fff; border:none; border-radius:8px; cursor:pointer; }
 .list-item { padding:10px; background:#f2f2f2; margin:6px 0; border-radius:8px; }
-.flash { background:#2ecc71 !important; transition: background 0.2s; }
+/* This is your Green Flash */
+.flash { background:#2ecc71 !important; transition: background 0.1s; }
+.manifest-box { background: #e8f0fe; padding: 15px; border-radius: 8px; border: 1px dashed #0a2b52; margin-bottom: 20px; }
 </style>
 
-<!-- 🔊 STRONG SCAN SOUND -->
 <audio id="beep" preload="auto">
   <source src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3" type="audio/mpeg">
 </audio>
@@ -29,7 +29,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getDatabase, ref, push, update, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-/* FIREBASE CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
   authDomain: "pakisa-floor.firebaseapp.com",
@@ -45,230 +44,152 @@ onAuthStateChanged(auth, (user) => {
   else listenForScansAndPods();
 });
 
-/* DOM */
-let customer, reason, scanInput, bulkInput, scanList, beep, bulkPOD;
-let currentData = [];
-
-/* 🔊 RELIABLE PLAY */
-function playBeep() {
-  try { beep.pause(); beep.currentTime = 0; beep.play().catch(()=>{}); } catch(e){}
-}
-
-/* Helpers */
-function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
-function startOfTodayTs() {
-  const d = new Date();
-  d.setHours(0,0,0,0);
-  return d.getTime();
-}
-
-/* Scanner debounce */
-let lastScanTime = 0;
+let customer, reason, scanInput, bulkInput, scanList, beep, bulkPOD, bulkManifest;
 
 window.addEventListener("DOMContentLoaded", () => {
   customer = document.getElementById("customer");
   reason = document.getElementById("reason");
   scanInput = document.getElementById("scanInput");
-  bulkInput = document.getElementById("bulkInput");
   scanList = document.getElementById("scanList");
   beep = document.getElementById("beep");
   bulkPOD = document.getElementById("bulkPOD");
+  bulkManifest = document.getElementById("bulkManifest");
 
-  beep.volume = 0.45;
+  // Initial sound unlock for mobile/modern browsers
   document.body.addEventListener("click", () => {
-    beep.play().then(()=>beep.pause()).catch(()=>{});
-  }, { once:true });
+    beep.play().then(() => beep.pause());
+  }, { once: true });
 
-  const searchInput = document.getElementById("searchInput");
   scanInput.focus();
-
-  /* Scanner-safe Enter */
   scanInput.addEventListener("keyup", e => {
-    if (e.key !== "Enter") return;
-    const now = Date.now();
-    if (now - lastScanTime < 250) return;
-    lastScanTime = now;
-    e.preventDefault();
-    saveScan();
+    if (e.key === "Enter") saveScan();
   });
-
-  /* Search safe */
-  searchInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") { e.preventDefault(); scanInput.focus(); }
-  });
-  searchInput.addEventListener("blur", () => { setTimeout(() => scanInput.focus(), 50); });
 });
 
-/* 🔥 LISTENER */
-async function listenForScansAndPods() {
-  const scansRef = ref(db, "scans");
-  const podsRef = ref(db, "pods");
-  const scansSnap = await get(scansRef);
-  const scans = [];
-  scansSnap.forEach(c => { const val = c.val(); if (val.timestamp >= startOfTodayTs()) scans.push(val); });
+/* 🚀 STEP 1: LOAD MORNING MANIFEST (OFD) */
+window.importManifest = async () => {
+  const text = bulkManifest.value.trim();
+  if (!text) return alert("Paste the OFD report first!");
+  
+  const lines = text.split(/\r?\n/);
+  const headers = lines[0].split(/\t/).map(h => h.trim().toLowerCase());
+  
+  const idxTrack = headers.findIndex(h => h.includes("tracking no"));
+  const idxAccount = headers.findIndex(h => h.includes("account"));
 
-  const podsSnap = await get(podsRef);
-  const pods = {};
-  podsSnap.forEach(p => {
-    const val = p.val();
-    if (!val.waybill) return;
-    const waybill = String(val.waybill).trim().replace(/\.0$/, "");
-    pods[waybill] = { ...val, waybill };
+  if (idxTrack === -1 || idxAccount === -1) return alert("Missing 'Tracking No' or 'Account' columns!");
+
+  const updates = {};
+  lines.slice(1).forEach(line => {
+    const parts = line.split(/\t/).map(p => p.trim());
+    const tracking = parts[idxTrack]?.replace(/\s+/g,"");
+    const acc = parts[idxAccount];
+    if (tracking && acc) updates[`manifest/${tracking}`] = { account: acc };
   });
 
-  const combined = [];
-  scans.forEach(s => {
-    const waybill = String(s.waybill).trim().replace(/\.0$/, "");
-    combined.push({ waybill, customer: s.customer, reason: s.reason, timestamp: s.timestamp, pod: pods[waybill] || null });
-  });
-
-  Object.values(pods).forEach(p => {
-    const existsInScans = scans.some(s => String(s.waybill).trim().replace(/\.0$/,"") === p.waybill);
-    if (!existsInScans) {
-      combined.push({ waybill: p.waybill, customer: "N/A", reason: "Not scanned yet", timestamp: p.importedAt || 0, pod: p });
-    }
-  });
-
-  combined.sort((a,b)=>b.timestamp-a.timestamp);
-  currentData = combined;
-  renderList(currentData);
-}
-
-/* RENDER */
-function renderList(arr) {
-  scanList.innerHTML = "";
-  if (!arr.length) return scanList.innerHTML = "<i>No scans or PODs</i>";
-  arr.slice(0,200).forEach(d => {
-    const podText = d.pod ? `<br><span style="color:green;"><b>POD:</b> Signed by ${d.pod.signedBy} — ${d.pod.date || ""} ${d.pod.time || ""}</span>` : "";
-    const div = document.createElement("div");
-    div.className = "list-item";
-    div.innerHTML = `<b>${d.waybill}</b><br>${d.customer} — ${d.reason}${podText}`;
-    scanList.appendChild(div);
-  });
-}
-
-/* SEARCH */
-window.filterSearch = () => {
-  const t = document.getElementById("searchInput").value.toLowerCase();
-  renderList(currentData.filter(d => d.waybill.toLowerCase().includes(t) || d.customer.toLowerCase().includes(t) || d.reason.toLowerCase().includes(t)));
+  await update(ref(db), updates);
+  alert("Manifest loaded! Scanner will now auto-detect customers. ✅");
+  bulkManifest.value = "";
 };
 
-/* SINGLE SCAN */
+/* 🚀 STEP 2: SMART SCAN (With Sound & Green Flash) */
 window.saveScan = async () => {
   const waybill = scanInput.value.trim();
-  if (!customer.value || !reason.value || !waybill) return scanInput.focus();
-  await push(ref(db,"scans"),{ companyId, companyName, customer: customer.value, reason: reason.value, waybill, date: todayKey(), timestamp: Date.now() });
-  playBeep();
+  if (!waybill) return;
+
+  // 1. Check Manifest
+  const snap = await get(ref(db, `manifest/${waybill}`));
+  if (snap.exists()) {
+    const autoAcc = snap.val().account;
+    for (let i = 0; i < customer.options.length; i++) {
+        if (customer.options[i].text.toLowerCase().includes(autoAcc.toLowerCase())) {
+            customer.selectedIndex = i;
+            break;
+        }
+    }
+  }
+
+  if (!customer.value || !reason.value) return alert("Select customer and reason!");
+
+  // 2. Save to Firebase
+  await push(ref(db,"scans"), { 
+    companyId, 
+    companyName, 
+    customer: customer.value, 
+    reason: reason.value, 
+    waybill, 
+    timestamp: Date.now() 
+  });
+  
+  // 3. 🔊 PLAY SOUND
+  try {
+    beep.currentTime = 0; 
+    beep.play();
+  } catch(e) { console.log("Sound error:", e); }
+
+  // 4. 🟢 GREEN FLASH
   document.body.classList.add("flash");
-  setTimeout(()=>document.body.classList.remove("flash"),150);
+  setTimeout(() => document.body.classList.remove("flash"), 150);
+
+  // 5. Reset input
   scanInput.value = "";
   scanInput.focus();
 };
 
-/* BULK SCANS */
-window.saveBulkScans = async () => {
-  const text = bulkInput.value.trim();
-  if (!customer.value || !reason.value || !text) return alert("Select customer, reason and paste waybills");
-  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>=8);
-  if (!lines.length) return alert("No valid waybills");
-  const updates = {};
-  const baseRef = ref(db,"scans");
-  lines.forEach(waybill=>{
-    const key = push(baseRef).key;
-    updates[`scans/${key}`] = { companyId, companyName, customer: customer.value, reason: reason.value, waybill, date: todayKey(), timestamp: Date.now() };
-  });
-  await update(ref(db), updates);
-  bulkInput.value = "";
-  playBeep();
-};
-
-/* BULK POD IMPORT */
+/* 🚀 STEP 3: SMART POD IMPORT */
 window.importPODBulk = async () => {
   const text = bulkPOD.value.trim();
   if (!text) return alert("Paste POD data first!");
+  
   const lines = text.split(/\r?\n/);
+  const headers = lines[0].split(/\t/).map(h => h.trim().toLowerCase());
+  
+  const idxTrack = headers.findIndex(h => h.includes("tracking no"));
+  const idxRecipient = headers.findIndex(h => h.includes("recipient"));
+
   const updates = {};
-  lines.forEach(line => {
-    if (line.toLowerCase().includes("tracking")) return;
-    const parts = line.split(/\t/).map(p=>p.trim());
-    if (parts.length < 4) return;
-    let [waybillRaw, podDateRaw, podTimeRaw, signedBy] = parts;
-    const waybill = String(waybillRaw).trim().replace(/\s+/g,"").replace(/\.0$/,"");
-    if (!waybill) return;
-    let podTimestamp = Date.now();
-    if (podDateRaw) {
-      const [dd,mm,yyyy] = podDateRaw.split("/").map(Number);
-      let hh=0,min=0,sec=0;
-      if (podTimeRaw) [hh,min,sec] = podTimeRaw.split(":").map(Number);
-      podTimestamp = new Date(yyyy,mm-1,dd,hh,min,sec).getTime();
+  lines.slice(1).forEach(line => {
+    const parts = line.split(/\t/).map(p => p.trim());
+    const waybill = parts[idxTrack]?.replace(/\s+/g,"");
+    if (waybill) {
+      updates[`pods/${waybill}`] = { 
+        waybill, 
+        signedBy: parts[idxRecipient] || "N/A", 
+        status: "Delivered", 
+        importedAt: Date.now() 
+      };
     }
-    updates[`pods/${waybill}`] = { waybill, signedBy, date: podDateRaw, time: podTimeRaw, status:"Delivered", importedAt: Date.now(), podTimestamp };
   });
-  if (!Object.keys(updates).length) return alert("No valid PODs found!");
+
   await update(ref(db), updates);
-  alert("POD import complete ✅");
+  alert("PODs imported! ✅");
   bulkPOD.value = "";
 };
 
-/* POD EXCEL */
-window.importPOD = () => {
-  const fileInput = document.getElementById("podFile");
-  if (!fileInput.files.length) return alert("Select an Excel file!");
-  const reader = new FileReader();
-  reader.onload = e => {
-    const data = new Uint8Array(e.target.result);
-    const workbook = XLSX.read(data,{type:'array'});
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const csv = XLSX.utils.sheet_to_csv(sheet);
-    bulkPOD.value = csv;
-    alert("Excel loaded into POD paste area ✅");
-  };
-  reader.readAsArrayBuffer(fileInput.files[0]);
-};
+async function listenForScansAndPods() {
+  const scansRef = ref(db, "scans");
+  const podsRef = ref(db, "pods");
+  const [sSnap, pSnap] = await Promise.all([get(scansRef), get(podsRef)]);
+  
+  const pods = pSnap.val() || {};
+  const list = [];
+  sSnap.forEach(s => {
+    const val = s.val();
+    list.push({ ...val, pod: pods[val.waybill] || null });
+  });
 
-/* RETURN NOTE GENERATOR */
-window.generateReturnNote = () => {
-  const customer = document.getElementById("returnCustomer").value;
-  const reason = document.getElementById("returnReason").value;
-  const newAddress = document.getElementById("returnAddress").value;
-  if (!customer || !reason) return alert("Select customer and reason.");
-  const now = new Date();
-  const dateStr = now.toLocaleDateString();
-  const timeStr = now.toLocaleTimeString();
+  list.sort((a,b) => b.timestamp - a.timestamp);
+  renderList(list);
+}
 
-  const html = `
-<html>
-<head>
-<title>Return Note</title>
-<style>
-body { font-family: Arial, sans-serif; padding:20px; }
-h2 { text-align:center; color:#072760; }
-.note { border:2px solid #072760; padding:16px; margin-top:20px; border-radius:12px; }
-.note p { margin:6px 0; font-size:16px; }
-</style>
-</head>
-<body>
-<h2>Return Note</h2>
-<div class="note">
-<p><strong>Customer:</strong> ${customer}</p>
-<p><strong>Reason:</strong> ${reason}</p>
-${reason === "Change of Address" && newAddress ? `<p><strong>New Address:</strong> ${newAddress}</p>` : ""}
-<p><strong>Date:</strong> ${dateStr}</p>
-<p><strong>Time:</strong> ${timeStr}</p>
-</div>
-</body>
-</html>
-`;
-  const w = window.open("", "_blank");
-  w.document.write(html);
-  w.document.close();
-  w.focus();
-  w.print();
-};
+function renderList(arr) {
+  scanList.innerHTML = arr.slice(0,100).map(d => `
+    <div class="list-item">
+      <b>${d.waybill}</b><br>${d.customer} — ${d.reason}
+      ${d.pod ? `<br><span style="color:green;"><b>POD:</b> ${d.pod.signedBy}</span>` : ""}
+    </div>
+  `).join("");
+}
 </script>
 </head>
 
@@ -277,8 +198,13 @@ ${reason === "Change of Address" && newAddress ? `<p><strong>New Address:</stron
 <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160">
 </center>
 
-<h2>Floor Check</h2>
+<div class="manifest-box">
+  <h3>1. Morning: Load Manifest</h3>
+  <textarea id="bulkManifest" placeholder="Paste OFD report here..."></textarea>
+  <button onclick="importManifest()">Load Morning Manifest</button>
+</div>
 
+<h2>2. Floor Check</h2>
 <label>Customer</label>
 <select id="customer">
   <option value="">Select Customer</option>
@@ -293,69 +219,24 @@ ${reason === "Change of Address" && newAddress ? `<p><strong>New Address:</stron
 
 <label>Reason</label>
 <select id="reason">
-  <option value="">Select Reason</option>
-  <option>Out for delivery</option>
+  <option selected>Out for delivery</option>
   <option>Nobody home</option>
   <option>Incorrect phone number</option>
   <option>Bad address</option>
-  <option>Missing paperwork</option>
-  <option>Misroute</option>
   <option>Refused</option>
-  <option>Returned to Sender</option>
-  <option>Will be attempted on commitment date</option>
-  <option>Future delivery</option>
 </select>
 
 <label>Scan Waybill</label>
-<input id="scanInput" placeholder="Scan waybill" autocomplete="off">
+<input id="scanInput" placeholder="Scan tracking no" autocomplete="off">
 
-<label>Bulk Waybill Paste</label>
-<textarea id="bulkInput" placeholder="One waybill per line"></textarea>
-<button onclick="saveBulkScans()">Bulk Upload</button>
-
-<label>Bulk POD Paste</label>
-<textarea id="bulkPOD" placeholder="Tracking TAB Date TAB Time TAB Recipient"></textarea>
-<button onclick="importPODBulk()">Import POD</button>
-
-<h3>Search</h3>
-<input id="searchInput" placeholder="Search…" onkeyup="filterSearch()">
+<div class="manifest-box" style="background:#f9f9f9;">
+  <h3>3. Afternoon: Import PODs</h3>
+  <textarea id="bulkPOD" placeholder="Paste POD report here..."></textarea>
+  <button onclick="importPODBulk()">Import POD</button>
+</div>
 
 <h3>Scans (Today)</h3>
 <div id="scanList"><i>Loading…</i></div>
-
-<hr>
-
-<h3>Import POD Excel</h3>
-<input type="file" id="podFile" accept=".xls,.xlsx">
-<button onclick="importPOD()">Import POD</button>
-
-<hr>
-
-<h3>Generate Return Note</h3>
-<label>Customer</label>
-<select id="returnCustomer">
-  <option value="">Select Customer</option>
-  <option>First Freight Couriers</option>
-  <option>Fedex Express</option>
-  <option>BLD Couriers International</option>
-  <option>Brima Logistics</option>
-  <option>Seabourne Logistics</option>
-  <option>ACT</option>
-  <option>SEND&RECIEVE</option>
-</select>
-
-<label>Reason for Return</label>
-<select id="returnReason">
-  <option value="">Select Reason</option>
-  <option>Attention UTL</option>
-  <option>Change of Address</option>
-  <option>Refused by Customer</option>
-  <option>Returned to Sender</option>
-</select>
-
-<label>New Address (if applicable)</label>
-<textarea id="returnAddress" placeholder="Enter new address if reason is Change of Address"></textarea>
-<button onclick="generateReturnNote()">Print Return Note</button>
 
 <br><center><b>Built by Mpho Mahlaba</b></center>
 </body>
