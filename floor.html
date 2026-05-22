@@ -65,7 +65,7 @@ window.addEventListener("DOMContentLoaded", () => {
   scanInput.addEventListener("keyup", e => { if (e.key === "Enter") saveScan(); });
 });
 
-/* --- YOUR ORIGINAL LOGIC --- */
+/* --- ORIGINAL LOGIC --- */
 window.importManifest = async () => {
   const text = bulkManifest.value.trim();
   if (!text) return alert("Paste the OFD report first!");
@@ -104,7 +104,7 @@ window.saveScan = async () => {
   document.body.classList.add("flash");
   setTimeout(() => document.body.classList.remove("flash"), 150);
   scanInput.value = ""; scanInput.focus();
-  listenForScansAndPods(); // Refresh list
+  listenForScansAndPods();
 };
 
 window.importPODBulk = async () => {
@@ -128,17 +128,30 @@ window.importPODBulk = async () => {
   listenForScansAndPods();
 };
 
-/* --- NEW REPORTING FEATURES --- */
+/* --- NEW FILTER & EXPORT LOGIC --- */
 window.filterReport = () => {
     const cust = document.getElementById("filterCustomer").value;
-    const filtered = cust ? allScans.filter(s => s.customer === cust) : allScans;
+    const start = new Date(document.getElementById("startDate").value).getTime();
+    const end = new Date(document.getElementById("endDate").value).getTime() + 86400000; // Include full end day
+
+    const filtered = allScans.filter(s => {
+        const matchesCust = cust === "" || s.customer === cust;
+        const matchesDate = (!start || s.timestamp >= start) && (!end || s.timestamp <= end);
+        return matchesCust && matchesDate;
+    });
     renderList(filtered);
 };
 
 window.exportToExcel = () => {
     const cust = document.getElementById("filterCustomer").value;
     const data = cust ? allScans.filter(s => s.customer === cust) : allScans;
-    const ws = XLSX.utils.json_to_sheet(data.map(d => ({ Waybill: d.waybill, Customer: d.customer, Reason: d.reason, POD: d.pod?.signedBy || 'N/A' })));
+    const ws = XLSX.utils.json_to_sheet(data.map(d => ({ 
+        Date: new Date(d.timestamp).toLocaleDateString(), 
+        Waybill: d.waybill, 
+        Customer: d.customer, 
+        Reason: d.reason, 
+        POD: d.pod?.signedBy || 'N/A' 
+    })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Report");
     XLSX.writeFile(wb, `Report_${cust || 'All'}.xlsx`);
@@ -155,7 +168,7 @@ async function listenForScansAndPods() {
 
 function renderList(arr) {
   scanList.innerHTML = arr.slice(0,100).map(d => `
-    <div class="list-item"><b>${d.waybill}</b><br>${d.customer} — ${d.reason} ${d.pod ? `<br><span style="color:green;"><b>POD:</b> ${d.pod.signedBy}</span>` : ""}</div>
+    <div class="list-item"><b>${d.waybill}</b><br>${d.customer} — ${d.reason} <br><small>${new Date(d.timestamp).toLocaleString()}</small> ${d.pod ? `<br><span style="color:green;"><b>POD:</b> ${d.pod.signedBy}</span>` : ""}</div>
   `).join("");
 }
 </script>
@@ -207,7 +220,7 @@ function renderList(arr) {
 </div>
 
 <div class="report-box">
-    <h3>4. Customer Reporting</h3>
+    <h3>4. Reporting & Filters</h3>
     <select id="filterCustomer" onchange="filterReport()">
         <option value="">All Customers</option>
         <option>First Freight Couriers</option>
@@ -217,10 +230,12 @@ function renderList(arr) {
         <option>Seabourne Logistics</option>
         <option>ACT</option>
     </select>
+    <label>From Date:</label><input type="date" id="startDate" onchange="filterReport()">
+    <label>To Date:</label><input type="date" id="endDate" onchange="filterReport()">
     <button onclick="exportToExcel()" style="background:#f57c00;">Download Excel Report</button>
 </div>
 
-<h3>Scans (Today)</h3>
+<h3>Scans</h3>
 <div id="scanList"><i>Loading…</i></div>
 
 <br><center><b>Built by Mpho Mahlaba</b></center>
