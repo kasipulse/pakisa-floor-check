@@ -20,6 +20,8 @@ button { background:#0a2b52; color:#fff; border:none; border-radius:8px; cursor:
 </audio>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
 <script type="module">
 const companyId = localStorage.getItem("companyId");
@@ -128,11 +130,11 @@ window.importPODBulk = async () => {
   listenForScansAndPods();
 };
 
-/* --- NEW FILTER & EXPORT LOGIC --- */
+/* --- FILTER & EXPORT LOGIC --- */
 window.filterReport = () => {
     const cust = document.getElementById("filterCustomer").value;
     const start = new Date(document.getElementById("startDate").value).getTime();
-    const end = new Date(document.getElementById("endDate").value).getTime() + 86400000; // Include full end day
+    const end = new Date(document.getElementById("endDate").value).getTime() + 86400000; 
 
     const filtered = allScans.filter(s => {
         const matchesCust = cust === "" || s.customer === cust;
@@ -140,21 +142,34 @@ window.filterReport = () => {
         return matchesCust && matchesDate;
     });
     renderList(filtered);
+    return filtered; 
 };
 
 window.exportToExcel = () => {
-    const cust = document.getElementById("filterCustomer").value;
-    const data = cust ? allScans.filter(s => s.customer === cust) : allScans;
+    const data = filterReport();
     const ws = XLSX.utils.json_to_sheet(data.map(d => ({ 
-        Date: new Date(d.timestamp).toLocaleDateString(), 
-        Waybill: d.waybill, 
-        Customer: d.customer, 
-        Reason: d.reason, 
-        POD: d.pod?.signedBy || 'N/A' 
+        Date: new Date(d.timestamp).toLocaleDateString(), Waybill: d.waybill, Customer: d.customer, Reason: d.reason, POD: d.pod?.signedBy || 'N/A' 
     })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Report");
-    XLSX.writeFile(wb, `Report_${cust || 'All'}.xlsx`);
+    XLSX.writeFile(wb, `Report.xlsx`);
+};
+
+window.exportToPDF = async () => {
+    const data = filterReport();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    // Add Logo
+    const img = new Image();
+    img.src = "https://res.cloudinary.com/dwxgkbuln/image/upload/v1771237505/pakisa_logistics_express_pty_ltd_logo-removebg-preview_gr7h0r.png";
+    await new Promise((r) => img.onload = r);
+    doc.addImage(img, 'PNG', 14, 10, 40, 15);
+    
+    doc.text("Delivery Report", 60, 20);
+    const tableData = data.map(d => [new Date(d.timestamp).toLocaleDateString(), d.waybill, d.customer, d.reason, d.pod?.signedBy || 'N/A']);
+    doc.autoTable({ head: [['Date', 'Waybill', 'Customer', 'Reason', 'POD']], body: tableData, startY: 30 });
+    doc.save("Report.pdf");
 };
 
 async function listenForScansAndPods() {
@@ -233,6 +248,7 @@ function renderList(arr) {
     <label>From Date:</label><input type="date" id="startDate" onchange="filterReport()">
     <label>To Date:</label><input type="date" id="endDate" onchange="filterReport()">
     <button onclick="exportToExcel()" style="background:#f57c00;">Download Excel Report</button>
+    <button onclick="exportToPDF()" style="background:#d32f2f;">Download PDF Report</button>
 </div>
 
 <h3>Scans</h3>
