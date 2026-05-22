@@ -12,7 +12,7 @@ button { background:#0a2b52; color:#fff; border:none; border-radius:8px; cursor:
 .list-item { padding:10px; background:#f2f2f2; margin:6px 0; border-radius:8px; }
 .flash { background:#2ecc71 !important; transition: background 0.1s; }
 .manifest-box { background: #e8f0fe; padding: 15px; border-radius: 8px; border: 1px dashed #0a2b52; margin-bottom: 20px; }
-.controls { background: #eee; padding: 10px; border-radius: 8px; margin-bottom: 20px; }
+.report-box { background: #fff3e0; padding: 15px; border-radius: 8px; border: 1px dashed #f57c00; margin-bottom: 20px; }
 </style>
 
 <audio id="beep" preload="auto">
@@ -22,6 +22,9 @@ button { background:#0a2b52; color:#fff; border:none; border-radius:8px; cursor:
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script type="module">
+const companyId = localStorage.getItem("companyId");
+const companyName = localStorage.getItem("companyName");
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, update, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -36,13 +39,96 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-let allScans = []; // Global cache for filtering
+let allScans = []; 
 
 onAuthStateChanged(auth, (user) => {
   if (!user) window.location.href = "login.html";
   else listenForScansAndPods();
 });
 
+let customer, reason, scanInput, scanList, beep, bulkPOD, bulkManifest;
+
+window.addEventListener("DOMContentLoaded", () => {
+  customer = document.getElementById("customer");
+  reason = document.getElementById("reason");
+  scanInput = document.getElementById("scanInput");
+  scanList = document.getElementById("scanList");
+  beep = document.getElementById("beep");
+  bulkPOD = document.getElementById("bulkPOD");
+  bulkManifest = document.getElementById("bulkManifest");
+
+  document.body.addEventListener("click", () => {
+    beep.play().then(() => beep.pause());
+  }, { once: true });
+
+  scanInput.focus();
+  scanInput.addEventListener("keyup", e => { if (e.key === "Enter") saveScan(); });
+});
+
+/* --- YOUR ORIGINAL LOGIC --- */
+window.importManifest = async () => {
+  const text = bulkManifest.value.trim();
+  if (!text) return alert("Paste the OFD report first!");
+  const lines = text.split(/\r?\n/);
+  const headers = lines[0].split(/\t/).map(h => h.trim().toLowerCase());
+  const idxTrack = headers.findIndex(h => h.includes("tracking no"));
+  const idxAccount = headers.findIndex(h => h.includes("account"));
+  if (idxTrack === -1 || idxAccount === -1) return alert("Missing 'Tracking No' or 'Account' columns!");
+  const updates = {};
+  lines.slice(1).forEach(line => {
+    const parts = line.split(/\t/).map(p => p.trim());
+    const tracking = parts[idxTrack]?.replace(/\s+/g,"");
+    const acc = parts[idxAccount];
+    if (tracking && acc) updates[`manifest/${tracking}`] = { account: acc };
+  });
+  await update(ref(db), updates);
+  alert("Manifest loaded! ✅");
+  bulkManifest.value = "";
+};
+
+window.saveScan = async () => {
+  const waybill = scanInput.value.trim();
+  if (!waybill) return;
+  const snap = await get(ref(db, `manifest/${waybill}`));
+  if (snap.exists()) {
+    const autoAcc = snap.val().account;
+    for (let i = 0; i < customer.options.length; i++) {
+        if (customer.options[i].text.toLowerCase().includes(autoAcc.toLowerCase())) {
+            customer.selectedIndex = i; break;
+        }
+    }
+  }
+  if (!customer.value || !reason.value) return alert("Select customer and reason!");
+  await push(ref(db,"scans"), { companyId, companyName, customer: customer.value, reason: reason.value, waybill, timestamp: Date.now() });
+  try { beep.currentTime = 0; beep.play(); } catch(e) {}
+  document.body.classList.add("flash");
+  setTimeout(() => document.body.classList.remove("flash"), 150);
+  scanInput.value = ""; scanInput.focus();
+  listenForScansAndPods(); // Refresh list
+};
+
+window.importPODBulk = async () => {
+  const text = bulkPOD.value.trim();
+  if (!text) return alert("Paste POD data first!");
+  const lines = text.split(/\r?\n/);
+  const headers = lines[0].split(/\t/).map(h => h.trim().toLowerCase());
+  const idxTrack = headers.findIndex(h => h.includes("tracking no"));
+  const idxRecipient = headers.findIndex(h => h.includes("recipient"));
+  const updates = {};
+  lines.slice(1).forEach(line => {
+    const parts = line.split(/\t/).map(p => p.trim());
+    const waybill = parts[idxTrack]?.replace(/\s+/g,"");
+    if (waybill) {
+      updates[`pods/${waybill}`] = { waybill, signedBy: parts[idxRecipient] || "N/A", status: "Delivered", importedAt: Date.now() };
+    }
+  });
+  await update(ref(db), updates);
+  alert("PODs imported! ✅");
+  bulkPOD.value = "";
+  listenForScansAndPods();
+};
+
+/* --- NEW REPORTING FEATURES --- */
 window.filterReport = () => {
     const cust = document.getElementById("filterCustomer").value;
     const filtered = cust ? allScans.filter(s => s.customer === cust) : allScans;
@@ -68,20 +154,60 @@ async function listenForScansAndPods() {
 }
 
 function renderList(arr) {
-  document.getElementById("scanList").innerHTML = arr.slice(0,100).map(d => `
+  scanList.innerHTML = arr.slice(0,100).map(d => `
     <div class="list-item"><b>${d.waybill}</b><br>${d.customer} — ${d.reason} ${d.pod ? `<br><span style="color:green;"><b>POD:</b> ${d.pod.signedBy}</span>` : ""}</div>
   `).join("");
 }
-
-// ... Keep your existing import/saveScan functions here ...
 </script>
 </head>
 
 <body>
-<img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160" style="display:block; margin:auto;">
+<center>
+<img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160">
+</center>
 
-<div class="controls">
-    <h3>Filter & Export</h3>
+<div class="manifest-box">
+  <h3>1. Morning: Load Manifest</h3>
+  <textarea id="bulkManifest" placeholder="Paste OFD report here..."></textarea>
+  <button onclick="importManifest()">Load Morning Manifest</button>
+</div>
+
+<h2>2. Floor Check</h2>
+<label>Customer</label>
+<select id="customer">
+  <option value="">Select Customer</option>
+  <option>First Freight Couriers</option>
+  <option>Fedex Express</option>
+  <option>BLD Couriers International</option>
+  <option>Brima Logistics</option>
+  <option>Seabourne Logistics</option>
+  <option>ACT</option>
+  <option>SEND&RECIEVE</option>
+</select>
+
+<label>Reason</label>
+<select id="reason">
+  <option selected>Out for delivery</option>
+  <option>Nobody home</option>
+  <option>Incorrect phone number</option>
+  <option>Bad address</option>
+  <option>Refused</option>
+  <option>Misroute</option>
+  <option>Returned to sender</option>
+  <option>Will be delivered on commitment date</option>
+</select>
+
+<label>Scan Waybill</label>
+<input id="scanInput" placeholder="Scan tracking no" autocomplete="off">
+
+<div class="manifest-box" style="background:#f9f9f9;">
+  <h3>3. Afternoon: Import PODs</h3>
+  <textarea id="bulkPOD" placeholder="Paste POD report here..."></textarea>
+  <button onclick="importPODBulk()">Import POD</button>
+</div>
+
+<div class="report-box">
+    <h3>4. Customer Reporting</h3>
     <select id="filterCustomer" onchange="filterReport()">
         <option value="">All Customers</option>
         <option>First Freight Couriers</option>
@@ -91,8 +217,12 @@ function renderList(arr) {
         <option>Seabourne Logistics</option>
         <option>ACT</option>
     </select>
-    <button onclick="exportToExcel()" style="background:#2ecc71;">Download Excel Report</button>
+    <button onclick="exportToExcel()" style="background:#f57c00;">Download Excel Report</button>
 </div>
 
+<h3>Scans (Today)</h3>
+<div id="scanList"><i>Loading…</i></div>
+
+<br><center><b>Built by Mpho Mahlaba</b></center>
 </body>
 </html>
