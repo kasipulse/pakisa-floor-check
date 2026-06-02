@@ -101,7 +101,18 @@ window.saveScan = async () => {
     }
   }
   if (!customer.value || !reason.value) return alert("Select customer and reason!");
-  await push(ref(db,"scans"), { companyId, companyName, customer: customer.value, reason: reason.value, waybill, timestamp: Date.now() });
+  
+  const now = Date.now();
+  await push(ref(db,"scans"), { 
+    companyId, 
+    companyName, 
+    customer: customer.value, 
+    reason: reason.value, 
+    waybill, 
+    timestamp: now,
+    scannedDate: new Date(now).toLocaleDateString() 
+  });
+  
   try { beep.currentTime = 0; beep.play(); } catch(e) {}
   document.body.classList.add("flash");
   setTimeout(() => document.body.classList.remove("flash"), 150);
@@ -148,7 +159,7 @@ window.filterReport = () => {
 window.exportToExcel = () => {
     const data = filterReport();
     const ws = XLSX.utils.json_to_sheet(data.map(d => ({ 
-        Date: new Date(d.timestamp).toLocaleDateString(), Waybill: d.waybill, Customer: d.customer, Reason: d.reason, POD: d.pod?.signedBy || 'N/A' 
+        Date: d.scannedDate || new Date(d.timestamp).toLocaleDateString(), Waybill: d.waybill, Customer: d.customer, Reason: d.reason, POD: d.pod?.signedBy || 'N/A' 
     })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Report");
@@ -167,7 +178,7 @@ window.exportToPDF = async () => {
     doc.addImage(img, 'PNG', 14, 10, 40, 15);
     
     doc.text("Delivery Report", 60, 20);
-    const tableData = data.map(d => [new Date(d.timestamp).toLocaleDateString(), d.waybill, d.customer, d.reason, d.pod?.signedBy || 'N/A']);
+    const tableData = data.map(d => [d.scannedDate || new Date(d.timestamp).toLocaleDateString(), d.waybill, d.customer, d.reason, d.pod?.signedBy || 'N/A']);
     doc.autoTable({ head: [['Date', 'Waybill', 'Customer', 'Reason', 'POD']], body: tableData, startY: 30 });
     doc.save("Report.pdf");
 };
@@ -183,7 +194,9 @@ async function listenForScansAndPods() {
 
 function renderList(arr) {
   scanList.innerHTML = arr.slice(0,100).map(d => `
-    <div class="list-item"><b>${d.waybill}</b><br>${d.customer} — ${d.reason} <br><small>${new Date(d.timestamp).toLocaleString()}</small> ${d.pod ? `<br><span style="color:green;"><b>POD:</b> ${d.pod.signedBy}</span>` : ""}</div>
+    <div class="list-item"><b>${d.waybill}</b><br>${d.customer} — ${d.reason} <br>
+    <small>Date: ${d.scannedDate || new Date(d.timestamp).toLocaleDateString()} | Time: ${new Date(d.timestamp).toLocaleTimeString()}</small> 
+    ${d.pod ? `<br><span style="color:green;"><b>POD:</b> ${d.pod.signedBy}</span>` : ""}</div>
   `).join("");
 }
 </script>
