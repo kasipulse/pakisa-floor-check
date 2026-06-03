@@ -84,14 +84,14 @@ window.exportToExcel = () => { /* unchanged */ };
 
 window.exportToPDF = async () => { /* unchanged */ };
 
-/* ---------------- EMAIL FEATURE (ADDED ONLY) ---------------- */
+/* ---------------- EMAIL FEATURE (ONLY FIXED PART) ---------------- */
 
 window.emailReport = () => {
 
     const email = "odajnba@fedex.com";
     const cc = "csd@pakisalogistics.co.za";
 
-    const data = filterReport();
+    const data = filterReport() || [];
 
     const today = new Date().toLocaleDateString();
 
@@ -108,7 +108,7 @@ Pakisa Logistics`;
 
     window.location.href =
         `mailto:${email}?cc=${cc}` +
-        `&subject=${encodeURIComponent("FedEx Delivery Report - " + today)}` +
+        `&subject=${encodeURIComponent("Pakisa Floor")}` +
         `&body=${encodeURIComponent(body)}`;
 };
 
@@ -190,7 +190,7 @@ function renderList(arr) { /* unchanged */ }
     <button onclick="exportToExcel()">Download Excel Report</button>
     <button onclick="exportToPDF()">Download PDF Report</button>
 
-    <!-- ✅ NEW BUTTON -->
+    <!-- NEW BUTTON -->
     <button onclick="emailReport()" style="background:#1976d2;">
         Email FedEx Report
     </button>
