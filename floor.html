@@ -16,6 +16,10 @@ button { background:#0a2b52; color:#fff; border:none; border-radius:8px; cursor:
 .report-box { background: #fff3e0; padding: 15px; border-radius: 8px; border: 1px dashed #f57c00; margin-bottom: 20px; }
 </style>
 
+<audio id="beep" preload="auto">
+  <source src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3">
+</audio>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
@@ -38,7 +42,8 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 
 let allScans = [];
-let scanList;
+
+let customer, reason, scanInput, scanList, beep, bulkPOD, bulkManifest;
 
 onAuthStateChanged(auth, (user) => {
   if (!user) window.location.href = "login.html";
@@ -46,167 +51,245 @@ onAuthStateChanged(auth, (user) => {
 });
 
 window.addEventListener("DOMContentLoaded", () => {
+  customer = document.getElementById("customer");
+  reason = document.getElementById("reason");
+  scanInput = document.getElementById("scanInput");
   scanList = document.getElementById("scanList");
+  beep = document.getElementById("beep");
+  bulkPOD = document.getElementById("bulkPOD");
+  bulkManifest = document.getElementById("bulkManifest");
+
+  scanInput.focus();
+  scanInput.addEventListener("keyup", e => {
+    if (e.key === "Enter") saveScan();
+  });
 });
 
-/* ================= SAFE FILTER ================= */
+/* ---------------- ORIGINAL LOGIC ---------------- */
+
+window.importManifest = async () => {
+  const text = bulkManifest.value.trim();
+  if (!text) return alert("Paste the OFD report first!");
+
+  const lines = text.split(/\r?\n/);
+  const headers = lines[0].split(/\t/).map(h => h.trim().toLowerCase());
+
+  const idxTrack = headers.findIndex(h => h.includes("tracking no"));
+  const idxAccount = headers.findIndex(h => h.includes("account"));
+
+  if (idxTrack === -1 || idxAccount === -1)
+    return alert("Missing columns!");
+
+  const updates = {};
+
+  lines.slice(1).forEach(line => {
+    const parts = line.split(/\t/).map(p => p.trim());
+    const tracking = parts[idxTrack]?.replace(/\s+/g,"");
+    const acc = parts[idxAccount];
+
+    if (tracking && acc) {
+      updates[`manifest/${tracking}`] = { account: acc };
+    }
+  });
+
+  await update(ref(db), updates);
+  alert("Manifest loaded!");
+  bulkManifest.value = "";
+};
+
+window.saveScan = async () => {
+  const waybill = scanInput.value.trim();
+  if (!waybill) return;
+
+  const snap = await get(ref(db, `manifest/${waybill}`));
+
+  if (snap.exists()) {
+    const autoAcc = snap.val().account;
+    for (let i = 0; i < customer.options.length; i++) {
+      if (customer.options[i].text.toLowerCase().includes(autoAcc.toLowerCase())) {
+        customer.selectedIndex = i;
+        break;
+      }
+    }
+  }
+
+  if (!customer.value || !reason.value)
+    return alert("Select customer and reason!");
+
+  await push(ref(db,"scans"), {
+    customer: customer.value,
+    reason: reason.value,
+    waybill,
+    timestamp: Date.now()
+  });
+
+  try { beep.currentTime = 0; beep.play(); } catch(e){}
+
+  scanInput.value = "";
+  scanInput.focus();
+
+  listenForScansAndPods();
+};
+
+window.importPODBulk = async () => {
+  const text = bulkPOD.value.trim();
+  if (!text) return alert("Paste POD data first!");
+
+  const lines = text.split(/\r?\n/);
+  const headers = lines[0].split(/\t/).map(h => h.trim().toLowerCase());
+
+  const idxTrack = headers.findIndex(h => h.includes("tracking no"));
+  const idxRecipient = headers.findIndex(h => h.includes("recipient"));
+
+  const updates = {};
+
+  lines.slice(1).forEach(line => {
+    const parts = line.split(/\t/).map(p => p.trim());
+    const waybill = parts[idxTrack]?.replace(/\s+/g,"");
+
+    if (waybill) {
+      updates[`pods/${waybill}`] = {
+        waybill,
+        signedBy: parts[idxRecipient] || "N/A",
+        status: "Delivered",
+        importedAt: Date.now()
+      };
+    }
+  });
+
+  await update(ref(db), updates);
+  alert("PODs imported!");
+  bulkPOD.value = "";
+
+  listenForScansAndPods();
+};
+
+/* ---------------- FIXED FILTER (IMPORTANT) ---------------- */
+
 window.filterReport = () => {
+  const cust = document.getElementById("filterCustomer").value;
 
-    const cust = document.getElementById("filterCustomer").value;
+  const startVal = document.getElementById("startDate").value;
+  const endVal = document.getElementById("endDate").value;
 
-    const startVal = document.getElementById("startDate").value;
-    const endVal = document.getElementById("endDate").value;
+  const start = startVal ? new Date(startVal).getTime() : 0;
+  const end = endVal ? new Date(endVal).getTime() + 86400000 : Infinity;
 
-    const start = startVal ? new Date(startVal).getTime() : null;
-    const end = endVal ? new Date(endVal).getTime() + 86400000 : null;
+  const filtered = allScans.filter(s => {
+    const matchCust = !cust || s.customer === cust;
+    const matchDate = s.timestamp >= start && s.timestamp <= end;
+    return matchCust && matchDate;
+  });
 
-    return allScans.filter(s => {
-        const matchCust = !cust || s.customer === cust;
-        const matchDate = (!start || s.timestamp >= start) && (!end || s.timestamp <= end);
-        return matchCust && matchDate;
-    });
+  renderList(filtered);
+  return filtered;
 };
 
-/* ================= EXCEL FIX ================= */
+/* ---------------- FIXED EXCEL ---------------- */
+
 window.exportToExcel = () => {
+  const data = filterReport() || [];
 
-    const data = filterReport();
+  const ws = XLSX.utils.json_to_sheet(
+    data.map(d => ({
+      Date: new Date(d.timestamp).toLocaleString(),
+      Waybill: d.waybill,
+      Customer: d.customer,
+      Reason: d.reason
+    }))
+  );
 
-    const ws = XLSX.utils.json_to_sheet(data.map(d => ({
-        Date: new Date(d.timestamp).toLocaleDateString(),
-        Waybill: d.waybill,
-        Customer: d.customer,
-        Reason: d.reason,
-        POD: d.pod?.signedBy || "N/A"
-    })));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Report");
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Report");
-
-    XLSX.writeFile(wb, "Report.xlsx"); // FIXED
+  XLSX.writeFile(wb, "Report.xlsx"); // FIXED
 };
 
-/* ================= PDF ================= */
+/* ---------------- FIXED PDF ---------------- */
+
 window.exportToPDF = async () => {
+  const data = filterReport() || [];
 
-    const data = filterReport();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
 
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+  const tableData = data.map(d => [
+    new Date(d.timestamp).toLocaleString(),
+    d.waybill,
+    d.customer,
+    d.reason
+  ]);
 
-    doc.text("Delivery Report", 10, 10);
+  doc.text("Pakisa Floor Report", 10, 10);
+  doc.autoTable({
+    head: [["Date","Waybill","Customer","Reason"]],
+    body: tableData,
+    startY: 20
+  });
 
-    const table = data.map(d => [
-        new Date(d.timestamp).toLocaleDateString(),
-        d.waybill,
-        d.customer,
-        d.reason,
-        d.pod?.signedBy || "N/A"
-    ]);
-
-    doc.autoTable({
-        head: [["Date","Waybill","Customer","Reason","POD"]],
-        body: table,
-        startY: 20
-    });
-
-    doc.save("Report.pdf");
+  doc.save("Report.pdf");
 };
 
-/* ================= FIXED SCAN DISPLAY ================= */
-function renderList(arr) {
+/* ---------------- DATA LOADING ---------------- */
 
-    scanList.innerHTML = arr.slice(0, 100).map(d => {
-
-        const date = d.timestamp
-            ? new Date(d.timestamp).toLocaleString()
-            : "Date unknown";
-
-        return `
-        <div class="list-item">
-            <b>${d.waybill}</b><br>
-            ${d.customer} — ${d.reason}<br>
-            <small>${date}</small>
-            ${d.pod ? `<br><span style="color:green;"><b>POD:</b> ${d.pod.signedBy}</span>` : ""}
-        </div>
-        `;
-    }).join("");
-}
-
-/* ================= FIREBASE ================= */
 async function listenForScansAndPods() {
+  const [sSnap, pSnap] = await Promise.all([
+    get(ref(db,"scans")),
+    get(ref(db,"pods"))
+  ]);
 
-    const [sSnap, pSnap] = await Promise.all([
-        get(ref(db, "scans")),
-        get(ref(db, "pods"))
-    ]);
+  const pods = pSnap.val() || {};
+  allScans = [];
 
-    const pods = pSnap.val() || {};
+  sSnap.forEach(s => {
+    const v = s.val();
+    allScans.push({ ...v, pod: pods[v.waybill] || null });
+  });
 
-    allScans = [];
-
-    sSnap.forEach(s => {
-        const v = s.val();
-        allScans.push({
-            ...v,
-            pod: pods[v.waybill] || null
-        });
-    });
-
-    allScans.sort((a,b) => b.timestamp - a.timestamp);
-
-    renderList(allScans);
+  allScans.sort((a,b) => b.timestamp - a.timestamp);
+  renderList(allScans);
 }
 
-/* ================= EMAIL (SAFE SIMPLE VERSION) ================= */
-window.emailReport = () => {
-
-    const email = "odajnba@fedex.com";
-    const cc = "csd@pakisalogistics.co.za";
-
-    const body =
-`Good day,
-
-Please find the delivery report.
-
-Regards`;
-
-    window.location.href =
-        `mailto:${email}?cc=${cc}` +
-        `&subject=${encodeURIComponent("Pakisa Floor")}` +
-        `&body=${encodeURIComponent(body)}`;
-};
+function renderList(arr) {
+  scanList.innerHTML = arr.slice(0,100).map(d => `
+    <div class="list-item">
+      <b>${d.waybill}</b><br>
+      ${d.customer} — ${d.reason}<br>
+      <small>${new Date(d.timestamp).toLocaleString()}</small>
+    </div>
+  `).join("");
+}
 
 </script>
 </head>
 
 <body>
 
+<div class="manifest-box">
+  <h3>Load Manifest</h3>
+  <textarea id="bulkManifest"></textarea>
+  <button onclick="importManifest()">Load</button>
+</div>
+
+<h3>Scan</h3>
+<select id="customer">
+  <option value="">Select Customer</option>
+  <option>Fedex Express</option>
+</select>
+
+<select id="reason">
+  <option>Out for delivery</option>
+</select>
+
+<input id="scanInput" placeholder="Scan">
+
 <div class="report-box">
-    <h3>Reporting & Filters</h3>
-
-    <select id="filterCustomer" onchange="renderList(filterReport())">
-        <option value="">All Customers</option>
-        <option>First Freight Couriers</option>
-        <option>Fedex Express</option>
-        <option>BLD Couriers International</option>
-        <option>Brima Logistics</option>
-        <option>Seabourne Logistics</option>
-        <option>ACT</option>
-    </select>
-
-    <input type="date" id="startDate" onchange="renderList(filterReport())">
-    <input type="date" id="endDate" onchange="renderList(filterReport())">
-
-    <button onclick="exportToExcel()">Download Excel</button>
-    <button onclick="exportToPDF()">Download PDF</button>
-    <button onclick="emailReport()" style="background:#1976d2;">
-        Email Report
-    </button>
+  <button onclick="exportToExcel()">Excel</button>
+  <button onclick="exportToPDF()">PDF</button>
 </div>
 
 <h3>Scans</h3>
-<div id="scanList"><i>Loading…</i></div>
+<div id="scanList"></div>
 
 </body>
 </html>
