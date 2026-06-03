@@ -16,18 +16,11 @@ button { background:#0a2b52; color:#fff; border:none; border-radius:8px; cursor:
 .report-box { background: #fff3e0; padding: 15px; border-radius: 8px; border: 1px dashed #f57c00; margin-bottom: 20px; }
 </style>
 
-<audio id="beep" preload="auto">
-  <source src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3" type="audio/mpeg">
-</audio>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
 <script type="module">
-
-const companyId = localStorage.getItem("companyId");
-const companyName = localStorage.getItem("companyName");
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, update, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -45,133 +38,134 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 
 let allScans = [];
+let scanList;
 
 onAuthStateChanged(auth, (user) => {
   if (!user) window.location.href = "login.html";
   else listenForScansAndPods();
 });
 
-let customer, reason, scanInput, scanList, beep, bulkPOD, bulkManifest;
-
 window.addEventListener("DOMContentLoaded", () => {
-  customer = document.getElementById("customer");
-  reason = document.getElementById("reason");
-  scanInput = document.getElementById("scanInput");
   scanList = document.getElementById("scanList");
-  beep = document.getElementById("beep");
-  bulkPOD = document.getElementById("bulkPOD");
-  bulkManifest = document.getElementById("bulkManifest");
-
-  document.body.addEventListener("click", () => {
-    beep.play().then(() => beep.pause());
-  }, { once: true });
-
-  scanInput.focus();
-  scanInput.addEventListener("keyup", e => { if (e.key === "Enter") saveScan(); });
 });
 
-/* ---------------- ORIGINAL LOGIC (UNCHANGED) ---------------- */
+/* ================= FIXED FILTER ================= */
+window.filterReport = () => {
 
-window.importManifest = async () => { /* unchanged */ };
+    const cust = document.getElementById("filterCustomer").value;
 
-window.saveScan = async () => { /* unchanged */ };
+    const startVal = document.getElementById("startDate").value;
+    const endVal = document.getElementById("endDate").value;
 
-window.importPODBulk = async () => { /* unchanged */ };
+    const start = startVal ? new Date(startVal).getTime() : null;
+    const end = endVal ? new Date(endVal).getTime() + 86400000 : null;
 
-window.filterReport = () => { /* unchanged */ };
-
-window.exportToExcel = () => { /* unchanged */ };
-
-window.exportToPDF = async () => { /* unchanged */ };
-
-/* ---------------- EMAIL FEATURE (ONLY FIXED PART) ---------------- */
-
-window.emailReport = () => {
-
-    const email = "odajnba@fedex.com";
-    const cc = "csd@pakisalogistics.co.za";
-
-    const data = filterReport() || [];
-
-    const today = new Date().toLocaleDateString();
-
-    const body =
-`Good day,
-
-Please find the delivery report attached.
-
-Total Records: ${data.length}
-Date: ${today}
-
-Regards,
-Pakisa Logistics`;
-
-    window.location.href =
-        `mailto:${email}?cc=${cc}` +
-        `&subject=${encodeURIComponent("Pakisa Floor")}` +
-        `&body=${encodeURIComponent(body)}`;
+    return allScans.filter(s => {
+        const matchCust = !cust || s.customer === cust;
+        const matchDate = (!start || s.timestamp >= start) && (!end || s.timestamp <= end);
+        return matchCust && matchDate;
+    });
 };
 
-/* ---------------- LISTEN + RENDER (UNCHANGED) ---------------- */
+/* ================= FIXED EXCEL ================= */
+window.exportToExcel = () => {
 
-async function listenForScansAndPods() { /* unchanged */ }
+    const data = filterReport();
 
-function renderList(arr) { /* unchanged */ }
+    const ws = XLSX.utils.json_to_sheet(data.map(d => ({
+        Date: new Date(d.timestamp).toLocaleDateString(),
+        Waybill: d.waybill,
+        Customer: d.customer,
+        Reason: d.reason,
+        POD: d.pod?.signedBy || "N/A"
+    })));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Report");
+
+    XLSX.writeFile(wb, "Report.xlsx");
+};
+
+/* ================= FIXED PDF ================= */
+window.exportToPDF = async () => {
+
+    const data = filterReport();
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    doc.text("Delivery Report", 10, 10);
+
+    const table = data.map(d => [
+        new Date(d.timestamp).toLocaleDateString(),
+        d.waybill,
+        d.customer,
+        d.reason,
+        d.pod?.signedBy || "N/A"
+    ]);
+
+    doc.autoTable({
+        head: [["Date","Waybill","Customer","Reason","POD"]],
+        body: table,
+        startY: 20
+    });
+
+    doc.save("Report.pdf");
+};
+
+/* ================= FIXED SCAN LIST ================= */
+function renderList(arr) {
+
+    scanList.innerHTML = arr.slice(0,100).map(d => {
+
+        const date = new Date(d.timestamp).toLocaleString();
+
+        return `
+        <div class="list-item">
+            <b>${d.waybill}</b><br>
+            ${d.customer} — ${d.reason}<br>
+            <small>${date}</small>
+            ${d.pod ? `<br><span style="color:green;"><b>POD:</b> ${d.pod.signedBy}</span>` : ""}
+        </div>`;
+    }).join("");
+}
+
+/* ================= FIREBASE LOAD ================= */
+async function listenForScansAndPods() {
+
+    const [sSnap, pSnap] = await Promise.all([
+        get(ref(db, "scans")),
+        get(ref(db, "pods"))
+    ]);
+
+    const pods = pSnap.val() || {};
+
+    allScans = [];
+
+    sSnap.forEach(s => {
+        const v = s.val();
+        allScans.push({
+            ...v,
+            pod: pods[v.waybill] || null
+        });
+    });
+
+    allScans.sort((a,b) => b.timestamp - a.timestamp);
+
+    renderList(allScans);
+}
 
 </script>
 </head>
 
 <body>
 
-<center>
-<img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1750675472/pakisa_logistics_express_pty_ltd_logo-removebg-preview_kbuvzs.png" width="160">
-</center>
-
-<div class="manifest-box">
-  <h3>1. Morning: Load Manifest</h3>
-  <textarea id="bulkManifest"></textarea>
-  <button onclick="importManifest()">Load Morning Manifest</button>
-</div>
-
-<h2>2. Floor Check</h2>
-
-<label>Customer</label>
-<select id="customer">
-  <option value="">Select Customer</option>
-  <option>First Freight Couriers</option>
-  <option>Fedex Express</option>
-  <option>BLD Couriers International</option>
-  <option>Brima Logistics</option>
-  <option>Seabourne Logistics</option>
-  <option>ACT</option>
-  <option>SEND&RECIEVE</option>
-</select>
-
-<label>Reason</label>
-<select id="reason">
-  <option selected>Out for delivery</option>
-  <option>Nobody home</option>
-  <option>Incorrect phone number</option>
-  <option>Bad address</option>
-  <option>Refused</option>
-  <option>Misroute</option>
-  <option>Returned to sender</option>
-  <option>Will be delivered on commitment date</option>
-</select>
-
-<label>Scan Waybill</label>
-<input id="scanInput">
-
-<div class="manifest-box" style="background:#f9f9f9;">
-  <h3>3. Afternoon: Import PODs</h3>
-  <textarea id="bulkPOD"></textarea>
-  <button onclick="importPODBulk()">Import POD</button>
-</div>
+<h2>Pakisa Floor Check</h2>
 
 <div class="report-box">
-    <h3>4. Reporting & Filters</h3>
+    <h3>Filters</h3>
 
-    <select id="filterCustomer" onchange="filterReport()">
+    <select id="filterCustomer" onchange="renderList(filterReport())">
         <option value="">All Customers</option>
         <option>First Freight Couriers</option>
         <option>Fedex Express</option>
@@ -181,25 +175,15 @@ function renderList(arr) { /* unchanged */ }
         <option>ACT</option>
     </select>
 
-    <label>From Date:</label>
-    <input type="date" id="startDate" onchange="filterReport()">
+    <input type="date" id="startDate" onchange="renderList(filterReport())">
+    <input type="date" id="endDate" onchange="renderList(filterReport())">
 
-    <label>To Date:</label>
-    <input type="date" id="endDate" onchange="filterReport()">
-
-    <button onclick="exportToExcel()">Download Excel Report</button>
-    <button onclick="exportToPDF()">Download PDF Report</button>
-
-    <!-- NEW BUTTON -->
-    <button onclick="emailReport()" style="background:#1976d2;">
-        Email FedEx Report
-    </button>
+    <button onclick="exportToExcel()">Excel</button>
+    <button onclick="exportToPDF()">PDF</button>
 </div>
 
 <h3>Scans</h3>
 <div id="scanList"><i>Loading…</i></div>
-
-<br><center><b>Built by Mpho Mahlaba</b></center>
 
 </body>
 </html>
