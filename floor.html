@@ -49,7 +49,7 @@ window.addEventListener("DOMContentLoaded", () => {
   scanList = document.getElementById("scanList");
 });
 
-/* ================= FIXED FILTER ================= */
+/* ================= SAFE FILTER ================= */
 window.filterReport = () => {
 
     const cust = document.getElementById("filterCustomer").value;
@@ -67,7 +67,7 @@ window.filterReport = () => {
     });
 };
 
-/* ================= FIXED EXCEL ================= */
+/* ================= EXCEL FIX ================= */
 window.exportToExcel = () => {
 
     const data = filterReport();
@@ -83,10 +83,10 @@ window.exportToExcel = () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Report");
 
-    XLSX.writeFile(wb, "Report.xlsx");
+    XLSX.writeFile(wb, "Report.xlsx"); // FIXED
 };
 
-/* ================= FIXED PDF ================= */
+/* ================= PDF ================= */
 window.exportToPDF = async () => {
 
     const data = filterReport();
@@ -113,12 +113,14 @@ window.exportToPDF = async () => {
     doc.save("Report.pdf");
 };
 
-/* ================= FIXED SCAN LIST ================= */
+/* ================= FIXED SCAN DISPLAY ================= */
 function renderList(arr) {
 
-    scanList.innerHTML = arr.slice(0,100).map(d => {
+    scanList.innerHTML = arr.slice(0, 100).map(d => {
 
-        const date = new Date(d.timestamp).toLocaleString();
+        const date = d.timestamp
+            ? new Date(d.timestamp).toLocaleString()
+            : "Date unknown";
 
         return `
         <div class="list-item">
@@ -126,11 +128,12 @@ function renderList(arr) {
             ${d.customer} — ${d.reason}<br>
             <small>${date}</small>
             ${d.pod ? `<br><span style="color:green;"><b>POD:</b> ${d.pod.signedBy}</span>` : ""}
-        </div>`;
+        </div>
+        `;
     }).join("");
 }
 
-/* ================= FIREBASE LOAD ================= */
+/* ================= FIREBASE ================= */
 async function listenForScansAndPods() {
 
     const [sSnap, pSnap] = await Promise.all([
@@ -155,15 +158,32 @@ async function listenForScansAndPods() {
     renderList(allScans);
 }
 
+/* ================= EMAIL (SAFE SIMPLE VERSION) ================= */
+window.emailReport = () => {
+
+    const email = "odajnba@fedex.com";
+    const cc = "csd@pakisalogistics.co.za";
+
+    const body =
+`Good day,
+
+Please find the delivery report.
+
+Regards`;
+
+    window.location.href =
+        `mailto:${email}?cc=${cc}` +
+        `&subject=${encodeURIComponent("Pakisa Floor")}` +
+        `&body=${encodeURIComponent(body)}`;
+};
+
 </script>
 </head>
 
 <body>
 
-<h2>Pakisa Floor Check</h2>
-
 <div class="report-box">
-    <h3>Filters</h3>
+    <h3>Reporting & Filters</h3>
 
     <select id="filterCustomer" onchange="renderList(filterReport())">
         <option value="">All Customers</option>
@@ -178,8 +198,11 @@ async function listenForScansAndPods() {
     <input type="date" id="startDate" onchange="renderList(filterReport())">
     <input type="date" id="endDate" onchange="renderList(filterReport())">
 
-    <button onclick="exportToExcel()">Excel</button>
-    <button onclick="exportToPDF()">PDF</button>
+    <button onclick="exportToExcel()">Download Excel</button>
+    <button onclick="exportToPDF()">Download PDF</button>
+    <button onclick="emailReport()" style="background:#1976d2;">
+        Email Report
+    </button>
 </div>
 
 <h3>Scans</h3>
