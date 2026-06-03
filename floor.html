@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pakisa Floor Check v3.0</title>
+
 <style>
 body { font-family: Arial, sans-serif; padding:20px; background:#fff; }
 select, input, textarea, button { width:100%; padding:12px; margin:8px 0; font-size:16px; box-sizing:border-box; }
@@ -24,6 +25,7 @@ button { background:#0a2b52; color:#fff; border:none; border-radius:8px; cursor:
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
 <script type="module">
+
 const companyId = localStorage.getItem("companyId");
 const companyName = localStorage.getItem("companyName");
 
@@ -37,6 +39,7 @@ const firebaseConfig = {
   databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/",
   projectId: "pakisa-floor"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
@@ -121,7 +124,12 @@ window.importPODBulk = async () => {
     const parts = line.split(/\t/).map(p => p.trim());
     const waybill = parts[idxTrack]?.replace(/\s+/g,"");
     if (waybill) {
-      updates[`pods/${waybill}`] = { waybill, signedBy: parts[idxRecipient] || "N/A", status: "Delivered", importedAt: Date.now() };
+      updates[`pods/${waybill}`] = {
+        waybill,
+        signedBy: parts[idxRecipient] || "N/A",
+        status: "Delivered",
+        importedAt: Date.now()
+      };
     }
   });
   await update(ref(db), updates);
@@ -173,6 +181,35 @@ window.exportToPDF = async () => {
     const tableData = data.map(d => [(d.timestamp && !isNaN(d.timestamp)) ? new Date(d.timestamp).toLocaleDateString() : "Date unknown", d.waybill, d.customer, d.reason, d.pod?.signedBy || 'N/A']);
     doc.autoTable({ head: [['Date', 'Waybill', 'Customer', 'Reason', 'POD']], body: tableData, startY: 30 });
     doc.save("Report.pdf");
+};
+
+/* --- EMAIL FEATURE (ADDED ONLY) --- */
+window.emailReport = async () => {
+
+    const email = "odajnba@fedex.com";
+    const cc = "csd@pakisalogistics.co.za";
+
+    const data = filterReport();
+
+    if (!data || data.length === 0) {
+        alert("No data to send");
+        return;
+    }
+
+    const subject = "Pakisa Floor";
+
+    const body =
+`Good day,
+
+Please find the attached Pakisa Floor report.
+
+Kind regards,
+Pakisa Logistics`;
+
+    window.location.href =
+        `mailto:${email}?cc=${cc}` +
+        `&subject=${encodeURIComponent(subject)}` +
+        `&body=${encodeURIComponent(body)}`;
 };
 
 async function listenForScansAndPods() {
@@ -259,6 +296,7 @@ function renderList(arr) {
     <label>To Date:</label><input type="date" id="endDate" onchange="filterReport()">
     <button onclick="exportToExcel()" style="background:#f57c00;">Download Excel Report</button>
     <button onclick="exportToPDF()" style="background:#d32f2f;">Download PDF Report</button>
+    <button onclick="emailReport()" style="background:#1976d2;">Email Report (Outlook)</button>
 </div>
 
 <h3>Scans</h3>
