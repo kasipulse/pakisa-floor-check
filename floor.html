@@ -155,13 +155,24 @@ window.filterReport = () => {
 
 window.exportToExcel = () => {
     const data = filterReport();
-    const ws = XLSX.utils.json_to_sheet(data.map(d => ({ 
+    
+    // Format the standard rows
+    const rows = data.map(d => ({ 
         Date: (d.timestamp && !isNaN(d.timestamp)) ? new Date(d.timestamp).toLocaleDateString() : "Date unknown", 
         Waybill: d.waybill, 
         Customer: d.customer, 
         Reason: d.reason, 
         POD: d.pod?.signedBy || 'N/A' 
-    })));
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(rows);
+    
+    // Append system disclaimer directly onto the Excel spreadsheet space
+    XLSX.utils.sheet_add_aoa(ws, [
+        [], // spacing row
+        ["System generated report. Confidential documents extracted directly from Pakisa Floor System Database."]
+    ], { origin: -1 });
+    
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Report");
     XLSX.writeFile(wb, `Report.xlsx`);
@@ -179,7 +190,25 @@ window.exportToPDF = async () => {
     
     doc.text("Delivery Report", 60, 20);
     const tableData = data.map(d => [(d.timestamp && !isNaN(d.timestamp)) ? new Date(d.timestamp).toLocaleDateString() : "Date unknown", d.waybill, d.customer, d.reason, d.pod?.signedBy || 'N/A']);
-    doc.autoTable({ head: [['Date', 'Waybill', 'Customer', 'Reason', 'POD']], body: tableData, startY: 30 });
+    
+    doc.autoTable({ 
+        head: [['Date', 'Waybill', 'Customer', 'Reason', 'POD']], 
+        body: tableData, 
+        startY: 30,
+        didDrawPage: function (data) {
+            // Setup footer text
+            const footerText = "System generated report. Confidential documents extracted directly from Pakisa Floor System Database.";
+            doc.setFontSize(8);
+            doc.setTextColor(156, 163, 175); // gray color
+            
+            // Get bottom sizing
+            const pageSize = doc.internal.pageSize;
+            const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
+            
+            // Output footer line onto every generated page
+            doc.text(footerText, data.settings.margin.left, pageHeight - 10);
+        }
+    });
     doc.save("Report.pdf");
 };
 
