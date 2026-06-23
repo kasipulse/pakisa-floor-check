@@ -163,7 +163,7 @@ window.exportToExcel = () => {
         POD: d.pod?.signedBy || 'N/A' 
     })));
     
-    // Just appending the disclaimer to Excel sheet without changing any other structures
+    // Inject footer spacer and notice into Excel cells directly
     XLSX.utils.sheet_add_aoa(ws, [
         [], 
         ["System generated report. Confidential documents extracted directly from Pakisa Floor System Database."]
@@ -187,7 +187,6 @@ window.exportToPDF = async () => {
     doc.text("Delivery Report", 60, 20);
     const tableData = data.map(d => [(d.timestamp && !isNaN(d.timestamp)) ? new Date(d.timestamp).toLocaleDateString() : "Date unknown", d.waybill, d.customer, d.reason, d.pod?.signedBy || 'N/A']);
     
-    // Added text directly via didDrawPage to avoid touching table parsing mechanics
     doc.autoTable({ 
         head: [['Date', 'Waybill', 'Customer', 'Reason', 'POD']], 
         body: tableData, 
