@@ -146,7 +146,8 @@ footer {
     <footer>
       © 2026 Pakisa Logistics Express (Pty) Ltd<br>
       Built by Mpho Mahlaba<br>
-      Version 2.1
+      Version 2.1<br>
+      <span style="display:block; margin-top:8px; font-size:11px; opacity:0.8; letter-spacing:0.5px;">SYSTEM GENERATED REPORT • CONFIDENTIALITY APPLIES</span>
     </footer>
 
   </div>
@@ -195,6 +196,11 @@ function searchWaybill() {
   Promise.all([scansRef, podsRef])
     .then(([scanSnap, podSnap]) => {
 
+      /* 🔔 Play click sound for every scan execution/attempt match */
+      beep.pause();
+      beep.currentTime = 0;
+      beep.play().catch(()=>{});
+
       if (!scanSnap.exists() && !podSnap.exists()) {
         resultDiv.innerHTML = "<span style='color:red'>Waybill not found.</span>";
         return;
@@ -229,11 +235,6 @@ function searchWaybill() {
         ` : ""}
       `;
       resultDiv.appendChild(div);
-
-      /* 🔔 Play click sound */
-      beep.pause();
-      beep.currentTime = 0;
-      beep.play().catch(()=>{});
     })
     .catch(err => {
       console.error(err);
