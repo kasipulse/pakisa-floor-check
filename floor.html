@@ -36,7 +36,7 @@ import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/
 const firebaseConfig = {
   apiKey: "AIzaSyBh-KhkmZrS6b97MPv-YTMjU6qTF0qFzbY",
   authDomain: "pakisa-floor.firebaseapp.com",
-  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com/",
+  databaseURL: "https://pakisa-floor-default-rtdb.firebaseio.com", // Removed trailing slash
   projectId: "pakisa-floor"
 };
 
@@ -162,13 +162,6 @@ window.exportToExcel = () => {
         Reason: d.reason, 
         POD: d.pod?.signedBy || 'N/A' 
     })));
-    
-    // Inject footer spacer and notice into Excel cells directly
-    XLSX.utils.sheet_add_aoa(ws, [
-        [], 
-        ["System generated report. Confidential documents extracted directly from Pakisa Floor System Database."]
-    ], { origin: -1 });
-
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Report");
     XLSX.writeFile(wb, `Report.xlsx`);
@@ -186,18 +179,7 @@ window.exportToPDF = async () => {
     
     doc.text("Delivery Report", 60, 20);
     const tableData = data.map(d => [(d.timestamp && !isNaN(d.timestamp)) ? new Date(d.timestamp).toLocaleDateString() : "Date unknown", d.waybill, d.customer, d.reason, d.pod?.signedBy || 'N/A']);
-    
-    doc.autoTable({ 
-        head: [['Date', 'Waybill', 'Customer', 'Reason', 'POD']], 
-        body: tableData, 
-        startY: 30,
-        didDrawPage: function (data) {
-            doc.setFontSize(8);
-            doc.setTextColor(156, 163, 175);
-            const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
-            doc.text("System generated report. Confidential documents extracted directly from Pakisa Floor System Database.", data.settings.margin.left, pageHeight - 10);
-        }
-    });
+    doc.autoTable({ head: [['Date', 'Waybill', 'Customer', 'Reason', 'POD']], body: tableData, startY: 30 });
     doc.save("Report.pdf");
 };
 
