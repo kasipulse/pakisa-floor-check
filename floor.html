@@ -155,8 +155,6 @@ window.filterReport = () => {
 
 window.exportToExcel = () => {
     const data = filterReport();
-    
-    // Format the standard rows
     const rows = data.map(d => ({ 
         Date: (d.timestamp && !isNaN(d.timestamp)) ? new Date(d.timestamp).toLocaleDateString() : "Date unknown", 
         Waybill: d.waybill, 
@@ -167,9 +165,9 @@ window.exportToExcel = () => {
     
     const ws = XLSX.utils.json_to_sheet(rows);
     
-    // Append system disclaimer directly onto the Excel spreadsheet space
+    // Add Excel spacing and row template disclaimer notice
     XLSX.utils.sheet_add_aoa(ws, [
-        [], // spacing row
+        [], 
         ["System generated report. Confidential documents extracted directly from Pakisa Floor System Database."]
     ], { origin: -1 });
     
@@ -196,16 +194,11 @@ window.exportToPDF = async () => {
         body: tableData, 
         startY: 30,
         didDrawPage: function (data) {
-            // Setup footer text
             const footerText = "System generated report. Confidential documents extracted directly from Pakisa Floor System Database.";
             doc.setFontSize(8);
-            doc.setTextColor(156, 163, 175); // gray color
-            
-            // Get bottom sizing
+            doc.setTextColor(156, 163, 175);
             const pageSize = doc.internal.pageSize;
             const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
-            
-            // Output footer line onto every generated page
             doc.text(footerText, data.settings.margin.left, pageHeight - 10);
         }
     });
@@ -242,10 +235,16 @@ Pakisa Logistics`;
 };
 
 async function listenForScansAndPods() {
-  const [sSnap, pSnap] = await Promise.all([get(ref(db, "scans")), get(ref(db, "pods"))]);
+  const sSnap = await get(ref(db, "scans"));
+  const pSnap = await get(ref(db, "pods"));
   const pods = pSnap.val() || {};
   allScans = [];
-  sSnap.forEach(s => { const v = s.val(); allScans.push({ ...v, pod: pods[v.waybill] || null }); });
+  
+  sSnap.forEach(s => { 
+    const v = s.val(); 
+    allScans.push({ ...v, pod: pods[v.waybill] || null }); 
+  });
+  
   allScans.sort((a,b) => b.timestamp - a.timestamp);
   renderList(allScans);
 }
