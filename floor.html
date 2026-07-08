@@ -217,21 +217,22 @@ window.emailReport = async () => {
     const emailRouting = {
         "Fedex Express": { 
             to: "odajnba@fedex.com", 
-            cc: "csd@pakisalogistics.co.za" 
+            cc: "csd@pakisalogistics.co.za",
+            subject: "Pakisa Floor"
         },
         "Seabourne Logistics": { 
             to: "discrepancies@seabourne.co.za", 
-            cc: "csd@pakisalogistics.co.za,ops2@pakisalogistics.co.za" 
+            cc: "csd@pakisalogistics.co.za,ops2@pakisalogistics.co.za",
+            subject: "Outstanding POD Report"
         }
     };
 
     // Grab configuration or fallback directly to FedEx rules
     const route = emailRouting[targetCustomer] || { 
         to: "odajnba@fedex.com", 
-        cc: "csd@pakisalogistics.co.za" 
+        cc: "csd@pakisalogistics.co.za",
+        subject: "Pakisa Floor"
     };
-
-    const subject = `Pakisa Floor Report - ${targetCustomer}`;
 
     const body =
 `Good day,
@@ -243,7 +244,7 @@ Pakisa Logistics`;
 
     window.location.href =
         `mailto:${route.to}?cc=${route.cc}` +
-        `&subject=${encodeURIComponent(subject)}` +
+        `&subject=${encodeURIComponent(route.subject)}` +
         `&body=${encodeURIComponent(body)}`;
 };
 
