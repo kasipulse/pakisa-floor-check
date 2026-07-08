@@ -201,12 +201,8 @@ window.exportToPDF = async () => {
     doc.save("Report.pdf");
 };
 
-/* --- EMAIL FEATURE (ADDED ONLY) --- */
+/* --- DYNAMIC EMAIL ROUTING --- */
 window.emailReport = async () => {
-
-    const email = "odajnba@fedex.com";
-    const cc = "csd@pakisalogistics.co.za";
-
     const data = filterReport();
 
     if (!data || data.length === 0) {
@@ -214,18 +210,39 @@ window.emailReport = async () => {
         return;
     }
 
-    const subject = "Pakisa Floor";
+    const selectedFilter = document.getElementById("filterCustomer").value;
+    const targetCustomer = selectedFilter || data[0].customer;
+
+    // Route config for specific clients
+    const emailRouting = {
+        "Fedex Express": { 
+            to: "odajnba@fedex.com", 
+            cc: "csd@pakisalogistics.co.za" 
+        },
+        "Seabourne Logistics": { 
+            to: "discrepancies@seabourne.co.za", 
+            cc: "csd@pakisalogistics.co.za,ops2@pakisalogistics.co.za" 
+        }
+    };
+
+    // Grab configuration or fallback directly to FedEx rules
+    const route = emailRouting[targetCustomer] || { 
+        to: "odajnba@fedex.com", 
+        cc: "csd@pakisalogistics.co.za" 
+    };
+
+    const subject = `Pakisa Floor Report - ${targetCustomer}`;
 
     const body =
 `Good day,
 
-Please find the attached Pakisa Floor report.
+Please find the attached Pakisa Floor report for ${targetCustomer}.
 
 Kind regards,
 Pakisa Logistics`;
 
     window.location.href =
-        `mailto:${email}?cc=${cc}` +
+        `mailto:${route.to}?cc=${route.cc}` +
         `&subject=${encodeURIComponent(subject)}` +
         `&body=${encodeURIComponent(body)}`;
 };
