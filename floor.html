@@ -217,7 +217,7 @@ window.emailReport = async () => {
     const emailRouting = {
         "Fedex Express": { 
             to: "odajnba@fedex.com", 
-            cc: "csd@pakisalogistics.co.za",
+            cc: "csd@pakisalogistics.co.za,tshedza.tshabalala@fedex.com,vusi.tswayi@fedex.com,emmanuel.naidoo@fedex.com,zola.ntobong@fedex.com,tsietsi.mokoma@fedex.com",
             subject: "Pakisa Floor"
         },
         "Seabourne Logistics": { 
@@ -230,7 +230,7 @@ window.emailReport = async () => {
     // Grab configuration or fallback directly to FedEx rules
     const route = emailRouting[targetCustomer] || { 
         to: "odajnba@fedex.com", 
-        cc: "csd@pakisalogistics.co.za",
+        cc: "csd@pakisalogistics.co.za,tshedza.tshabalala@fedex.com,vusi.tswayi@fedex.com,emmanuel.naidoo@fedex.com,zola.ntobong@fedex.com,tsietsi.mokoma@fedex.com",
         subject: "Pakisa Floor"
     };
 
