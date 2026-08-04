@@ -51,7 +51,7 @@ onAuthStateChanged(auth, (user) => {
   else listenForScansAndPods();
 });
 
-let customer, reason, scanInput, scanList, beep, bulkPOD, bulkManifest;
+let customer, reason, scanInput, scanList, beep, bulkPOD, bulkManifest, bulkScanInput;
 
 window.addEventListener("DOMContentLoaded", () => {
   customer = document.getElementById("customer");
@@ -61,6 +61,7 @@ window.addEventListener("DOMContentLoaded", () => {
   beep = document.getElementById("beep");
   bulkPOD = document.getElementById("bulkPOD");
   bulkManifest = document.getElementById("bulkManifest");
+  bulkScanInput = document.getElementById("bulkScanInput");
 
   document.body.addEventListener("click", () => {
     beep.play().then(() => beep.pause());
@@ -109,6 +110,37 @@ window.saveScan = async () => {
   document.body.classList.add("flash");
   setTimeout(() => document.body.classList.remove("flash"), 150);
   scanInput.value = ""; scanInput.focus();
+  listenForScansAndPods();
+};
+
+window.importBulkScans = async () => {
+  const text = bulkScanInput.value.trim();
+  if (!text) return alert("Paste waybills first!");
+  if (!customer.value || !reason.value) return alert("Select customer and reason first!");
+  
+  const lines = text.split(/\r?\n/);
+  const timestamp = Date.now();
+  
+  for (let i = 0; i < lines.length; i++) {
+    const waybill = lines[i].trim().replace(/\s+/g, "");
+    if (waybill) {
+      await push(ref(db, "scans"), { 
+        companyId, 
+        companyName, 
+        customer: customer.value, 
+        reason: reason.value, 
+        waybill, 
+        timestamp: timestamp + i 
+      });
+    }
+  }
+
+  try { beep.currentTime = 0; beep.play(); } catch(e) {}
+  document.body.classList.add("flash");
+  setTimeout(() => document.body.classList.remove("flash"), 150);
+  
+  bulkScanInput.value = "";
+  alert("Bulk scans imported! ✅");
   listenForScansAndPods();
 };
 
@@ -314,10 +346,15 @@ function renderList(arr) {
   <option>To be delivered on booking date</option>
   <option>Missing paperwork</option>
   <option>Closed on arrival</option>
+  <option>Recieved part shipment</option>
 </select>
 
 <label>Scan Waybill</label>
 <input id="scanInput" placeholder="Scan tracking no" autocomplete="off">
+
+<label>Bulk Scan (Paste Column)</label>
+<textarea id="bulkScanInput" placeholder="Paste column of waybills here (no headings)..."></textarea>
+<button onclick="importBulkScans()">Import Bulk Scans</button>
 
 <div class="manifest-box" style="background:#f9f9f9;">
   <h3>3. Afternoon: Import PODs</h3>
