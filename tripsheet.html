@@ -26,13 +26,13 @@
                 <button onclick="loadTripSheet()" class="w-full bg-black text-white font-medium py-2.5 rounded-lg text-sm active:scale-95 transition">Next / Load</button>
             </div>
 
-            <!-- Action Toolbar: Cluster Sort & Google Maps Multi-Stop Bulk Navigation -->
+            <!-- Action Toolbar: Cluster Sort & Copy Next 7 Stops -->
             <div id="optimizer-container" class="hidden flex gap-2 pt-1">
                 <button onclick="optimizeRoute()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 rounded-lg text-xs border border-gray-300 transition flex items-center justify-center gap-1">
                     ⚡ Cluster Sort
                 </button>
-                <button onclick="openBulkMaps()" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium py-2 rounded-lg text-xs border border-blue-200 transition flex items-center justify-center gap-1">
-                    🗺️ Open Next 7 in Maps
+                <button onclick="copyBulkStops()" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium py-2 rounded-lg text-xs border border-blue-200 transition flex items-center justify-center gap-1">
+                    📋 Copy Next 7 Stops
                 </button>
             </div>
         </div>
@@ -140,26 +140,22 @@
             }, 2000);
         }
 
-        // Bulk open up to the next 7 stops directly in Google Maps directions mode
-        function openBulkMaps() {
+        // Instantly copies the next 7 stops to clipboard so driver can paste them directly into Google Maps
+        function copyBulkStops() {
             const activeStops = currentFilteredData.slice(0, 7);
             if (activeStops.length === 0) {
                 alert("No active stops found.");
                 return;
             }
 
-            const origin = encodeURIComponent(activeStops[0].address);
-            const destination = encodeURIComponent(activeStops[activeStops.length - 1].address);
+            const addressesText = activeStops.map((s, idx) => `${idx + 1}. ${s.address}`).join('\n');
             
-            let waypointsUrl = "";
-            if (activeStops.length > 2) {
-                const intermediate = activeStops.slice(1, activeStops.length - 1);
-                const encodedWaypoints = intermediate.map(s => encodeURIComponent(s.address)).join('|');
-                waypointsUrl = `&waypoints=${encodedWaypoints}`;
-            }
-
-            const bulkUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypointsUrl}&travelmode=driving`;
-            window.open(bulkUrl, '_blank');
+            navigator.clipboard.writeText(addressesText).then(() => {
+                alert("📋 Copied next " + activeStops.length + " stops to clipboard!\n\nOpen Google Maps and paste them into your search bar.");
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert("Could not copy automatically. Please copy addresses manually.");
+            });
         }
 
         function toggleComplete(checkbox) {
