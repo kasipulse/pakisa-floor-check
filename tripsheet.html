@@ -27,11 +27,11 @@
             </div>
 
             <!-- Action Toolbar: Cluster Sort & Copy Next 7 Stops -->
-            <div id="optimizer-container" class="hidden flex gap-2 pt-1">
-                <button onclick="optimizeRoute()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 rounded-lg text-xs border border-gray-300 transition flex items-center justify-center gap-1">
+            <div id="optimizer-container" class="hidden grid grid-cols-2 gap-2 pt-1">
+                <button onclick="optimizeRoute()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2.5 rounded-lg text-xs border border-gray-300 transition flex items-center justify-center gap-1 shadow-xs">
                     ⚡ Cluster Sort
                 </button>
-                <button onclick="copyBulkStops()" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium py-2 rounded-lg text-xs border border-blue-200 transition flex items-center justify-center gap-1">
+                <button onclick="copyBulkStops()" class="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium py-2.5 rounded-lg text-xs border border-blue-200 transition flex items-center justify-center gap-1 shadow-xs">
                     📋 Copy Next 7 Stops
                 </button>
             </div>
@@ -66,15 +66,13 @@
 
             welcomeState.classList.add('hidden');
             container.classList.remove('hidden');
-            optimizerContainer.classList.remove('flex');
-            optimizerContainer.classList.add('flex');
+            optimizerContainer.classList.remove('hidden');
             container.innerHTML = '';
 
             currentFilteredData = rawData.filter(item => item.agent === selectedAgent);
             badge.innerText = `${currentFilteredData.length} Parcels`;
 
             if (currentFilteredData.length === 0) {
-                optimizerContainer.classList.remove('flex');
                 optimizerContainer.classList.add('hidden');
                 container.innerHTML = `<p class="text-center text-gray-400 py-10 text-sm">No waybills found for this driver.</p>`;
                 return;
@@ -140,7 +138,6 @@
             }, 2000);
         }
 
-        // Instantly copies the next 7 stops to clipboard so driver can paste them directly into Google Maps
         function copyBulkStops() {
             const activeStops = currentFilteredData.slice(0, 7);
             if (activeStops.length === 0) {
