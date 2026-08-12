@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pakisa Logistics - Digital Trip Sheet</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-white text-gray-900 min-h-screen flex flex-col">
+    <!-- Header with Logo, Title & Agent Dropdown -->
+    <header class="border-b border-gray-200 p-4 sticky top-0 bg-white z-10 shadow-xs">
+        <div class="max-w-md mx-auto flex flex-col gap-3">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <img src="https://res.cloudinary.com/dwxgkbuln/image/upload/v1771237505/pakisa_logistics_express_pty_ltd_logo-removebg-preview_gr7h0r.png" alt="Pakisa Logo" class="h-10 w-auto object-contain">
+                    <h1 class="text-lg font-bold tracking-tight text-gray-800">Trip Sheet</h1>
+                </div>
+                <span id="record-count" class="text-xs bg-gray-100 px-2.5 py-1 rounded-full font-medium text-gray-600">0 Parcels</span>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2">
+                <select id="agentSelect" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-black outline-none">
+                    <option value="">-- Select Driver --</option>
+                    <!-- Drivers will be dynamically injected here by your Python script -->
+                </select>
+                <button onclick="loadTripSheet()" class="w-full bg-black text-white font-medium py-2.5 rounded-lg text-sm active:scale-95 transition">Next / Load</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main List Container -->
+    <main class="flex-1 max-w-md w-full mx-auto p-4">
+        <div id="welcome-state" class="text-center py-20 text-gray-400 text-sm">
+            Please select your name from the dropdown above and tap <span class="text-black font-semibold">Next / Load</span> to view your active trip sheet.
+        </div>
+        
+        <div id="tripsheet-container" class="space-y-3 hidden">
+        </div>
+    </main>
+
+    <script>
+        // Your Python script replaces {records} with parsed excel data automatically when generating the file
+        const rawData = {records};
+        
+        function loadTripSheet() {
+            const selectedAgent = document.getElementById('agentSelect').value;
+            const container = document.getElementById('tripsheet-container');
+            const welcomeState = document.getElementById('welcome-state');
+            const badge = document.getElementById('record-count');
+
+            if (!selectedAgent) {
+                alert("Please select your driver name first.");
+                return;
+            }
+
+            welcomeState.classList.add('hidden');
+            container.classList.remove('hidden');
+            container.innerHTML = '';
+
+            const filtered = rawData.filter(item => item.agent === selectedAgent);
+            badge.innerText = `${filtered.length} Parcels`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<p class="text-center text-gray-400 py-10 text-sm">No waybills found for this driver.</p>`;
+                return;
+            }
+
+            filtered.forEach((item) => {
+                const card = document.createElement('div');
+                card.className = "flex items-start justify-between p-4 border border-gray-200 rounded-xl bg-white shadow-xs gap-3";
+                card.innerHTML = `
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-center mb-1.5">
+                            <span class="text-sm font-mono font-bold bg-gray-100 px-2.5 py-1 rounded text-gray-900 border border-gray-200">${item.tracking || 'No Waybill'}</span>
+                            <a href="tel:${item.phone}" class="text-xs text-blue-600 font-medium hover:underline">${item.phone || 'No Phone'}</a>
+                        </div>
+                        <h2 class="text-sm font-semibold text-gray-800 truncate">${item.consignee || 'Unknown Consignee'}</h2>
+                        
+                        <div class="mt-1 flex flex-col gap-1">
+                            <a href="${item.mapsUrl}" target="_blank" class="text-xs text-blue-600 hover:underline flex items-center gap-1 leading-relaxed">
+                                📍 ${item.address}
+                            </a>
+                            <div class="flex gap-3 text-[11px] font-medium pt-0.5">
+                                <a href="${item.mapsUrl}" target="_blank" class="text-gray-700 bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200">Open in Google Maps</a>
+                                <a href="${item.wazeUrl}" target="_blank" class="text-gray-700 bg-gray-100 px-2 py-0.5 rounded hover:bg-gray-200">Open in Waze</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center h-full pt-1">
+                        <input type="checkbox" data-tracking="${item.tracking}" class="w-6 h-6 accent-black rounded border-gray-300 cursor-pointer" onchange="toggleComplete(this)">
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function toggleComplete(checkbox) {
+            const trackingNo = checkbox.getAttribute('data-tracking');
+            const isCompleted = checkbox.checked;
+            
+            const card = checkbox.closest('div.flex');
+            if (isCompleted) {
+                card.classList.add('bg-gray-50', 'opacity-60');
+            } else {
+                card.classList.remove('bg-gray-50', 'opacity-60');
+            }
+
+            if (isCompleted) {
+                fetch('https://pakisa-floor-default-rtdb.firebaseio.com/scans.json', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        waybill: trackingNo,
+                        reason: 'Delivered / Completed',
+                        timestamp: Date.now()
+                    })
+                }).catch(err => console.error("Firebase sync error:", err));
+            }
+        }
+    </script>
+</body>
+</html>
