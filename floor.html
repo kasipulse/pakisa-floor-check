@@ -203,7 +203,12 @@ window.exportToExcel = () => {
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Report");
-    XLSX.writeFile(wb, `Report.xlsx`);
+
+    const selectedFilter = document.getElementById("filterCustomer").value;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const fileLabel = selectedFilter ? selectedFilter.toUpperCase().replace(/[^A-Z0-9]/g, '_') : 'SEABOURNE';
+    
+    XLSX.writeFile(wb, `${fileLabel}_${todayStr}.xlsx`);
 };
 
 window.exportToPDF = async () => {
@@ -230,7 +235,12 @@ window.exportToPDF = async () => {
             doc.text("System generated report. Confidential documents extracted directly from Pakisa Floor System Database.", data.settings.margin.left, pageHeight - 10);
         }
     });
-    doc.save("Report.pdf");
+
+    const selectedFilter = document.getElementById("filterCustomer").value;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const fileLabel = selectedFilter ? selectedFilter.toUpperCase().replace(/[^A-Z0-9]/g, '_') : 'SEABOURNE';
+
+    doc.save(`${fileLabel}_${todayStr}.pdf`);
 };
 
 /* --- DYNAMIC EMAIL ROUTING --- */
