@@ -6,19 +6,16 @@
 <title>Pakisa Floor Check v3.0</title>
 
 <style>
-body { font-family: Arial, sans-serif; padding:20px; background:#fff; }
+body { font-family: Arial, sans-serif; padding:20px; background:#fff; transition: background 0.1s; }
 select, input, textarea, button { width:100%; padding:12px; margin:8px 0; font-size:16px; box-sizing:border-box; }
 textarea { min-height:120px; resize:vertical; }
 button { background:#0a2b52; color:#fff; border:none; border-radius:8px; cursor:pointer; }
 .list-item { padding:10px; background:#f2f2f2; margin:6px 0; border-radius:8px; }
-.flash { background:#2ecc71 !important; transition: background 0.1s; }
+.flash { background:#2ecc71 !important; }
+.flash-error { background:#e74c3c !important; }
 .manifest-box { background: #e8f0fe; padding: 15px; border-radius: 8px; border: 1px dashed #0a2b52; margin-bottom: 20px; }
 .report-box { background: #fff3e0; padding: 15px; border-radius: 8px; border: 1px dashed #f57c00; margin-bottom: 20px; }
 </style>
-
-<audio id="beep" preload="auto">
-  <source src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3" type="audio/mpeg">
-</audio>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -51,20 +48,74 @@ onAuthStateChanged(auth, (user) => {
   else listenForScansAndPods();
 });
 
-let customer, reason, scanInput, scanList, beep, bulkPOD, bulkManifest, bulkScanInput;
+let customer, reason, scanInput, scanList, bulkPOD, bulkManifest, bulkScanInput;
+let audioCtx = null;
+
+function getAudioContext() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+// 1. Crisp clicking sound for successful scans
+function playClickSound() {
+  try {
+    const ctx = getAudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1000, ctx.currentTime);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.04);
+  } catch(e) {}
+}
+
+// 2. Warning siren for validation errors / duplicates
+function playSirenSound() {
+  try {
+    const ctx = getAudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(400, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(800, ctx.currentTime + 0.15);
+    osc.frequency.linearRampToValueAtTime(400, ctx.currentTime + 0.3);
+    
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.3);
+  } catch(e) {}
+}
 
 window.addEventListener("DOMContentLoaded", () => {
   customer = document.getElementById("customer");
   reason = document.getElementById("reason");
   scanInput = document.getElementById("scanInput");
   scanList = document.getElementById("scanList");
-  beep = document.getElementById("beep");
   bulkPOD = document.getElementById("bulkPOD");
   bulkManifest = document.getElementById("bulkManifest");
   bulkScanInput = document.getElementById("bulkScanInput");
 
+  // Initialize audio context on first click interaction
   document.body.addEventListener("click", () => {
-    beep.play().then(() => beep.pause());
+    getAudioContext();
   }, { once: true });
 
   scanInput.focus();
@@ -98,18 +149,22 @@ window.saveScan = async () => {
 
   if (!customer.value || !reason.value) return alert("Select customer and reason!");
 
-  // FedEx validation: must not exceed 12 characters
+  // FedEx validation: must not exceed 12 characters -> Triggers Red Screen + Siren
   if (customer.value.toLowerCase().includes("fedex") && waybill.length > 12) {
-    alert("Error: FedEx waybill cannot exceed 12 characters!");
+    playSirenSound();
+    document.body.classList.add("flash-error");
+    setTimeout(() => document.body.classList.remove("flash-error"), 300);
     scanInput.value = "";
     scanInput.focus();
     return;
   }
 
-  // Duplicate check for waybill + reason combo in local state
+  // Duplicate check for waybill + reason combo -> Triggers Red Screen + Siren
   const isDuplicate = allScans.some(s => s.waybill === waybill && s.reason === reason.value);
   if (isDuplicate) {
-    alert(`Error: Duplicate scan! Waybill '${waybill}' has already been scanned for reason '${reason.value}'.`);
+    playSirenSound();
+    document.body.classList.add("flash-error");
+    setTimeout(() => document.body.classList.remove("flash-error"), 300);
     scanInput.value = "";
     scanInput.focus();
     return;
@@ -126,9 +181,11 @@ window.saveScan = async () => {
   }
 
   await push(ref(db,"scans"), { companyId, companyName, customer: customer.value, reason: reason.value, waybill, timestamp: Date.now() });
-  try { beep.currentTime = 0; beep.play(); } catch(e) {}
+  
+  playClickSound();
   document.body.classList.add("flash");
   setTimeout(() => document.body.classList.remove("flash"), 150);
+  
   scanInput.value = ""; scanInput.focus();
   listenForScansAndPods();
 };
@@ -158,7 +215,7 @@ window.importBulkScans = async () => {
     }
   }
 
-  try { beep.currentTime = 0; beep.play(); } catch(e) {}
+  playClickSound();
   document.body.classList.add("flash");
   setTimeout(() => document.body.classList.remove("flash"), 150);
   
@@ -218,7 +275,6 @@ window.exportToExcel = () => {
         POD: d.pod?.signedBy || 'N/A' 
     })));
     
-    // Add spacer and system generated note at the bottom of the worksheet grid
     XLSX.utils.sheet_add_aoa(ws, [
         [], 
         ["System generated report. Confidential documents extracted directly from Pakisa Floor System Database."]
@@ -278,7 +334,6 @@ window.emailReport = async () => {
     const selectedFilter = document.getElementById("filterCustomer").value;
     const targetCustomer = selectedFilter || data[0].customer;
 
-    // Route config for specific clients
     const emailRouting = {
         "Fedex Express": { 
             to: "odajnba@fedex.com", 
@@ -292,7 +347,6 @@ window.emailReport = async () => {
         }
     };
 
-    // Grab configuration or fallback directly to FedEx rules
     const route = emailRouting[targetCustomer] || { 
         to: "odajnba@fedex.com", 
         cc: "csd@pakisalogistics.co.za,tshedza.tshabalala@fedex.com,vusi.tswayi@fedex.com,emmanuel.naidoo@fedex.com,zola.ntobong@fedex.com,tsietsi.mokoma@fedex.com",
