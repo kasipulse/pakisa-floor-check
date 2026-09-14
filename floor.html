@@ -95,6 +95,26 @@ window.importManifest = async () => {
 window.saveScan = async () => {
   const waybill = scanInput.value.trim();
   if (!waybill) return;
+
+  if (!customer.value || !reason.value) return alert("Select customer and reason!");
+
+  // FedEx validation: must not exceed 12 characters
+  if (customer.value.toLowerCase().includes("fedex") && waybill.length > 12) {
+    alert("Error: FedEx waybill cannot exceed 12 characters!");
+    scanInput.value = "";
+    scanInput.focus();
+    return;
+  }
+
+  // Duplicate check for waybill + reason combo in local state
+  const isDuplicate = allScans.some(s => s.waybill === waybill && s.reason === reason.value);
+  if (isDuplicate) {
+    alert(`Error: Duplicate scan! Waybill '${waybill}' has already been scanned for reason '${reason.value}'.`);
+    scanInput.value = "";
+    scanInput.focus();
+    return;
+  }
+
   const snap = await get(ref(db, `manifest/${waybill}`));
   if (snap.exists()) {
     const autoAcc = snap.val().account;
@@ -104,7 +124,7 @@ window.saveScan = async () => {
         }
     }
   }
-  if (!customer.value || !reason.value) return alert("Select customer and reason!");
+
   await push(ref(db,"scans"), { companyId, companyName, customer: customer.value, reason: reason.value, waybill, timestamp: Date.now() });
   try { beep.currentTime = 0; beep.play(); } catch(e) {}
   document.body.classList.add("flash");
@@ -124,6 +144,9 @@ window.importBulkScans = async () => {
   for (let i = 0; i < lines.length; i++) {
     const waybill = lines[i].trim().replace(/\s+/g, "");
     if (waybill) {
+      if (customer.value.toLowerCase().includes("fedex") && waybill.length > 12) {
+        continue; // skip invalid lengths in bulk
+      }
       await push(ref(db, "scans"), { 
         companyId, 
         companyName, 
