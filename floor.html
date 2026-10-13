@@ -159,9 +159,18 @@ window.saveScan = async () => {
     return;
   }
 
-  // Duplicate check for waybill + reason combo -> Triggers Red Screen + Siren
-  const isDuplicate = allScans.some(s => s.waybill === waybill && s.reason === reason.value);
-  if (isDuplicate) {
+  // Duplicate check: only block if scanned with the same reason ON THE SAME DAY
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayStartTime = todayStart.getTime();
+
+  const isDuplicateToday = allScans.some(s => 
+    s.waybill === waybill && 
+    s.reason === reason.value && 
+    s.timestamp >= todayStartTime
+  );
+
+  if (isDuplicateToday) {
     playSirenSound();
     document.body.classList.add("flash-error");
     setTimeout(() => document.body.classList.remove("flash-error"), 300);
